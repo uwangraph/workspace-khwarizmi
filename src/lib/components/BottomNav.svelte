@@ -1,39 +1,16 @@
 <script lang="ts">
   import { page } from '$app/stores'
-  import { supabase } from '$lib/supabase'
-  import { onMount } from 'svelte'
   
+  // Menggunakan Svelte 5 $derived untuk tracking path aktif
   let currentPath = $derived($page.url.pathname)
-  let unreadCount = $state(0)
   
+  // Menghapus item notifikasi dari daftar navigasi
   const navItems = [
     { path: '/', label: 'Beranda', icon: 'home' },
     { path: '/absensi', label: 'Presensi', icon: 'calendar' },
     { path: '/tasks', label: 'Tugas', icon: 'tasks' },
-    { path: '/notifications', label: 'Notifikasi', icon: 'bell' },
+    { path: '/profile', label: 'Profil', icon: 'profile' },
   ]
-  
-  async function loadUnreadCount() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    
-    const { count, error } = await supabase
-      .from('notifications')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('is_read', false)
-    
-    if (!error && count !== null) {
-      unreadCount = count
-    }
-  }
-  
-  onMount(() => {
-    loadUnreadCount()
-    // Refresh setiap 30 detik
-    const interval = setInterval(loadUnreadCount, 30000)
-    return () => clearInterval(interval)
-  })
 </script>
 
 <nav class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-slate-200 shadow-lg safe-bottom">
@@ -61,17 +38,10 @@
           <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
           </svg>
-        {:else if item.icon === 'bell'}
-          <div class="relative">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-            {#if unreadCount > 0}
-              <span class="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold text-white bg-red-500 flex items-center justify-center">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            {/if}
-          </div>
+        {:else if item.icon === 'profile'}
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
         {/if}
         <span class="text-[10px] font-semibold">{item.label}</span>
       </a>

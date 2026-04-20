@@ -1,1397 +1,971 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { supabase } from '$lib/supabase';
-	import type { User } from '@supabase/supabase-js';
+  import { onMount } from 'svelte'
+  import { supabase } from '$lib/supabase'
+  import type { User } from '@supabase/supabase-js'
+  import {
+    Clock, Check, X, Camera, RotateCcw, Send,
+    AlertTriangle, FileText, Lock, LogIn, LogOut,
+    ChevronRight, MapPin, Shield, Eye
+  } from 'lucide-svelte'
 
-	// ── Types ──────────────────────────────────────────
-	interface Profile {
-		id: string;
-		full_name: string;
-		role: 'admin' | 'user';
-	}
+  // ── Types ──────────────────────────────────────────
+  interface Profile {
+    id: string
+    full_name: string
+    role: 'admin' | 'user'
+  }
 
-	interface AttendanceRecord {
-		id: string;
-		session_id: number;
-		date: string;
-		check_in: string | null;
-		check_out: string | null;
-		photo_in_url: string | null;
-		photo_out_url: string | null;
-		forgot_checkout: boolean;
-		late: boolean;
-		late_reason: string | null;
-	}
+  interface AttendanceRecord {
+    id: string
+    session_id: number
+    date: string
+    check_in: string | null
+    check_out: string | null
+    photo_in_url: string | null
+    photo_out_url: string | null
+    forgot_checkout: boolean
+    late: boolean
+    late_reason: string | null
+  }
 
-	interface Session {
-		id: number;
-		name: string;
-		start: string;
-		end: string;
-		unlockAt: string;
-		autoCheckoutAt: string;
-		hasLateCheck?: boolean;
-		requireLocation?: boolean;
-	}
+  interface Session {
+    id: number
+    name: string
+    start: string
+    end: string
+    unlockAt: string
+    autoCheckoutAt: string
+    hasLateCheck?: boolean
+    requireLocation?: boolean
+  }
 
-	interface LeaveRecord {
-		id: string;
-		date: string;
-		type: 'izin' | 'sakit';
-		reason: string;
-		session_id: number | null;
-	}
+  interface LeaveRecord {
+    id: string
+    date: string
+    type: 'izin' | 'sakit'
+    reason: string
+    session_id: number | null
+  }
 
-	interface PenaltyRecord {
-		id: string;
-		date: string;
-		session_id: number;
-		minutes: number;
-		reason: string;
-	}
+  interface PenaltyRecord {
+    id: string
+    date: string
+    session_id: number
+    minutes: number
+    reason: string
+  }
 
-	// ── Constants ──────────────────────────────────────
-	const OFFICE_LAT = -6.655905;
-	const OFFICE_LNG = 106.696199;
-	const MAX_RADIUS_M = 25;
+  // ── Constants ──────────────────────────────────────
+  const OFFICE_LAT = -6.655905
+  const OFFICE_LNG = 106.696199
+  const MAX_RADIUS_M = 25
+  const LATE_TOLERANCE_MIN = 5
 
-	const SESSIONS: Session[] = [
-		{
-			id: 1,
-			name: 'Sesi Pagi',
-			start: '08:00',
-			end: '11:30',
-			unlockAt: '06:00',
-			autoCheckoutAt: '12:00',
-			hasLateCheck: true,
-			requireLocation: true
-		},
-		{
-			id: 2,
-			name: 'Sesi Siang',
-			start: '13:30',
-			end: '15:00',
-			unlockAt: '12:00',
-			autoCheckoutAt: '15:30',
-			hasLateCheck: true,
-			requireLocation: true
-		},
-		{
-			id: 3,
-			name: 'Sesi Sore',
-			start: '16:00',
-			end: '22:00',
-			unlockAt: '15:30',
-			autoCheckoutAt: '18:00',
-			hasLateCheck: true,
-			requireLocation: true
-		},
-		{
-			id: 4,
-			name: 'Lembur',
-			start: '20:00',
-			end: '23:59',
-			unlockAt: '19:30',
-			autoCheckoutAt: '23:59',
-			requireLocation: false
-		}
-	];
+  const SESSIONS: Session[] = [
+    { id: 1, name: 'Sesi Pagi',  start: '08:00', end: '11:30', unlockAt: '06:00', autoCheckoutAt: '12:00', hasLateCheck: true, requireLocation: true },
+    { id: 2, name: 'Sesi Siang', start: '13:30', end: '15:00', unlockAt: '12:00', autoCheckoutAt: '15:30', hasLateCheck: true, requireLocation: true },
+    { id: 3, name: 'Sesi Sore',  start: '16:00', end: '22:00', unlockAt: '15:30', autoCheckoutAt: '22:30', hasLateCheck: true, requireLocation: true },
+    { id: 4, name: 'Lembur',     start: '20:00', end: '23:59', unlockAt: '19:30', autoCheckoutAt: '23:59', requireLocation: false },
+  ]
 
-	const LATE_TOLERANCE_MIN = 5;
+  // ── State ──────────────────────────────────────────
+  let user = $state<User | null>(null)
+  let profile = $state<Profile | null>(null)
+  let attendance = $state<AttendanceRecord[]>([])
+  let leaves = $state<LeaveRecord[]>([])
+  let penalties = $state<PenaltyRecord[]>([])
+  let isLoading = $state(true)
 
-	// ── State ──────────────────────────────────────────
-	let user = $state<User | null>(null);
-	let profile = $state<Profile | null>(null);
-	let attendance = $state<AttendanceRecord[]>([]);
-	let leaves = $state<LeaveRecord[]>([]);
-	let penalties = $state<PenaltyRecord[]>([]);
-	let isLoading = $state(true);
+  // Camera
+  let showCamera = $state(false)
+  let cameraSessionId = $state(0)
+  let cameraType = $state<'in' | 'out'>('in')
+  let cameraStream = $state<MediaStream | null>(null)
+  let videoEl = $state<HTMLVideoElement | null>(null)
+  let capturedBlob = $state<Blob | null>(null)
+  let capturedUrl = $state('')
+  let cameraStatus = $state('')
+  let isSubmitting = $state(false)
 
-	// Camera
-	let showCamera = $state(false);
-	let cameraSessionId = $state(0);
-	let cameraType = $state<'in' | 'out'>('in');
-	let cameraStream = $state<MediaStream | null>(null);
-	let videoEl = $state<HTMLVideoElement | null>(null);
-	let capturedBlob = $state<Blob | null>(null);
-	let capturedUrl = $state('');
-	let cameraStatus = $state('');
-	let isSubmitting = $state(false);
+  // Late
+  let showLateModal = $state(false)
+  let lateSessionId = $state(0)
+  let lateReason = $state('')
+  let lateMinutes = $state(0)
 
-	// Late modal
-	let showLateModal = $state(false);
-	let lateSessionId = $state(0);
-	let lateReason = $state('');
-	let lateMinutes = $state(0);
+  // Leave
+  let showLeaveModal = $state(false)
+  let leaveType = $state<'izin' | 'sakit'>('izin')
+  let leaveReason = $state('')
+  let leaveSessionId = $state<number | null>(null)
+  let isSubmittingLeave = $state(false)
+  let leaveStatus = $state('')
 
-	// Leave modal
-	let showLeaveModal = $state(false);
-	let leaveType = $state<'izin' | 'sakit'>('izin');
-	let leaveReason = $state('');
-	let leaveSessionId = $state<number | null>(null);
-	let isSubmittingLeave = $state(false);
-	let leaveStatus = $state('');
+  // Photo viewer
+  let photoViewUrl = $state('')
+  let showPhotoView = $state(false)
 
-	// Photo viewer
-	let photoViewUrl = $state('');
-	let showPhotoView = $state(false);
+  // Toast
+  let toastMsg = $state('')
+  let toastType = $state<'success' | 'error' | 'info'>('success')
+  let toastVisible = $state(false)
+  let toastTimer = 0
 
-	// Toast
-	let toastMsg = $state('');
-	let toastVisible = $state(false);
-	let toastTimer = 0;
+  // Clock
+  let now = $state(new Date())
 
-	// Clock
-	let now = $state(new Date());
+  // ── Effects ────────────────────────────────────────
+  $effect(() => {
+    const t = setInterval(() => (now = new Date()), 30_000)
+    return () => clearInterval(t)
+  })
 
-	// ── Effects ────────────────────────────────────────
-	$effect(() => {
-		const t = setInterval(() => (now = new Date()), 30_000);
-		return () => clearInterval(t);
-	});
+  $effect(() => {
+    if (videoEl && cameraStream) videoEl.srcObject = cameraStream
+  })
 
-	$effect(() => {
-		if (videoEl && cameraStream) videoEl.srcObject = cameraStream;
-	});
+  // ── Computed ───────────────────────────────────────
+  let attendanceMap = $derived(Object.fromEntries(attendance.map(a => [a.session_id, a])))
+  let todayStr = $derived(new Date().toISOString().split('T')[0])
 
-	// ── Computed ───────────────────────────────────────
-	let attendanceMap = $derived(Object.fromEntries(attendance.map((a) => [a.session_id, a])));
+  // ── Helpers ────────────────────────────────────────
+  function toMin(time: string) {
+    const [h, m] = time.split(':').map(Number)
+    return h * 60 + m
+  }
 
-	let todayLeave = $derived(leaves.find((l) => l.date === new Date().toISOString().split('T')[0]));
+  function formatTime(iso: string | null) {
+    if (!iso) return '—'
+    return new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+  }
 
-	// ── Helpers ────────────────────────────────────────
-	function toMin(time: string) {
-		const [h, m] = time.split(':').map(Number);
-		return h * 60 + m;
-	}
+  function formatDateIndonesian(date: Date) {
+    return date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  }
 
-	function formatTime(iso: string | null) {
-		if (!iso) return '—';
-		return new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-	}
+  function showToast(msg: string, type: 'success' | 'error' | 'info' = 'success', dur = 3000) {
+    clearTimeout(toastTimer)
+    toastMsg = msg
+    toastType = type
+    toastVisible = true
+    toastTimer = setTimeout(() => toastVisible = false, dur) as unknown as number
+  }
 
-	function formatDateIndonesian(date: Date) {
-		return date.toLocaleDateString('id-ID', {
-			weekday: 'long',
-			day: 'numeric',
-			month: 'long',
-			year: 'numeric'
-		});
-	}
+  /** Check apakah sesi tertentu sedang izin/sakit */
+  function isSessionOnLeave(sessionId: number): LeaveRecord | null {
+    // Cek leave yang berlaku untuk semua sesi (session_id = null) ATAU spesifik sesi ini
+    return leaves.find(l => l.session_id === null || l.session_id === sessionId) || null
+  }
 
-	function showToast(msg: string, dur = 3000) {
-		clearTimeout(toastTimer);
-		toastMsg = msg;
-		toastVisible = true;
-		toastTimer = setTimeout(() => (toastVisible = false), dur) as unknown as number;
-	}
+  // ── Geolocation ────────────────────────────────────
+  function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6_371_000
+    const dLat = ((lat2 - lat1) * Math.PI) / 180
+    const dLng = ((lng2 - lng1) * Math.PI) / 180
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  }
 
-	// ── Geolocation ────────────────────────────────────
-	function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
-		const R = 6_371_000;
-		const dLat = ((lat2 - lat1) * Math.PI) / 180;
-		const dLng = ((lng2 - lng1) * Math.PI) / 180;
-		const a =
-			Math.sin(dLat / 2) ** 2 +
-			Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-		return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-	}
+  async function checkLocation(): Promise<{ ok: boolean; distance?: number; error?: string }> {
+    return new Promise(resolve => {
+      if (!navigator.geolocation) {
+        resolve({ ok: false, error: 'Perangkat tidak mendukung GPS' })
+        return
+      }
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const dist = haversineMeters(pos.coords.latitude, pos.coords.longitude, OFFICE_LAT, OFFICE_LNG)
+          if (dist <= MAX_RADIUS_M) resolve({ ok: true, distance: dist })
+          else resolve({ ok: false, distance: dist, error: `Anda ${Math.round(dist)}m dari kantor (maks ${MAX_RADIUS_M}m)` })
+        },
+        err => {
+          const msgs: Record<number, string> = {
+            [err.PERMISSION_DENIED]: 'Akses lokasi ditolak. Aktifkan GPS.',
+            [err.POSITION_UNAVAILABLE]: 'Lokasi tidak tersedia. Pastikan GPS aktif.',
+            [err.TIMEOUT]: 'Timeout. Coba lagi.',
+          }
+          resolve({ ok: false, error: msgs[err.code] || 'Gagal mendapatkan lokasi' })
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      )
+    })
+  }
 
-	async function checkLocation(): Promise<{ ok: boolean; distance?: number; error?: string }> {
-		return new Promise((resolve) => {
-			if (!navigator.geolocation) {
-				resolve({ ok: false, error: 'Perangkat tidak mendukung fitur GPS' });
-				return;
-			}
-			navigator.geolocation.getCurrentPosition(
-				(pos) => {
-					const dist = haversineMeters(
-						pos.coords.latitude,
-						pos.coords.longitude,
-						OFFICE_LAT,
-						OFFICE_LNG
-					);
-					if (dist <= MAX_RADIUS_M) {
-						resolve({ ok: true, distance: dist });
-					} else {
-						resolve({
-							ok: false,
-							distance: dist,
-							error: `Anda berada ${Math.round(dist)} meter dari lokasi kantor. Maksimal jarak yang diizinkan adalah ${MAX_RADIUS_M} meter.`
-						});
-					}
-				},
-				(err) => {
-					let msg = '';
-					switch (err.code) {
-						case err.PERMISSION_DENIED:
-							msg = 'Akses lokasi ditolak. Silakan aktifkan GPS untuk melanjutkan absensi.';
-							break;
-						case err.POSITION_UNAVAILABLE:
-							msg =
-								'Lokasi tidak tersedia. Pastikan GPS aktif dan Anda berada di area dengan sinyal baik.';
-							break;
-						case err.TIMEOUT:
-							msg = 'Waktu permintaan lokasi habis. Coba lagi dalam beberapa saat.';
-							break;
-						default:
-							msg = 'Gagal mendapatkan lokasi. Periksa koneksi dan coba lagi.';
-					}
-					resolve({ ok: false, error: msg });
-				},
-				{ enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-			);
-		});
-	}
+  // ── Late check ─────────────────────────────────────
+  function isLate(session: Session): { late: boolean; minutes: number } {
+    if (!session.hasLateCheck) return { late: false, minutes: 0 }
+    const curMin = now.getHours() * 60 + now.getMinutes()
+    const startMin = toMin(session.start)
+    const diff = curMin - startMin
+    if (diff > LATE_TOLERANCE_MIN) return { late: true, minutes: diff }
+    return { late: false, minutes: 0 }
+  }
 
-	// ── Late check ─────────────────────────────────────
-	function isLate(session: Session): { late: boolean; minutes: number } {
-		if (!session.hasLateCheck) return { late: false, minutes: 0 };
-		const curMin = now.getHours() * 60 + now.getMinutes();
-		const startMin = toMin(session.start);
-		const diff = curMin - startMin;
-		if (diff > LATE_TOLERANCE_MIN) return { late: true, minutes: diff };
-		return { late: false, minutes: 0 };
-	}
+  // ── Auto Checkout ──────────────────────────────────
+  async function runAutoCheckout(u: User) {
+    const curMin = new Date().getHours() * 60 + new Date().getMinutes()
+    const today = new Date().toISOString().split('T')[0]
 
-	// ── Auto Checkout ──────────────────────────────────
-	async function runAutoCheckout(u: NonNullable<typeof user>) {
-		const curMin = new Date().getHours() * 60 + new Date().getMinutes();
-		const today = new Date().toISOString().split('T')[0];
+    for (const s of SESSIONS) {
+      const autoMin = toMin(s.autoCheckoutAt)
+      if (curMin < autoMin) continue
 
-		for (const s of SESSIONS) {
-			const autoMin = toMin(s.autoCheckoutAt);
-			if (curMin < autoMin) continue;
+      const rec = attendance.find(a => a.session_id === s.id)
+      if (rec && rec.check_in && !rec.check_out) {
+        const [h, m] = s.autoCheckoutAt.split(':').map(Number)
+        const checkoutTime = new Date()
+        checkoutTime.setHours(h, m, 0, 0)
 
-			const rec = attendance.find((a) => a.session_id === s.id);
-			if (rec && rec.check_in && !rec.check_out) {
-				const [h, m] = s.autoCheckoutAt.split(':').map(Number);
-				const checkoutTime = new Date();
-				checkoutTime.setHours(h, m, 0, 0);
+        const { error } = await supabase.from('attendance')
+          .update({ check_out: checkoutTime.toISOString(), forgot_checkout: true })
+          .eq('id', rec.id)
 
-				const { error } = await supabase
-					.from('attendance')
-					.update({
-						check_out: checkoutTime.toISOString(),
-						forgot_checkout: true
-					})
-					.eq('user_id', u.id)
-					.eq('session_id', s.id)
-					.eq('date', today);
+        if (!error) {
+          await supabase.from('attendance_penalties').insert({
+            user_id: u.id,
+            date: today,
+            session_id: s.id,
+            minutes: 10,
+            reason: `Lupa checkout ${s.name}`,
+          })
+        }
+      }
+    }
+  }
 
-				if (!error) {
-					await supabase.from('attendance_penalties').insert({
-						user_id: u.id,
-						date: today,
-						session_id: s.id,
-						minutes: 10,
-						reason: `Lupa checkout sesi ${s.name}`
-					});
-				}
-			}
-		}
-	}
+  // ── Data ───────────────────────────────────────────
+  async function loadData() {
+    isLoading = true
+    const { data: { user: u } } = await supabase.auth.getUser()
+    if (!u) { location.assign('/auth'); return }
+    user = u
 
-	// ── Data ───────────────────────────────────────────
-	async function loadData() {
-		isLoading = true;
-		const {
-			data: { user: u }
-		} = await supabase.auth.getUser();
-		if (!u) {
-			location.assign('/auth');
-			return;
-		}
-		user = u;
+    const today = new Date().toISOString().split('T')[0]
 
-		const today = new Date().toISOString().split('T')[0];
+    const [profileRes, attendRes, leavesRes, penaltiesRes] = await Promise.all([
+      supabase.from('profiles').select('*').eq('id', u.id).single(),
+      supabase.from('attendance').select('*').eq('user_id', u.id).eq('date', today),
+      supabase.from('attendance_leaves').select('*').eq('user_id', u.id).eq('date', today),
+      supabase.from('attendance_penalties').select('*').eq('user_id', u.id).eq('date', today),
+    ])
 
-		const [profileRes, attendRes, leavesRes, penaltiesRes] = await Promise.all([
-			supabase.from('profiles').select('*').eq('id', u.id).single(),
-			supabase.from('attendance').select('*').eq('user_id', u.id).eq('date', today),
-			supabase.from('attendance_leaves').select('*').eq('user_id', u.id).eq('date', today),
-			supabase.from('attendance_penalties').select('*').eq('user_id', u.id).eq('date', today)
-		]);
+    if (profileRes.data) profile = profileRes.data
+    if (attendRes.data) attendance = attendRes.data
+    if (leavesRes.data) leaves = leavesRes.data
+    if (penaltiesRes.data) penalties = penaltiesRes.data
 
-		if (profileRes.data) profile = profileRes.data;
-		if (attendRes.data) attendance = attendRes.data;
-		if (leavesRes.data) leaves = leavesRes.data;
-		if (penaltiesRes.data) penalties = penaltiesRes.data;
+    await runAutoCheckout(u)
 
-		await runAutoCheckout(u);
+    // Refresh after auto checkout
+    const [freshA, freshP] = await Promise.all([
+      supabase.from('attendance').select('*').eq('user_id', u.id).eq('date', today),
+      supabase.from('attendance_penalties').select('*').eq('user_id', u.id).eq('date', today),
+    ])
+    if (freshA.data) attendance = freshA.data
+    if (freshP.data) penalties = freshP.data
 
-		const [freshAttend, freshPenalties] = await Promise.all([
-			supabase.from('attendance').select('*').eq('user_id', u.id).eq('date', today),
-			supabase.from('attendance_penalties').select('*').eq('user_id', u.id).eq('date', today)
-		]);
-		if (freshAttend.data) attendance = freshAttend.data;
-		if (freshPenalties.data) penalties = freshPenalties.data;
+    isLoading = false
+  }
 
-		isLoading = false;
-	}
+  // ── Camera ─────────────────────────────────────────
+  async function openCamera(sid: number, type: 'in' | 'out') {
+    const session = SESSIONS.find(s => s.id === sid)!
 
-	// ── Camera ─────────────────────────────────────────
-	async function openCamera(sid: number, type: 'in' | 'out') {
-		const session = SESSIONS.find((s) => s.id === sid)!;
+    if (session.requireLocation !== false) {
+      cameraStatus = 'Memverifikasi lokasi...'
+      showCamera = true
 
-		const requiresLocation = session.requireLocation !== false;
+      const loc = await checkLocation()
+      if (!loc.ok) {
+        closeCamera()
+        showToast(loc.error || 'Lokasi tidak valid', 'error', 4000)
+        return
+      }
+    } else {
+      cameraStatus = 'Membuka kamera...'
+      showCamera = true
+    }
 
-		if (requiresLocation) {
-			cameraStatus = 'Memverifikasi lokasi...';
-			showCamera = true;
+    if (type === 'in') {
+      const lateInfo = isLate(session)
+      if (lateInfo.late) {
+        lateSessionId = sid
+        lateMinutes = lateInfo.minutes
+        showCamera = false
+        showLateModal = true
+        return
+      }
+    }
 
-			const loc = await checkLocation();
-			if (!loc.ok) {
-				closeCamera();
-				showToast(loc.error || 'Lokasi tidak valid', 4000);
-				return;
-			}
-		} else {
-			cameraStatus = 'Membuka kamera...';
-			showCamera = true;
-		}
+    cameraSessionId = sid
+    cameraType = type
+    capturedBlob = null
+    capturedUrl = ''
+    cameraStatus = ''
+    isSubmitting = false
+    await startStream()
+  }
 
-		if (type === 'in') {
-			const lateInfo = isLate(session);
-			if (lateInfo.late) {
-				lateSessionId = sid;
-				lateMinutes = lateInfo.minutes;
-				showCamera = false;
-				showLateModal = true;
-				return;
-			}
-		}
+  async function confirmLate(withReason: string) {
+    showLateModal = false
+    lateReason = withReason
+    cameraSessionId = lateSessionId
+    cameraType = 'in'
+    capturedBlob = null
+    capturedUrl = ''
+    cameraStatus = ''
+    isSubmitting = false
+    showCamera = true
+    await startStream()
+  }
 
-		cameraSessionId = sid;
-		cameraType = type;
-		capturedBlob = null;
-		capturedUrl = '';
-		cameraStatus = '';
-		isSubmitting = false;
-		await startStream();
-	}
+  async function startStream() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 720 } }
+      })
+      cameraStream = stream
+    } catch {
+      showToast('Akses kamera diperlukan', 'error')
+      closeCamera()
+    }
+  }
 
-	async function confirmLate(withReason: string) {
-		showLateModal = false;
-		lateReason = withReason;
-		cameraSessionId = lateSessionId;
-		cameraType = 'in';
-		capturedBlob = null;
-		capturedUrl = '';
-		cameraStatus = '';
-		isSubmitting = false;
-		showCamera = true;
-		await startStream();
-	}
+  function stopStream() {
+    cameraStream?.getTracks().forEach(t => t.stop())
+    cameraStream = null
+  }
 
-	async function startStream() {
-		try {
-			const stream = await navigator.mediaDevices.getUserMedia({
-				video: { facingMode: 'environment', width: { ideal: 720 } }
-			});
-			cameraStream = stream;
-		} catch {
-			showToast('Akses kamera diperlukan untuk melakukan absensi');
-			closeCamera();
-		}
-	}
+  function closeCamera() {
+    stopStream()
+    showCamera = false
+    cameraStatus = ''
+  }
 
-	function stopStream() {
-		cameraStream?.getTracks().forEach((t) => t.stop());
-		cameraStream = null;
-	}
+  function takePhoto() {
+    if (!videoEl) return
+    const canvas = document.createElement('canvas')
+    const vw = videoEl.videoWidth || 720
+    const vh = videoEl.videoHeight || 960
+    canvas.width = vw
+    canvas.height = vh
+    const ctx = canvas.getContext('2d')!
+    // TIDAK mirror — gambar hasil capture sesuai realita
+    ctx.drawImage(videoEl, 0, 0, vw, vh)
+    capturedUrl = canvas.toDataURL('image/jpeg', 0.85)
+    canvas.toBlob(b => { capturedBlob = b }, 'image/jpeg', 0.75)
+    stopStream()
+    cameraStatus = 'Pastikan foto jelas sebelum mengirim'
+  }
 
-	function closeCamera() {
-		stopStream();
-		showCamera = false;
-		cameraStatus = '';
-	}
+  async function retake() {
+    capturedBlob = null
+    capturedUrl = ''
+    cameraStatus = ''
+    await startStream()
+  }
 
-	function takePhoto() {
-		if (!videoEl) return;
-		const canvas = document.createElement('canvas');
-		canvas.width = videoEl.videoWidth || 720;
-		canvas.height = videoEl.videoHeight || 960;
-		canvas.getContext('2d')!.drawImage(videoEl, 0, 0);
-		capturedUrl = canvas.toDataURL('image/jpeg', 0.85);
-		canvas.toBlob(
-			(b) => {
-				capturedBlob = b;
-			},
-			'image/jpeg',
-			0.75
-		);
-		stopStream();
-		cameraStatus = 'Foto telah diambil. Pastikan foto jelas sebelum mengirim.';
-	}
+  async function submitPhoto() {
+    if (!capturedBlob || !user) return
+    isSubmitting = true
+    cameraStatus = ''
 
-	async function retake() {
-		capturedBlob = null;
-		capturedUrl = '';
-		cameraStatus = '';
-		await startStream();
-	}
+    try {
+      const path = `${user.id}/${Date.now()}_${cameraType}.jpg`
+      const { error: upErr } = await supabase.storage.from('selfies').upload(path, capturedBlob, { contentType: 'image/jpeg' })
+      if (upErr) throw upErr
 
-	async function submitPhoto() {
-		if (!capturedBlob || !user) return;
-		isSubmitting = true;
-		cameraStatus = '';
+      const { data: { publicUrl } } = supabase.storage.from('selfies').getPublicUrl(path)
+      const today = new Date().toISOString().split('T')[0]
 
-		try {
-			const path = `${user.id}/${Date.now()}_${cameraType}.jpg`;
-			const { error: upErr } = await supabase.storage
-				.from('selfies')
-				.upload(path, capturedBlob, { contentType: 'image/jpeg' });
-			if (upErr) throw upErr;
+      if (cameraType === 'in') {
+        const lateInfo = isLate(SESSIONS.find(s => s.id === cameraSessionId)!)
+        const { error } = await supabase.from('attendance').insert({
+          user_id: user.id,
+          session_id: cameraSessionId,
+          date: today,
+          check_in: new Date().toISOString(),
+          photo_in_url: publicUrl,
+          late: lateInfo.late,
+          late_reason: lateReason || null,
+        })
+        if (error) throw error
+        showToast('Check-in berhasil', 'success')
+      } else {
+        const { error } = await supabase.from('attendance')
+          .update({ check_out: new Date().toISOString(), photo_out_url: publicUrl })
+          .eq('user_id', user.id)
+          .eq('session_id', cameraSessionId)
+          .eq('date', today)
+        if (error) throw error
+        showToast('Check-out berhasil', 'success')
+      }
 
-			const {
-				data: { publicUrl }
-			} = supabase.storage.from('selfies').getPublicUrl(path);
-			const today = new Date().toISOString().split('T')[0];
+      lateReason = ''
+      closeCamera()
+      await loadData()
+    } catch (e: unknown) {
+      cameraStatus = e instanceof Error ? e.message : 'Terjadi kesalahan'
+      isSubmitting = false
+    }
+  }
 
-			if (cameraType === 'in') {
-				const lateInfo = isLate(SESSIONS.find((s) => s.id === cameraSessionId)!);
-				const { error } = await supabase.from('attendance').insert({
-					user_id: user.id,
-					session_id: cameraSessionId,
-					date: today,
-					check_in: new Date().toISOString(),
-					photo_in_url: publicUrl,
-					late: lateInfo.late,
-					late_reason: lateReason || null
-				});
-				if (error) throw error;
-				showToast('Check-in berhasil. Selamat bekerja!');
-			} else {
-				const { error } = await supabase
-					.from('attendance')
-					.update({
-						check_out: new Date().toISOString(),
-						photo_out_url: publicUrl
-					})
-					.eq('user_id', user.id)
-					.eq('session_id', cameraSessionId)
-					.eq('date', today);
-				if (error) throw error;
-				showToast('Check-out berhasil. Sampai jumpa di sesi berikutnya!');
-			}
+  // ── Leave ──────────────────────────────────────────
+  function openLeaveModal() {
+    leaveType = 'izin'
+    leaveReason = ''
+    leaveSessionId = null
+    leaveStatus = ''
+    isSubmittingLeave = false
+    showLeaveModal = true
+  }
 
-			lateReason = '';
-			closeCamera();
-			await loadData();
-		} catch (e: unknown) {
-			cameraStatus = e instanceof Error ? e.message : 'Terjadi kesalahan. Silakan coba kembali.';
-			isSubmitting = false;
-		}
-	}
+  async function submitLeave() {
+    if (!user) return
+    if (!leaveReason.trim()) {
+      leaveStatus = 'Alasan wajib diisi'
+      return
+    }
 
-	// ── Leave ──────────────────────────────────────────
-	function openLeaveModal() {
-		leaveType = 'izin';
-		leaveReason = '';
-		leaveSessionId = null;
-		leaveStatus = '';
-		isSubmittingLeave = false;
-		showLeaveModal = true;
-	}
+    // Validasi: cek apakah sudah ada leave untuk sesi ini hari ini
+    if (leaveSessionId !== null) {
+      const existingLeave = leaves.find(l => l.session_id === leaveSessionId)
+      if (existingLeave) {
+        leaveStatus = `Sudah ada izin/sakit untuk ${SESSIONS.find(s => s.id === leaveSessionId)?.name}`
+        return
+      }
+    }
 
-	async function submitLeave() {
-		if (!user) return;
-		if (!leaveReason.trim()) {
-			leaveStatus = 'Alasan wajib diisi.';
-			return;
-		}
-		isSubmittingLeave = true;
-		leaveStatus = '';
+    isSubmittingLeave = true
+    leaveStatus = ''
 
-		try {
-			const { error } = await supabase.from('attendance_leaves').insert({
-				user_id: user.id,
-				date: new Date().toISOString().split('T')[0],
-				type: leaveType,
-				reason: leaveReason.trim(),
-				session_id: leaveSessionId
-			});
-			if (error) throw error;
-			showLeaveModal = false;
-			showToast(
-				leaveType === 'izin' ? 'Izin telah dicatat.' : 'Sakit telah dicatat. Istirahat yang cukup!'
-			);
-			await loadData();
-		} catch (e: unknown) {
-			leaveStatus = e instanceof Error ? e.message : 'Gagal menyimpan. Silakan coba lagi.';
-			isSubmittingLeave = false;
-		}
-	}
+    try {
+      const { error } = await supabase.from('attendance_leaves').insert({
+        user_id: user.id,
+        date: new Date().toISOString().split('T')[0],
+        type: leaveType,
+        reason: leaveReason.trim(),
+        session_id: leaveSessionId,
+      })
+      if (error) throw error
+      showLeaveModal = false
+      showToast(leaveType === 'izin' ? 'Izin berhasil dicatat' : 'Sakit berhasil dicatat', 'success')
+      await loadData()
+    } catch (e: unknown) {
+      leaveStatus = e instanceof Error ? e.message : 'Gagal menyimpan'
+      isSubmittingLeave = false
+    }
+  }
 
-	// ── Lifecycle ──────────────────────────────────────
-	onMount(loadData);
+  onMount(loadData)
 </script>
 
 <svelte:head>
-	<title>Presensi — Workspace Khwarizmi</title>
-	<link
-		href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
-		rel="stylesheet"
-	/>
+  <title>Presensi — Workspace Khwarizmi</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 </svelte:head>
 
-<!-- Toast Notification -->
+<!-- Toast -->
 {#if toastVisible}
-	<div
-		class="animate-in fade-in slide-in-from-bottom-4 fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl px-5 py-3 text-sm font-medium text-white shadow-xl duration-300"
-		style="background: linear-gradient(135deg, #F97316, #EA580C); font-family:'Inter',sans-serif; backdrop-filter:blur(10px);"
-	>
-		{toastMsg}
-	</div>
+  <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] px-5 py-3 rounded-xl text-sm font-medium text-white shadow-2xl flex items-center gap-2 max-w-[90vw]"
+       style="background: {toastType === 'success' ? '#16A34A' : toastType === 'error' ? '#DC2626' : '#3B82F6'}; animation: slideInUp 0.3s ease-out;">
+    {#if toastType === 'success'}<Check size={16} />
+    {:else if toastType === 'error'}<X size={16} />
+    {:else}<AlertTriangle size={16} />{/if}
+    {toastMsg}
+  </div>
 {/if}
 
 <!-- Photo Viewer -->
 {#if showPhotoView}
-	<div
-		class="fixed inset-0 z-50 flex items-center justify-center p-5"
-		style="background:rgba(0,0,0,0.92); backdrop-filter:blur(20px);"
-		onclick={() => (showPhotoView = false)}
-		role="dialog"
-		aria-modal="true"
-	>
-		<button
-			class="absolute top-5 right-5 flex h-10 w-10 items-center justify-center rounded-full text-xl text-white transition-all hover:scale-110"
-			style="background:rgba(255,255,255,0.1);"
-			onclick={() => (showPhotoView = false)}>✕</button
-		>
-		<img
-			src={photoViewUrl}
-			alt="Bukti Absensi"
-			class="max-h-[90vh] max-w-full rounded-2xl object-contain shadow-2xl"
-		/>
-	</div>
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-5"
+       style="background:rgba(0,0,0,0.92); backdrop-filter:blur(20px);"
+       onclick={() => showPhotoView = false} role="dialog" aria-modal="true">
+    <button class="absolute top-5 right-5 w-10 h-10 rounded-full flex items-center justify-center text-white transition-all hover:scale-110"
+            style="background:rgba(255,255,255,0.1);" onclick={() => showPhotoView = false}>
+      <X size={20} />
+    </button>
+    <img src={photoViewUrl} alt="Bukti Absensi" class="max-h-[90vh] max-w-full rounded-2xl object-contain shadow-2xl" />
+  </div>
 {/if}
 
 <!-- Late Reason Modal -->
 {#if showLateModal}
-	<div
-		class="fixed inset-0 z-40 flex items-center justify-center p-4"
-		style="background:rgba(0,0,0,0.6); backdrop-filter:blur(12px);"
-	>
-		<div
-			class="animate-in zoom-in-95 w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl duration-200"
-		>
-			<div class="border-b border-amber-100 px-6 py-5" style="background:#FFFBEB;">
-				<div class="flex items-center gap-3">
-					<svg class="h-6 w-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-						/>
-					</svg>
-					<div>
-						<p
-							class="text-base font-bold text-amber-700"
-							style="font-family:'Plus Jakarta Sans',sans-serif;"
-						>
-							Terlambat {lateMinutes} Menit
-						</p>
-						<p class="mt-0.5 text-xs text-amber-600">
-							Melebihi toleransi {LATE_TOLERANCE_MIN} menit dari jadwal masuk
-						</p>
-					</div>
-				</div>
-			</div>
-			<div class="flex flex-col gap-4 px-6 py-6">
-				<div>
-					<label class="mb-2 block text-xs font-semibold tracking-wide text-slate-500 uppercase">
-						Alasan Keterlambatan <span class="font-normal text-slate-400">(Opsional)</span>
-					</label>
-					<textarea
-						bind:value={lateReason}
-						rows="3"
-						placeholder="Contoh: Keterlambatan transportasi, kondisi cuaca, dll."
-						class="w-full resize-none rounded-xl border border-slate-200 px-4 py-3 text-sm
-                   text-slate-700 placeholder:text-slate-400 focus:border-transparent focus:ring-2 focus:ring-amber-400
-                   focus:outline-none"
-						style="font-family:'Inter',sans-serif;"
-					></textarea>
-				</div>
-				<div class="flex gap-3">
-					<button
-						onclick={() => (showLateModal = false)}
-						class="flex-1 rounded-xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-200"
-					>
-						Batal
-					</button>
-					<button
-						onclick={() => confirmLate(lateReason)}
-						class="flex-1 rounded-xl px-4 py-3 text-sm font-semibold text-white transition-all active:scale-[0.98]"
-						style="background: linear-gradient(135deg, #F97316, #EA580C);"
-					>
-						Lanjutkan Absen
-					</button>
-				</div>
-			</div>
-		</div>
-	</div>
+  <div class="fixed inset-0 z-[55] flex items-center justify-center p-4"
+       style="background:rgba(0,0,0,0.6); backdrop-filter:blur(8px);">
+    <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden" style="animation: zoomIn 0.2s ease-out;">
+      <div class="px-6 py-5 border-b border-amber-100 bg-amber-50">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+            <Clock size={18} class="text-amber-600" />
+          </div>
+          <div>
+            <p class="text-base font-bold text-amber-800" style="font-family:'Plus Jakarta Sans',sans-serif;">
+              Terlambat {lateMinutes} Menit
+            </p>
+            <p class="text-xs text-amber-600 mt-0.5">Melebihi toleransi {LATE_TOLERANCE_MIN} menit</p>
+          </div>
+        </div>
+      </div>
+      <div class="px-6 py-5 flex flex-col gap-4">
+        <div>
+          <label class="text-xs font-semibold text-slate-500 block mb-1.5">Alasan Keterlambatan</label>
+          <textarea bind:value={lateReason} rows="3" placeholder="Opsional — jelaskan alasan keterlambatan..."
+                    class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"></textarea>
+        </div>
+        <div class="flex gap-3">
+          <button onclick={() => showLateModal = false}
+                  class="flex-1 py-3 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+            Batal
+          </button>
+          <button onclick={() => confirmLate(lateReason)}
+                  class="flex-[2] py-3 rounded-xl text-sm font-bold text-white active:scale-[0.98]"
+                  style="background: linear-gradient(135deg, #F97316, #EA580C);">
+            Lanjutkan Absen
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 {/if}
 
 <!-- Leave Modal -->
 {#if showLeaveModal}
-	<div
-		class="fixed inset-0 z-40 flex items-center justify-center p-4"
-		style="background:rgba(0,0,0,0.6); backdrop-filter:blur(12px);"
-	>
-		<div
-			class="animate-in zoom-in-95 w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl duration-200"
-		>
-			<div class="flex items-center justify-between border-b border-slate-100 px-6 py-5">
-				<span
-					class="text-base font-bold text-slate-800"
-					style="font-family:'Plus Jakarta Sans',sans-serif;">Pengajuan Izin / Sakit</span
-				>
-				<button
-					onclick={() => (showLeaveModal = false)}
-					class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-all hover:bg-slate-200"
-				>
-					✕
-				</button>
-			</div>
-			<div class="flex flex-col gap-5 px-6 py-6">
-				<!-- Tipe -->
-				<div>
-					<label class="mb-2 block text-xs font-semibold tracking-wide text-slate-500 uppercase"
-						>Jenis Pengajuan</label
-					>
-					<div class="flex gap-3">
-						<button
-							onclick={() => (leaveType = 'izin')}
-							class="flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition-all"
-							style="background:{leaveType === 'izin'
-								? 'linear-gradient(135deg, #F97316, #EA580C)'
-								: '#F1F5F9'};
-                           color:{leaveType === 'izin' ? 'white' : '#64748B'};"
-						>
-							<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-								/>
-							</svg>
-							Izin
-						</button>
-						<button
-							onclick={() => (leaveType = 'sakit')}
-							class="flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition-all"
-							style="background:{leaveType === 'sakit'
-								? 'linear-gradient(135deg, #F97316, #EA580C)'
-								: '#F1F5F9'};
-                           color:{leaveType === 'sakit' ? 'white' : '#64748B'};"
-						>
-							<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"
-								/>
-							</svg>
-							Sakit
-						</button>
-					</div>
-				</div>
+  <div class="fixed inset-0 z-[55] flex items-end sm:items-center justify-center p-0 sm:p-4"
+       style="background:rgba(0,0,0,0.6); backdrop-filter:blur(8px);"
+       onclick={() => showLeaveModal = false}>
+    <div class="w-full max-w-md bg-white sm:rounded-3xl rounded-t-3xl shadow-2xl max-h-[92vh] overflow-y-auto"
+         style="animation: slideUp 0.3s cubic-bezier(0.16,1,0.3,1);"
+         onclick={(e) => e.stopPropagation()}>
 
-				<!-- Sesi -->
-				<div>
-					<label class="mb-2 block text-xs font-semibold tracking-wide text-slate-500 uppercase">
-						Berlaku Untuk Sesi <span class="font-normal text-slate-400">(Opsional)</span>
-					</label>
-					<div class="flex flex-wrap gap-2">
-						<button
-							onclick={() => (leaveSessionId = null)}
-							class="rounded-lg px-3 py-2 text-xs font-semibold transition-all"
-							style="background:{leaveSessionId === null
-								? 'linear-gradient(135deg, #F97316, #EA580C)'
-								: '#F1F5F9'};
-                           color:{leaveSessionId === null ? 'white' : '#64748B'};"
-						>
-							Semua Sesi
-						</button>
-						{#each SESSIONS as s}
-							<button
-								onclick={() => (leaveSessionId = s.id)}
-								class="rounded-lg px-3 py-2 text-xs font-semibold transition-all"
-								style="background:{leaveSessionId === s.id
-									? 'linear-gradient(135deg, #F97316, #EA580C)'
-									: '#F1F5F9'};
-                             color:{leaveSessionId === s.id ? 'white' : '#64748B'};"
-							>
-								{s.name}
-							</button>
-						{/each}
-					</div>
-				</div>
+      <div class="sm:hidden flex justify-center pt-3 pb-1 sticky top-0 bg-white z-10">
+        <div class="w-10 h-1 rounded-full bg-slate-200"></div>
+      </div>
 
-				<!-- Alasan -->
-				<div>
-					<label class="mb-2 block text-xs font-semibold tracking-wide text-slate-500 uppercase">
-						Alasan <span class="text-red-500">*</span>
-					</label>
-					<textarea
-						bind:value={leaveReason}
-						rows="3"
-						placeholder="Jelaskan alasan izin atau sakit Anda..."
-						class="w-full resize-none rounded-xl border border-slate-200 px-4 py-3 text-sm
-                   text-slate-700 placeholder:text-slate-400 focus:border-transparent focus:ring-2 focus:ring-orange-400
-                   focus:outline-none"
-						style="font-family:'Inter',sans-serif;"
-					></textarea>
-				</div>
+      <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <span class="text-base font-bold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">Pengajuan Izin / Sakit</span>
+        <button onclick={() => showLeaveModal = false}
+                class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200">
+          <X size={14} />
+        </button>
+      </div>
 
-				{#if leaveStatus}
-					<p class="text-sm font-medium text-red-500">{leaveStatus}</p>
-				{/if}
+      <div class="px-6 py-5 flex flex-col gap-5">
+        <!-- Type -->
+        <div>
+          <label class="text-xs font-semibold text-slate-500 block mb-2">Jenis Pengajuan</label>
+          <div class="flex gap-3">
+            {#each [['izin', 'Izin'], ['sakit', 'Sakit']] as [val, label]}
+              <button onclick={() => leaveType = val as 'izin' | 'sakit'}
+                      class="flex-1 py-3 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2"
+                      style="background:{leaveType === val ? 'linear-gradient(135deg, #F97316, #EA580C)' : '#F1F5F9'};
+                             color:{leaveType === val ? 'white' : '#64748B'};">
+                {#if val === 'izin'}<FileText size={14} />{:else}<Shield size={14} />{/if}
+                {label}
+              </button>
+            {/each}
+          </div>
+        </div>
 
-				<div class="flex gap-3">
-					<button
-						onclick={() => (showLeaveModal = false)}
-						class="flex-1 rounded-xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-200"
-					>
-						Batal
-					</button>
-					<button
-						onclick={submitLeave}
-						disabled={isSubmittingLeave}
-						class="flex-1 rounded-xl px-4 py-3 text-sm font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-60"
-						style="background: linear-gradient(135deg, #F97316, #EA580C);"
-					>
-						{#if isSubmittingLeave}
-							<span class="inline-flex items-center justify-center gap-2">
-								<svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-									<circle
-										class="opacity-25"
-										cx="12"
-										cy="12"
-										r="10"
-										stroke="currentColor"
-										stroke-width="4"
-									/>
-									<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-								</svg>
-								Menyimpan...
-							</span>
-						{:else}
-							Kirim Pengajuan
-						{/if}
-					</button>
-				</div>
-			</div>
-		</div>
-	</div>
+        <!-- Session -->
+        <div>
+          <label class="text-xs font-semibold text-slate-500 block mb-2">Berlaku Untuk Sesi</label>
+          <div class="flex flex-wrap gap-2">
+            <button onclick={() => leaveSessionId = null}
+                    class="rounded-lg px-3 py-2 text-xs font-semibold transition-all"
+                    style="background:{leaveSessionId === null ? 'linear-gradient(135deg, #F97316, #EA580C)' : '#F1F5F9'};
+                           color:{leaveSessionId === null ? 'white' : '#64748B'};">
+              Semua Sesi
+            </button>
+            {#each SESSIONS as s}
+              {@const hasLeave = leaves.some(l => l.session_id === s.id)}
+              <button onclick={() => leaveSessionId = s.id}
+                      disabled={hasLeave}
+                      class="rounded-lg px-3 py-2 text-xs font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                      style="background:{leaveSessionId === s.id ? 'linear-gradient(135deg, #F97316, #EA580C)' : '#F1F5F9'};
+                             color:{leaveSessionId === s.id ? 'white' : '#64748B'};">
+                {s.name}
+                {#if hasLeave}<span class="ml-1 text-[9px]">(sudah izin)</span>{/if}
+              </button>
+            {/each}
+          </div>
+        </div>
+
+        <!-- Reason -->
+        <div>
+          <label class="text-xs font-semibold text-slate-500 block mb-1.5">Alasan <span class="text-red-500">*</span></label>
+          <textarea bind:value={leaveReason} rows="3" placeholder="Jelaskan alasan izin/sakit..."
+                    class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"></textarea>
+        </div>
+
+        {#if leaveStatus}
+          <div class="bg-red-50 border border-red-100 rounded-xl px-3 py-2.5 flex items-start gap-2">
+            <AlertTriangle size={14} class="text-red-500 flex-shrink-0 mt-0.5" />
+            <p class="text-xs text-red-600 font-medium">{leaveStatus}</p>
+          </div>
+        {/if}
+
+        <div class="flex gap-3 pb-4">
+          <button onclick={() => showLeaveModal = false}
+                  class="flex-1 py-3 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+            Batal
+          </button>
+          <button onclick={submitLeave} disabled={isSubmittingLeave}
+                  class="flex-[2] py-3 rounded-xl text-sm font-bold text-white active:scale-[0.98] disabled:opacity-60"
+                  style="background: linear-gradient(135deg, #F97316, #EA580C);">
+            {isSubmittingLeave ? 'Menyimpan...' : 'Kirim Pengajuan'}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 {/if}
 
 <!-- Camera Modal -->
 {#if showCamera}
-	<div
-		class="fixed inset-0 z-40 flex items-center justify-center p-4"
-		style="background:rgba(0,0,0,0.85); backdrop-filter:blur(16px);"
-	>
-		<div class="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
-			<div
-				class="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-orange-50 to-orange-50/50 px-5 py-4"
-			>
-				<div>
-					<span
-						class="text-sm font-bold text-slate-800"
-						style="font-family:'Plus Jakarta Sans',sans-serif;"
-					>
-						{SESSIONS.find((s) => s.id === cameraSessionId)?.name}
-					</span>
-					<span class="ml-2 text-xs font-semibold text-orange-600"
-						>{cameraType === 'in' ? 'Check-in' : 'Check-out'}</span
-					>
-				</div>
-				<button
-					onclick={closeCamera}
-					class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-all hover:bg-slate-200"
-				>
-					✕
-				</button>
-			</div>
+  <div class="fixed inset-0 z-[55] flex items-center justify-center p-4"
+       style="background:rgba(0,0,0,0.92); backdrop-filter:blur(16px);">
+    <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden" style="animation: zoomIn 0.2s ease-out;">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-orange-50 to-transparent">
+        <div>
+          <span class="text-sm font-bold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">
+            {SESSIONS.find(s => s.id === cameraSessionId)?.name || 'Kamera'}
+          </span>
+          <span class="ml-2 text-xs font-semibold px-2 py-0.5 rounded-full
+                       {cameraType === 'in' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}">
+            {cameraType === 'in' ? 'Check-in' : 'Check-out'}
+          </span>
+        </div>
+        <button onclick={closeCamera}
+                class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200">
+          <X size={14} />
+        </button>
+      </div>
 
-			<div class="relative bg-black" style="aspect-ratio:3/4; overflow:hidden;">
-				{#if capturedUrl}
-					<img src={capturedUrl} alt="Preview Foto" class="h-full w-full object-cover" />
-				{:else if cameraStream}
-					<video autoplay playsinline muted bind:this={videoEl} class="h-full w-full object-cover"
-					></video>
-					<div
-						class="pointer-events-none absolute inset-0 m-2 rounded-2xl border-4 border-white/20"
-					></div>
-					<div
-						class="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full px-4 py-2 text-xs font-semibold text-white"
-						style="background:rgba(0,0,0,0.6); backdrop-filter:blur(4px);"
-					>
-						Posisikan objek dalam bingkai
-					</div>
-				{:else}
-					<div class="flex h-full w-full items-center justify-center">
-						<div class="text-center">
-							<svg
-								class="mx-auto mb-3 h-8 w-8 animate-spin text-slate-400"
-								fill="none"
-								viewBox="0 0 24 24"
-							>
-								<circle
-									class="opacity-25"
-									cx="12"
-									cy="12"
-									r="10"
-									stroke="currentColor"
-									stroke-width="4"
-								/>
-								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-							</svg>
-							<p class="text-sm text-slate-400">{cameraStatus || 'Mengaktifkan kamera...'}</p>
-						</div>
-					</div>
-				{/if}
-			</div>
+      <div class="relative bg-black" style="aspect-ratio:3/4; overflow:hidden;">
+        {#if capturedUrl}
+          <!-- Preview hasil capture (TIDAK di-mirror) -->
+          <img src={capturedUrl} alt="Preview Foto" class="w-full h-full object-cover" />
+        {:else if cameraStream}
+          <!-- Video live di-mirror agar natural saat selfie, tapi capture TIDAK mirror -->
+          <video autoplay playsinline muted bind:this={videoEl}
+                 class="w-full h-full object-cover"
+                 style="transform: scaleX(-1);"></video>
+          <div class="absolute inset-0 m-3 rounded-2xl border-2 border-white/20 pointer-events-none"></div>
+          <div class="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full px-4 py-2 text-xs font-semibold text-white flex items-center gap-1.5"
+               style="background:rgba(0,0,0,0.6); backdrop-filter:blur(4px);">
+            <Camera size={12} />
+            Posisikan wajah dalam bingkai
+          </div>
+        {:else}
+          <div class="w-full h-full flex items-center justify-center">
+            <div class="text-center">
+              {#if cameraStatus.includes('lokasi')}
+                <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-3">
+                  <MapPin size={20} class="text-white animate-pulse" />
+                </div>
+              {:else}
+                <div class="w-10 h-10 rounded-full border-4 border-white/20 border-t-white animate-spin mx-auto mb-3"></div>
+              {/if}
+              <p class="text-sm text-slate-400">{cameraStatus || 'Mengaktifkan kamera...'}</p>
+            </div>
+          </div>
+        {/if}
+      </div>
 
-			<div class="px-5 pt-4 pb-5">
-				{#if cameraStatus && cameraStream && !capturedUrl}
-					<p class="mb-3 text-center text-xs text-slate-500">{cameraStatus}</p>
-				{/if}
-				<div class="flex gap-3">
-					{#if capturedUrl}
-						<button
-							onclick={retake}
-							disabled={isSubmitting}
-							class="rounded-xl bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-200 disabled:opacity-50"
-						>
-							↺ Ambil Ulang
-						</button>
-					{/if}
-					<button
-						onclick={capturedUrl ? submitPhoto : takePhoto}
-						disabled={isSubmitting || (!capturedUrl && !cameraStream)}
-						class="flex-1 rounded-xl py-3 text-sm font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-60"
-						style="background: linear-gradient(135deg, #F97316, #EA580C);"
-					>
-						{#if isSubmitting}
-							<span class="inline-flex items-center justify-center gap-2">
-								<svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-									<circle
-										class="opacity-25"
-										cx="12"
-										cy="12"
-										r="10"
-										stroke="currentColor"
-										stroke-width="4"
-									/>
-									<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-								</svg>
-								Mengirim...
-							</span>
-						{:else if capturedUrl}
-							Konfirmasi Absensi
-						{:else}
-							Ambil Foto
-						{/if}
-					</button>
-				</div>
-			</div>
-		</div>
-	</div>
+      <div class="px-5 pt-4 pb-5">
+        {#if cameraStatus && !capturedUrl && !cameraStream}
+          <!-- status shown in camera area -->
+        {:else if cameraStatus && capturedUrl}
+          <p class="text-center text-xs text-slate-500 mb-3">{cameraStatus}</p>
+        {/if}
+        <div class="flex gap-3">
+          {#if capturedUrl}
+            <button onclick={retake} disabled={isSubmitting}
+                    class="py-3 px-5 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-50 flex items-center gap-2">
+              <RotateCcw size={14} />
+              Ulang
+            </button>
+          {/if}
+          <button onclick={capturedUrl ? submitPhoto : takePhoto}
+                  disabled={isSubmitting || (!capturedUrl && !cameraStream)}
+                  class="flex-1 py-3 rounded-xl text-sm font-bold text-white active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2"
+                  style="background: linear-gradient(135deg, #F97316, #EA580C);">
+            {#if isSubmitting}
+              <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+              </svg>
+              Mengirim...
+            {:else if capturedUrl}
+              <Send size={14} />
+              Konfirmasi
+            {:else}
+              <Camera size={14} />
+              Ambil Foto
+            {/if}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 {/if}
 
 <!-- Main App -->
-<div
-	class="min-h-screen"
-	style="background: linear-gradient(135deg, #FFF9F0 0%, #FFFFFF 100%); font-family:'Inter',sans-serif;"
->
-	<!-- Animated Background Blobs -->
-	<div class="pointer-events-none fixed inset-0 overflow-hidden">
-		<div
-			class="animate-blob absolute -top-40 -right-40 h-80 w-80 rounded-full bg-orange-200 opacity-30 mix-blend-multiply blur-3xl filter"
-		></div>
-		<div
-			class="animate-blob animation-delay-2000 absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-amber-200 opacity-30 mix-blend-multiply blur-3xl filter"
-		></div>
-	</div>
+<div class="min-h-screen" style="background: linear-gradient(135deg, #FFF9F0 0%, #FFFFFF 100%); font-family:'Inter',sans-serif;">
 
-	<!-- Header -->
-<!-- Header Navigation -->
-<header class="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-orange-100 px-5 py-4 flex items-center justify-between">
-  <div class="flex items-center gap-3">
-    <!-- Logo Image -->
-    <img 
-      src="/logo-khwarizmi.png" 
-      alt="Logo Khwarizmi" 
-      class="w-9 h-9 rounded-xl object-contain shadow-md p-1 bg-white border border-orange-200"
-    />
-    <div>
-      <span class="font-extrabold text-slate-900 text-base tracking-tight" style="font-family:'Plus Jakarta Sans',sans-serif;">
-        Presensi Harian
-      </span>
-      <p class="text-[10px] font-medium text-orange-600 mt-0.5">{formatDateIndonesian(new Date())}</p>
+  <!-- Header -->
+  <header class="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-orange-100 px-5 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <img src="/logo-khwarizmi.png" alt="Logo" class="w-9 h-9 rounded-xl object-contain shadow-md p-1 bg-white border border-orange-200" />
+      <div>
+        <span class="font-extrabold text-slate-900 text-base tracking-tight" style="font-family:'Plus Jakarta Sans',sans-serif;">
+          Presensi
+        </span>
+        <p class="text-[10px] font-medium text-orange-600 mt-0.5">{formatDateIndonesian(new Date())}</p>
+      </div>
     </div>
-  </div>
-  <button onclick={openLeaveModal}
-          class="flex items-center gap-2 text-xs font-semibold text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-xl px-4 py-2.5 transition-all duration-200">
-    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-    </svg>
-    <span>Izin / Sakit</span>
-  </button>
-</header>
+    <button onclick={openLeaveModal}
+            class="flex items-center gap-1.5 text-xs font-semibold text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-xl px-3.5 py-2.5 transition-colors border border-orange-100">
+      <FileText size={14} />
+      Izin / Sakit
+    </button>
+  </header>
 
-	{#if isLoading}
-		<div class="flex items-center justify-center py-32">
-			<div class="text-center">
-				<div
-					class="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-orange-200 border-t-orange-500"
-				></div>
-				<p class="text-sm font-medium text-slate-500">Memuat data presensi...</p>
-			</div>
-		</div>
-	{:else}
-		<main class="relative z-10 mx-auto flex max-w-lg flex-col gap-5 px-4 py-6 pb-20">
-			<!-- Leave Banner -->
-			{#if todayLeave}
-				<div
-					class="flex items-center gap-3 rounded-xl px-5 py-4 backdrop-blur-sm"
-					style="background:{todayLeave.type === 'sakit'
-						? 'rgba(254,242,242,0.95)'
-						: 'rgba(239,246,255,0.95)'};
-                  border-left:4px solid {todayLeave.type === 'sakit' ? '#EF4444' : '#F97316'};
-                  box-shadow:0 2px 8px rgba(0,0,0,0.04);"
-				>
-					<svg
-						class="h-6 w-6"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-						style="color:{todayLeave.type === 'sakit' ? '#DC2626' : '#F97316'}"
-					>
-						{#if todayLeave.type === 'sakit'}
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"
-							/>
-						{:else}
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-							/>
-						{/if}
-					</svg>
-					<div class="flex-1">
-						<p
-							class="text-sm font-bold"
-							style="color:{todayLeave.type === 'sakit' ? '#DC2626' : '#EA580C'};"
-						>
-							{todayLeave.type === 'sakit' ? 'Sakit Terkonfirmasi' : 'Izin Terkonfirmasi'}
-							{#if todayLeave.session_id}
-								· {SESSIONS.find((s) => s.id === todayLeave.session_id)?.name}
-							{/if}
-						</p>
-						<p class="mt-1 text-xs text-slate-600">{todayLeave.reason}</p>
-					</div>
-				</div>
-			{/if}
+  {#if isLoading}
+    <div class="flex items-center justify-center py-32">
+      <div class="text-center">
+        <div class="w-12 h-12 rounded-full border-4 border-orange-200 border-t-orange-500 animate-spin mx-auto mb-4"></div>
+        <p class="text-sm font-medium text-slate-500">Memuat presensi...</p>
+      </div>
+    </div>
+  {:else}
+    <main class="max-w-lg mx-auto px-4 py-5 pb-20 flex flex-col gap-4 relative z-10">
 
-			<!-- Penalty Banner -->
-			{#if penalties.length > 0}
-				<div
-					class="rounded-xl px-5 py-4 backdrop-blur-sm"
-					style="background:rgba(254,243,199,0.95); border-left:4px solid #F59E0B; box-shadow:0 2px 8px rgba(0,0,0,0.04);"
-				>
-					<div class="mb-2 flex items-center gap-2">
-						<svg
-							class="h-4 w-4 text-amber-600"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-							/>
-						</svg>
-						<p class="text-xs font-bold tracking-wide text-amber-700 uppercase">Catatan Disiplin</p>
-					</div>
-					{#each penalties as p}
-						<p class="text-sm font-medium text-amber-700">
-							• {p.reason} <span class="text-amber-500">(-{p.minutes} menit)</span>
-						</p>
-					{/each}
-				</div>
-			{/if}
+      <!-- Leave Banners -->
+      {#each leaves as leave}
+        {@const sessionName = leave.session_id ? SESSIONS.find(s => s.id === leave.session_id)?.name : 'Semua Sesi'}
+        <div class="flex items-center gap-3 rounded-xl px-4 py-3.5 border-l-4"
+             style="background:{leave.type === 'sakit' ? '#FEF2F2' : '#FFF7ED'};
+                    border-left-color:{leave.type === 'sakit' ? '#EF4444' : '#F97316'};">
+          <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0
+                      {leave.type === 'sakit' ? 'bg-red-100' : 'bg-orange-100'}">
+            {#if leave.type === 'sakit'}
+              <Shield size={16} class="text-red-600" />
+            {:else}
+              <FileText size={16} class="text-orange-600" />
+            {/if}
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-bold" style="color:{leave.type === 'sakit' ? '#DC2626' : '#EA580C'};">
+              {leave.type === 'sakit' ? 'Sakit' : 'Izin'} — {sessionName}
+            </p>
+            <p class="text-xs text-slate-600 mt-0.5 truncate">{leave.reason}</p>
+          </div>
+        </div>
+      {/each}
 
-			<!-- Summary Strip - Glassmorphism Cards -->
-			<div class="grid grid-cols-3 gap-3">
-				{#each [{ label: 'Sesi Masuk', value: attendance.length, icon: 'in', color: '#F97316' }, { label: 'Sesi Selesai', value: attendance.filter((a) => a.check_out).length, icon: 'out', color: '#10B981' }, { label: 'Sisa Sesi', value: Math.max(0, 4 - attendance.length), icon: 'remaining', color: '#F59E0B' }] as stat}
-					<div
-						class="rounded-xl border border-white/50 bg-white/80 px-4 py-4 shadow-sm backdrop-blur-sm"
-						style="backdrop-filter:blur(10px);"
-					>
-						<div class="mb-2 flex items-center justify-between">
-							{#if stat.icon === 'in'}
-								<svg
-									class="h-4 w-4"
-									style="color:{stat.color}"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke="currentColor"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
-									/>
-								</svg>
-							{:else if stat.icon === 'out'}
-								<svg
-									class="h-4 w-4"
-									style="color:{stat.color}"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke="currentColor"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M13 5l7 7-7 7M5 5l7 7-7 7"
-									/>
-								</svg>
-							{:else}
-								<svg
-									class="h-4 w-4"
-									style="color:{stat.color}"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke="currentColor"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-									/>
-								</svg>
-							{/if}
-							<span class="text-[10px] font-bold tracking-wide text-slate-400">{stat.label}</span>
-						</div>
-						<p
-							class="text-2xl font-bold"
-							style="color:{stat.color}; font-family:'Plus Jakarta Sans',sans-serif;"
-						>
-							{stat.value}<span class="text-sm font-medium text-slate-300">/4</span>
-						</p>
-					</div>
-				{/each}
-			</div>
+      <!-- Penalty Banner -->
+      {#if penalties.length > 0}
+        <div class="rounded-xl px-4 py-3.5 bg-amber-50 border-l-4 border-amber-400">
+          <div class="flex items-center gap-2 mb-2">
+            <AlertTriangle size={14} class="text-amber-600" />
+            <p class="text-[10px] font-bold uppercase tracking-widest text-amber-700">Catatan Disiplin</p>
+          </div>
+          {#each penalties as p}
+            <p class="text-sm font-medium text-amber-700">
+              {p.reason} <span class="text-amber-500 font-normal">(-{p.minutes} menit)</span>
+            </p>
+          {/each}
+        </div>
+      {/if}
 
-			<!-- Session Cards -->
-			<div>
-				<div class="mb-4 flex items-center gap-2">
-					<div class="h-5 w-1 rounded-full bg-orange-500"></div>
-					<p class="text-xs font-bold tracking-wide text-slate-500 uppercase">
-						Jadwal Sesi Hari Ini
-					</p>
-				</div>
+      <!-- Stats -->
+      <div class="grid grid-cols-3 gap-3">
+        {#each [
+          { label: 'Sesi Masuk', value: attendance.length, total: SESSIONS.length, color: '#F97316', Icon: LogIn },
+          { label: 'Selesai', value: attendance.filter(a => a.check_out).length, total: SESSIONS.length, color: '#10B981', Icon: Check },
+          { label: 'Sisa', value: Math.max(0, SESSIONS.length - attendance.length), total: SESSIONS.length, color: '#F59E0B', Icon: Clock },
+        ] as stat}
+          <div class="bg-white/90 rounded-2xl p-4 shadow-sm border border-slate-100 text-center">
+            <div class="flex items-center justify-center gap-1.5 mb-2">
+              <svelte:component this={stat.Icon} size={14} style="color:{stat.color};" />
+              <span class="text-[9px] font-bold text-slate-400 uppercase">{stat.label}</span>
+            </div>
+            <p class="text-2xl font-bold" style="color:{stat.color}; font-family:'Plus Jakarta Sans',sans-serif;">
+              {stat.value}<span class="text-sm font-medium text-slate-300">/{stat.total}</span>
+            </p>
+          </div>
+        {/each}
+      </div>
 
-				<div class="flex flex-col gap-3">
-					{#each SESSIONS as s}
-						{@const curMin = now.getHours() * 60 + now.getMinutes()}
-						{@const startMin = toMin(s.start)}
-						{@const endMin = toMin(s.end)}
-						{@const unlockMin = toMin(s.unlockAt)}
-						{@const rec = attendanceMap[s.id]}
+      <!-- Session Cards -->
+      <div class="flex flex-col gap-2.5">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-1">Jadwal Sesi</p>
 
-						{@const isLocked = curMin < unlockMin}
-						{@const isExpired = !rec && curMin > endMin + 30}
-						{@const inWindow = curMin >= startMin && curMin <= endMin}
-						{@const pct =
-							rec && !rec.check_out && inWindow
-								? Math.min(Math.round(((curMin - startMin) / (endMin - startMin)) * 100), 100)
-								: 0}
+        {#each SESSIONS as s}
+          {@const curMin = now.getHours() * 60 + now.getMinutes()}
+          {@const startMin = toMin(s.start)}
+          {@const endMin = toMin(s.end)}
+          {@const unlockMin = toMin(s.unlockAt)}
+          {@const rec = attendanceMap[s.id]}
+          {@const isLocked = curMin < unlockMin}
+          {@const isExpired = !rec && curMin > endMin + 30}
+          {@const inWindow = curMin >= startMin && curMin <= endMin}
+          {@const pct = rec && !rec.check_out && inWindow
+            ? Math.min(Math.round(((curMin - startMin) / (endMin - startMin)) * 100), 100)
+            : 0}
+          {@const sessionLeave = isSessionOnLeave(s.id)}
 
-						{@const isOnLeave =
-							!!todayLeave && (todayLeave.session_id === null || todayLeave.session_id === s.id)}
+          <div class="bg-white/90 rounded-2xl p-4 shadow-sm border border-slate-100 transition-all hover:shadow-md"
+               style={isLocked && s.id !== 4 ? 'opacity:0.5;' : ''}>
+            <div class="flex items-start justify-between">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-0.5">
+                  <p class="font-bold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">{s.name}</p>
+                  {#if rec?.late}
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">Terlambat</span>
+                  {/if}
+                  {#if rec?.forgot_checkout}
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700">Lupa Checkout</span>
+                  {/if}
+                </div>
+                <p class="text-xs text-slate-400">{s.start} – {s.id === 4 ? 'Selesai' : s.end}</p>
 
-						<div
-							class="rounded-xl border border-white/50 bg-white/80 p-5 shadow-sm backdrop-blur-sm transition-all hover:shadow-md"
-							style={isLocked && s.id !== 4 ? 'opacity:0.6;' : ''}
-						>
-							<div class="flex items-start justify-between">
-								<div class="flex-1">
-									<div class="mb-1 flex items-center gap-2">
-										<p
-											class="font-bold text-slate-800"
-											style="font-family:'Plus Jakarta Sans',sans-serif;"
-										>
-											{s.name}
-										</p>
-									</div>
-									<p class="text-xs font-medium text-slate-400">
-										{s.start} – {s.id === 4 ? 'Selesai' : s.end}
-									</p>
-									{#if isLocked && s.id !== 4}
-										<p class="mt-2 flex items-center gap-1 text-xs font-medium text-orange-400">
-											<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-												<rect x="3" y="11" width="18" height="11" rx="2" stroke-width="2" />
-												<path d="M7 11V7a5 5 0 0110 0v4" stroke-width="2" />
-											</svg>
-											Buka pukul {s.unlockAt}
-										</p>
-									{/if}
-									{#if rec}
-										<p
-											class="mt-2 text-xs font-medium"
-											class:text-slate-500={!rec.forgot_checkout && !rec.late}
-											class:text-orange-600={rec.forgot_checkout}
-											class:text-amber-600={rec.late && !rec.forgot_checkout}
-										>
-											Masuk: {formatTime(rec.check_in)}
-											{#if rec.check_out}
-												· Keluar: {formatTime(rec.check_out)}{/if}
-											{#if rec.late}
-												· Terlambat{/if}
-											{#if rec.forgot_checkout}
-												· Lupa Checkout{/if}
-										</p>
-										{#if rec.late && rec.late_reason}
-											<p class="mt-1 text-xs text-amber-500">Catatan: {rec.late_reason}</p>
-										{/if}
-									{/if}
-									{#if pct > 0}
-										<div class="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
-											<div
-												class="h-full rounded-full bg-gradient-to-r from-orange-400 to-orange-500 transition-all duration-500"
-												style="width:{pct}%"
-											></div>
-										</div>
-									{/if}
-								</div>
+                {#if isLocked && s.id !== 4}
+                  <p class="mt-2 text-xs text-orange-400 flex items-center gap-1">
+                    <Lock size={11} />
+                    Buka pukul {s.unlockAt}
+                  </p>
+                {/if}
 
-								<div class="ml-4">
-									{#if isOnLeave}
-										<span
-											class="rounded-lg px-3 py-1.5 text-center text-xs font-bold whitespace-nowrap"
-											style="background:{todayLeave!.type === 'sakit' ? '#FEF2F2' : '#FFF7ED'};
-                               color:{todayLeave!.type === 'sakit' ? '#DC2626' : '#EA580C'};
-                               border:1px solid {todayLeave!.type === 'sakit'
-												? '#FECACA'
-												: '#FED7AA'};"
-										>
-											{todayLeave!.type === 'sakit' ? 'Sakit' : 'Izin'}
-										</span>
-									{:else if isLocked && s.id !== 4}
-										<span
-											class="flex items-center gap-1 text-xs font-semibold whitespace-nowrap text-slate-400"
-										>
-											<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-												<rect x="3" y="11" width="18" height="11" rx="2" stroke-width="2" />
-												<path d="M7 11V7a5 5 0 0110 0v4" stroke-width="2" />
-											</svg>
-											Terkunci
-										</span>
-									{:else if rec?.forgot_checkout}
-										<span
-											class="rounded-lg bg-orange-100 px-3 py-1.5 text-xs font-bold whitespace-nowrap text-orange-600"
-										>
-											Lupa Checkout
-										</span>
-									{:else if rec?.check_out}
-										<span
-											class="rounded-lg bg-green-100 px-3 py-1.5 text-xs font-bold whitespace-nowrap text-green-600"
-										>
-											Selesai
-										</span>
-									{:else if rec}
-										<button
-											onclick={() => openCamera(s.id, 'out')}
-											class="rounded-lg border border-orange-200 bg-orange-50 px-4 py-2 text-xs font-bold whitespace-nowrap text-orange-600 transition-all hover:bg-orange-100"
-										>
-											Check-out →
-										</button>
-									{:else if isExpired}
-										<span class="text-xs font-semibold whitespace-nowrap text-slate-400"
-											>Kadaluarsa</span
-										>
-									{:else}
-										<button
-											onclick={() => openCamera(s.id, 'in')}
-											class="rounded-lg px-4 py-2 text-xs font-bold whitespace-nowrap text-white transition-all hover:opacity-90"
-											style="background: linear-gradient(135deg, #F97316, #EA580C);"
-										>
-											Check-in →
-										</button>
-									{/if}
-								</div>
-							</div>
-						</div>
-					{/each}
-				</div>
-			</div>
+                {#if rec}
+                  <div class="mt-2 flex items-center gap-3 text-xs text-slate-500">
+                    <span class="flex items-center gap-1"><LogIn size={11} /> {formatTime(rec.check_in)}</span>
+                    {#if rec.check_out}
+                      <span class="flex items-center gap-1"><LogOut size={11} /> {formatTime(rec.check_out)}</span>
+                    {/if}
+                  </div>
+                  {#if rec.late && rec.late_reason}
+                    <p class="mt-1 text-xs text-amber-500">Alasan: {rec.late_reason}</p>
+                  {/if}
+                {/if}
 
-			<!-- History Section -->
-			<div>
-				<div class="mb-4 flex items-center gap-2">
-					<div class="h-5 w-1 rounded-full bg-orange-500"></div>
-					<p class="text-xs font-bold tracking-wide text-slate-500 uppercase">
-						Riwayat & Bukti Absensi
-					</p>
-				</div>
+                {#if pct > 0}
+                  <div class="mt-3 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="h-full rounded-full transition-all duration-500"
+                         style="width:{pct}%; background: linear-gradient(90deg, #F97316, #EA580C);"></div>
+                  </div>
+                {/if}
+              </div>
 
-				<div
-					class="overflow-hidden rounded-xl border border-white/50 bg-white/80 shadow-sm backdrop-blur-sm"
-				>
-					{#if attendance.length === 0}
-						<div class="py-12 text-center">
-							<svg
-								class="mx-auto mb-3 h-12 w-12 text-slate-300"
-								fill="none"
-								viewBox="0 0 24 24"
-								stroke="currentColor"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="1.5"
-									d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-								/>
-							</svg>
-							<p class="text-sm font-medium text-slate-400">Belum ada riwayat presensi hari ini</p>
-						</div>
-					{:else}
-						{#each attendance as rec}
-							{@const sesi = SESSIONS.find((s) => s.id === rec.session_id)}
+              <div class="ml-3 flex-shrink-0">
+                {#if sessionLeave}
+                  <span class="text-[10px] font-bold px-2.5 py-1.5 rounded-lg whitespace-nowrap
+                               {sessionLeave.type === 'sakit' ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-orange-50 text-orange-600 border border-orange-200'}">
+                    {sessionLeave.type === 'sakit' ? 'Sakit' : 'Izin'}
+                  </span>
+                {:else if isLocked && s.id !== 4}
+                  <span class="text-xs font-semibold text-slate-400 flex items-center gap-1">
+                    <Lock size={12} />
+                  </span>
+                {:else if rec?.forgot_checkout}
+                  <span class="text-[10px] font-bold px-2.5 py-1.5 rounded-lg bg-orange-100 text-orange-600">Lupa</span>
+                {:else if rec?.check_out}
+                  <span class="text-[10px] font-bold px-2.5 py-1.5 rounded-lg bg-green-100 text-green-700 flex items-center gap-1">
+                    <Check size={11} /> Selesai
+                  </span>
+                {:else if rec}
+                  <button onclick={() => openCamera(s.id, 'out')}
+                          class="text-[10px] font-bold px-3 py-2 rounded-lg bg-orange-50 text-orange-600 border border-orange-200 hover:bg-orange-100 transition-colors flex items-center gap-1">
+                    <LogOut size={11} />
+                    Checkout
+                  </button>
+                {:else if isExpired}
+                  <span class="text-[10px] font-semibold text-slate-400">Terlewat</span>
+                {:else}
+                  <button onclick={() => openCamera(s.id, 'in')}
+                          class="text-[10px] font-bold px-3 py-2 rounded-lg text-white transition-all active:scale-95 flex items-center gap-1"
+                          style="background: linear-gradient(135deg, #F97316, #EA580C);">
+                    <LogIn size={11} />
+                    Check-in
+                  </button>
+                {/if}
+              </div>
+            </div>
+          </div>
+        {/each}
+      </div>
 
-							{#if rec.photo_in_url}
-								<div
-									class="flex items-center gap-3 border-b border-slate-100 px-4 py-3 transition-colors hover:bg-orange-50/30"
-								>
-									<img
-										src={rec.photo_in_url}
-										alt="Foto check-in"
-										onclick={() => {
-											photoViewUrl = rec.photo_in_url!;
-											showPhotoView = true;
-										}}
-										onerror={(e: Event) => {
-											(e.target as HTMLImageElement).style.display = 'none';
-										}}
-										class="h-14 w-14 flex-shrink-0 cursor-pointer rounded-xl border border-slate-200 object-cover transition-transform hover:scale-105"
-									/>
-									<div class="min-w-0 flex-1">
-										<p class="font-bold text-slate-800">{sesi?.name}</p>
-										<p
-											class="mt-0.5 text-xs font-medium"
-											class:text-emerald-600={!rec.late}
-											class:text-amber-600={rec.late}
-										>
-											{rec.late ? 'Terlambat' : 'Check-in Terverifikasi'}
-										</p>
-										<p class="mt-1 text-xs text-slate-400">
-											{formatTime(rec.check_in)} · Ketuk foto untuk perbesar
-										</p>
-										{#if rec.late && rec.late_reason}
-											<p class="mt-1 text-xs text-amber-500">Alasan: {rec.late_reason}</p>
-										{/if}
-									</div>
-									<span
-										class="flex-shrink-0 rounded-lg border border-orange-200 bg-orange-50 px-2 py-1 text-[10px] font-bold text-orange-600"
-										>IN</span
-									>
-								</div>
-							{/if}
+      <!-- History -->
+      {#if attendance.length > 0}
+        <div class="flex flex-col gap-2.5">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-1">Riwayat Absensi</p>
 
-							{#if rec.photo_out_url}
-								<div
-									class="flex items-center gap-3 border-b border-slate-100 px-4 py-3 transition-colors hover:bg-orange-50/30"
-								>
-									<img
-										src={rec.photo_out_url}
-										alt="Foto check-out"
-										onclick={() => {
-											photoViewUrl = rec.photo_out_url!;
-											showPhotoView = true;
-										}}
-										onerror={(e: Event) => {
-											(e.target as HTMLImageElement).style.display = 'none';
-										}}
-										class="h-14 w-14 flex-shrink-0 cursor-pointer rounded-xl border border-slate-200 object-cover transition-transform hover:scale-105"
-									/>
-									<div class="min-w-0 flex-1">
-										<p class="font-bold text-slate-800">{sesi?.name}</p>
-										<p class="mt-0.5 text-xs font-medium text-orange-600">
-											Check-out Terverifikasi
-										</p>
-										<p class="mt-1 text-xs text-slate-400">
-											{formatTime(rec.check_out)} · Ketuk foto untuk perbesar
-										</p>
-									</div>
-									<span
-										class="flex-shrink-0 rounded-lg border border-green-200 bg-green-50 px-2 py-1 text-[10px] font-bold text-green-600"
-										>OUT</span
-									>
-								</div>
-							{/if}
-						{/each}
-					{/if}
-				</div>
-			</div>
-		</main>
-	{/if}
+          <div class="bg-white/90 rounded-2xl shadow-sm border border-slate-100 overflow-hidden divide-y divide-slate-100">
+            {#each attendance as rec}
+              {@const sesi = SESSIONS.find(s => s.id === rec.session_id)}
+
+              {#if rec.photo_in_url}
+                <div class="flex items-center gap-3 px-4 py-3 hover:bg-slate-50/60 transition-colors">
+                  <img src={rec.photo_in_url} alt="Check-in"
+                       onclick={() => { photoViewUrl = rec.photo_in_url!; showPhotoView = true }}
+                       onerror={(e: Event) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                       class="w-12 h-12 flex-shrink-0 cursor-pointer rounded-xl border border-slate-200 object-cover hover:scale-105 transition-transform" />
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-bold text-slate-800">{sesi?.name}</p>
+                    <p class="text-xs font-medium mt-0.5 {rec.late ? 'text-amber-600' : 'text-green-600'}">
+                      {rec.late ? 'Terlambat' : 'Tepat Waktu'}
+                    </p>
+                    <p class="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
+                      <Clock size={10} /> {formatTime(rec.check_in)}
+                      <span class="mx-1">·</span>
+                      <Eye size={10} /> Ketuk untuk perbesar
+                    </p>
+                  </div>
+                  <span class="text-[9px] font-bold px-2 py-1 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 flex-shrink-0">IN</span>
+                </div>
+              {/if}
+
+              {#if rec.photo_out_url}
+                <div class="flex items-center gap-3 px-4 py-3 hover:bg-slate-50/60 transition-colors">
+                  <img src={rec.photo_out_url} alt="Check-out"
+                       onclick={() => { photoViewUrl = rec.photo_out_url!; showPhotoView = true }}
+                       onerror={(e: Event) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                       class="w-12 h-12 flex-shrink-0 cursor-pointer rounded-xl border border-slate-200 object-cover hover:scale-105 transition-transform" />
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-bold text-slate-800">{sesi?.name}</p>
+                    <p class="text-xs font-medium text-orange-600 mt-0.5">Check-out</p>
+                    <p class="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
+                      <Clock size={10} /> {formatTime(rec.check_out)}
+                    </p>
+                  </div>
+                  <span class="text-[9px] font-bold px-2 py-1 rounded-lg bg-green-50 text-green-600 border border-green-200 flex-shrink-0">OUT</span>
+                </div>
+              {/if}
+            {/each}
+          </div>
+        </div>
+      {/if}
+
+      <p class="text-center text-[9px] text-slate-400 pt-3">
+        © {new Date().getFullYear()} Workspace Khwarizmi · v1.0.0
+      </p>
+    </main>
+  {/if}
 </div>
 
 <style>
-	@keyframes blob {
-		0% {
-			transform: translate(0px, 0px) scale(1);
-		}
-		33% {
-			transform: translate(30px, -50px) scale(1.1);
-		}
-		66% {
-			transform: translate(-20px, 20px) scale(0.9);
-		}
-		100% {
-			transform: translate(0px, 0px) scale(1);
-		}
-	}
-	.animate-blob {
-		animation: blob 7s infinite;
-	}
-	.animation-delay-2000 {
-		animation-delay: 2s;
-	}
-	.animation-delay-4000 {
-		animation-delay: 4s;
-	}
-	@keyframes fade-in {
-		from {
-			opacity: 0;
-			transform: translateY(10px);
-		}
-		to {
-			opacity: 1;
-			transform: translateY(0);
-		}
-	}
-	.animate-in {
-		animation: fade-in 0.3s ease-out;
-	}
+  @keyframes slideUp {
+    from { transform: translateY(100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  @keyframes slideInUp {
+    from { transform: translate(-50%, 20px); opacity: 0; }
+    to { transform: translate(-50%, 0); opacity: 1; }
+  }
+  @keyframes zoomIn {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
 </style>

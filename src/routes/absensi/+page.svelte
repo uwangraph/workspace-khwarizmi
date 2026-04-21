@@ -717,16 +717,14 @@
   <!-- Header -->
   <header class="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-orange-100 px-5 py-4 flex items-center justify-between">
     <div class="flex items-center gap-3">
-      <img src="/logo-khwarizmi.png" alt="Logo" class="w-9 h-9 rounded-xl object-contain shadow-md p-1 bg-white border border-orange-200" />
+      <img src="/logo-khwarizmi.png" alt="Logo" class="w-9 h-9 rounded-xl object-contain shadow-md p-1 bg-white border border-orange-200 cursor-pointer" />
       <div>
-        <span class="font-extrabold text-slate-900 text-base tracking-tight" style="font-family:'Plus Jakarta Sans',sans-serif;">
-          Presensi
-        </span>
+        <span class="font-extrabold text-slate-900 text-base tracking-tight" style="font-family:'Plus Jakarta Sans',sans-serif;">Presensi</span>
         <p class="text-[10px] font-medium text-orange-600 mt-0.5">{formatDateIndonesian(new Date())}</p>
       </div>
     </div>
     <button onclick={openLeaveModal}
-            class="flex items-center gap-1.5 text-xs font-semibold text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-xl px-3.5 py-2.5 transition-colors border border-orange-100">
+            class="flex items-center gap-1.5 text-xs font-semibold text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-xl px-3.5 py-2.5 transition-colors border border-orange-100 cursor-pointer">
       <FileText size={14} />
       Izin / Sakit
     </button>

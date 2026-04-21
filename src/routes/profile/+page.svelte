@@ -39,6 +39,7 @@
   let showEditModal = $state(false)
   let showPasswordModal = $state(false)
   let showEmailModal = $state(false)
+  let showLogoutModal = $state(false)
 
   // Avatar
   let avatarPreview = $state<string | null>(null)
@@ -514,7 +515,7 @@
 
   <!-- Header -->
   <header class="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-orange-100 px-5 py-4 flex items-center gap-3">
-    <a href="/" class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 hover:bg-orange-50 transition-colors">
+    <a href="/" class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 hover:bg-orange-50 transition-colors cursor-pointer">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
     </a>
     <div class="flex-1">
@@ -538,7 +539,7 @@
       <div class="bg-white rounded-2xl p-5 shadow-sm border border-orange-50">
         <div class="flex items-center gap-4">
           <button onclick={openEdit}
-                  class="relative w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 flex items-center justify-center shadow-md group"
+                  class="relative w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 flex items-center justify-center shadow-md group cursor-pointer"
                   style="background: linear-gradient(135deg, #F97316, #EA580C);"
                   aria-label="Ubah foto profil">
             {#if profile?.avatar_url}
@@ -553,15 +554,17 @@
           <div class="flex-1 min-w-0">
             <h2 class="text-lg font-bold text-slate-900 truncate" style="font-family:'Plus Jakarta Sans',sans-serif;">{profile?.full_name}</h2>
             <p class="text-xs font-semibold text-orange-500 mt-0.5 truncate">
-              {profile?.position || ROLE_LABEL[profile?.role || 'user']}
+              {profile?.position || (profile?.role === 'admin' ? 'Administrator' : '')}
             </p>
             <div class="flex items-center gap-1.5 mt-2 flex-wrap">
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 flex items-center gap-1">
-                <ShieldCheck size={10} />
-                {ROLE_LABEL[profile?.role || 'user']}
-              </span>
+              {#if profile?.role === 'admin'}
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 flex items-center gap-1">
+                  <ShieldCheck size={10} />
+                  Administrator
+                </span>
+              {/if}
               {#if profile?.joined_at}
-                <span class="text-[10px] text-slate-400">• Sejak {formatMonthYear(profile.joined_at)}</span>
+                <span class="text-[10px] text-slate-400">{profile?.role === 'admin' ? '•' : ''} Sejak {formatMonthYear(profile.joined_at)}</span>
               {/if}
             </div>
           </div>
@@ -569,7 +572,7 @@
 
         <button
           onclick={openEdit}
-          class="w-full mt-4 py-2.5 rounded-xl text-sm font-semibold text-orange-600 bg-orange-50 border border-orange-100 hover:bg-orange-100 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+          class="w-full mt-4 py-2.5 rounded-xl text-sm font-semibold text-orange-600 bg-orange-50 border border-orange-100 hover:bg-orange-100 transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer">
           <Pencil size={14} />
           Edit Profil
         </button>
@@ -622,7 +625,7 @@
         <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-1 mb-2">Informasi Pribadi</p>
         <div class="bg-white rounded-2xl shadow-sm border border-slate-50 overflow-hidden">
           {#each [
-            { Icon: Briefcase, label: 'Posisi / Jabatan', val: profile?.position },
+            { Icon: Briefcase, label: 'Posisi', val: profile?.position },
             { Icon: CalendarDays, label: 'Tanggal Bergabung', val: formatDate(profile?.joined_at) },
             { Icon: UserRound, label: 'Tanggal Lahir', val: formatDate(profile?.birth_date) },
           ] as row}
@@ -672,7 +675,7 @@
         <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-1 mb-2">Keamanan Akun</p>
         <div class="bg-white rounded-2xl shadow-sm border border-slate-50 overflow-hidden">
           <button onclick={openEmailModal}
-                  class="w-full flex items-center gap-3 px-5 py-3.5 border-b border-slate-50 hover:bg-orange-50/40 transition-colors text-left">
+                  class="w-full flex items-center gap-3 px-5 py-3.5 border-b border-slate-50 hover:bg-orange-50/40 transition-colors text-left cursor-pointer">
             <div class="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
               <Mail size={16} class="text-blue-600" />
             </div>
@@ -684,7 +687,7 @@
           </button>
 
           <button onclick={openPasswordModal}
-                  class="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-orange-50/40 transition-colors text-left">
+                  class="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-orange-50/40 transition-colors text-left cursor-pointer">
             <div class="w-9 h-9 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
               <KeyRound size={16} class="text-purple-600" />
             </div>
@@ -707,7 +710,7 @@
             { Icon: Clock, label: 'Kehadiran', href: '/absensi', color: 'text-green-600', bg: 'bg-green-50' },
           ] as nav}
             <a href={nav.href}
-               class="flex items-center justify-between px-5 py-3.5 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
+               class="flex items-center justify-between px-5 py-3.5 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors cursor-pointer">
               <div class="flex items-center gap-3">
                 <div class="w-9 h-9 rounded-lg {nav.bg} flex items-center justify-center">
                   <svelte:component this={nav.Icon} size={16} class={nav.color} />
@@ -722,15 +725,11 @@
 
       <!-- ── Sign Out ───────────────────────────────────── -->
       <button
-        onclick={async () => { await supabase.auth.signOut(); location.assign('/auth') }}
-        class="w-full py-3.5 mt-2 rounded-2xl text-sm font-semibold text-red-500 bg-white border border-red-100 hover:bg-red-50 transition-colors active:scale-[0.98] flex items-center justify-center gap-2">
+        onclick={() => showLogoutModal = true}
+        class="w-full py-3.5 mt-2 rounded-2xl text-sm font-semibold text-red-500 bg-white border border-red-100 hover:bg-red-50 transition-colors active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer">
         <LogOut size={15} />
         Keluar dari Akun
       </button>
-
-      <p class="text-center text-[10px] text-slate-400 pt-2 pb-4">
-        Workspace Khwarizmi · v1.0.0
-      </p>
 
     </main>
   {/if}
@@ -754,7 +753,7 @@
       <div class="flex items-center justify-between px-6 py-3 border-b border-slate-100 sticky top-4 bg-white z-10">
         <span class="font-bold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">Edit Profil</span>
         <button onclick={() => showEditModal = false}
-                class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 text-sm">✕</button>
+                class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 text-sm cursor-pointer">✕</button>
       </div>
 
       <div class="px-6 py-5 flex flex-col gap-5">
@@ -794,7 +793,7 @@
           </div>
 
           <div>
-            <label class="text-xs font-semibold text-slate-500 block mb-1.5">Posisi / Jabatan</label>
+            <label class="text-xs font-semibold text-slate-500 block mb-1.5">Posisi</label>
             <input bind:value={editPosition} placeholder="Contoh: Frontend Developer"
                    class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-400" />
           </div>
@@ -833,11 +832,11 @@
 
         <div class="flex gap-3 pt-2 pb-6">
           <button onclick={() => showEditModal = false}
-                  class="flex-1 py-3 rounded-xl text-sm font-semibold bg-slate-100 text-slate-500 hover:bg-slate-200">
+                  class="flex-1 py-3 rounded-xl text-sm font-semibold bg-slate-100 text-slate-500 hover:bg-slate-200 cursor-pointer">
             Batal
           </button>
           <button onclick={saveProfile} disabled={isSaving || uploadingAvatar}
-                  class="flex-[2] py-3 rounded-xl text-sm font-bold text-white disabled:opacity-60 active:scale-[0.98]"
+                  class="flex-[2] py-3 rounded-xl text-sm font-bold text-white disabled:opacity-60 active:scale-[0.98] cursor-pointer"
                   style="background: linear-gradient(135deg, #F97316, #EA580C);">
             {#if isSaving || uploadingAvatar}
               <span class="flex items-center justify-center gap-2">
@@ -878,7 +877,7 @@
             <Lock size={18} class="text-purple-600" />
           </div>
           <button onclick={() => showPasswordModal = false}
-                  class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 text-sm">✕</button>
+                  class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 text-sm cursor-pointer">✕</button>
         </div>
         <h3 class="font-bold text-slate-800 text-lg" style="font-family:'Plus Jakarta Sans',sans-serif;">Ganti Password</h3>
         <p class="text-xs text-slate-500 mt-1">Pastikan password baru Anda aman dan mudah diingat.</p>
@@ -894,7 +893,7 @@
                    placeholder="Masukkan password saat ini"
                    class="w-full px-4 py-3 pr-11 rounded-xl border border-slate-200 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-purple-400" />
             <button type="button" onclick={() => showCurrentPw = !showCurrentPw}
-                    class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer">
               {#if showCurrentPw}<EyeOff size={16} />{:else}<Eye size={16} />{/if}
             </button>
           </div>
@@ -908,7 +907,7 @@
                    placeholder="Minimal 8 karakter"
                    class="w-full px-4 py-3 pr-11 rounded-xl border border-slate-200 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-purple-400" />
             <button type="button" onclick={() => showNewPw = !showNewPw}
-                    class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer">
               {#if showNewPw}<EyeOff size={16} />{:else}<Eye size={16} />{/if}
             </button>
           </div>
@@ -950,11 +949,11 @@
 
         <div class="flex gap-3 pt-1 pb-6">
           <button onclick={() => showPasswordModal = false}
-                  class="flex-1 py-3 rounded-xl text-sm font-semibold bg-slate-100 text-slate-500 hover:bg-slate-200">
+                  class="flex-1 py-3 rounded-xl text-sm font-semibold bg-slate-100 text-slate-500 hover:bg-slate-200 cursor-pointer">
             Batal
           </button>
           <button onclick={changePassword} disabled={isChangingPassword}
-                  class="flex-[2] py-3 rounded-xl text-sm font-bold text-white disabled:opacity-60 active:scale-[0.98]"
+                  class="flex-[2] py-3 rounded-xl text-sm font-bold text-white disabled:opacity-60 active:scale-[0.98] cursor-pointer"
                   style="background: linear-gradient(135deg, #A855F7, #7C3AED);">
             {#if isChangingPassword}
               <span class="flex items-center justify-center gap-2">
@@ -995,7 +994,7 @@
             <Mail size={18} class="text-blue-600" />
           </div>
           <button onclick={() => showEmailModal = false}
-                  class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 text-sm">✕</button>
+                  class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 text-sm cursor-pointer">✕</button>
         </div>
         <h3 class="font-bold text-slate-800 text-lg" style="font-family:'Plus Jakarta Sans',sans-serif;">Ganti Email</h3>
         <p class="text-xs text-slate-500 mt-1">Kami akan mengirim link konfirmasi ke email baru Anda.</p>
@@ -1046,17 +1045,17 @@
         <div class="flex gap-3 pt-1 pb-6">
           {#if emailSuccess}
             <button onclick={() => showEmailModal = false}
-                    class="w-full py-3 rounded-xl text-sm font-bold text-white active:scale-[0.98]"
+                    class="w-full py-3 rounded-xl text-sm font-bold text-white active:scale-[0.98] cursor-pointer"
                     style="background: linear-gradient(135deg, #3B82F6, #2563EB);">
               Tutup
             </button>
           {:else}
             <button onclick={() => showEmailModal = false}
-                    class="flex-1 py-3 rounded-xl text-sm font-semibold bg-slate-100 text-slate-500 hover:bg-slate-200">
+                    class="flex-1 py-3 rounded-xl text-sm font-semibold bg-slate-100 text-slate-500 hover:bg-slate-200 cursor-pointer">
               Batal
             </button>
             <button onclick={changeEmail} disabled={isChangingEmail}
-                    class="flex-[2] py-3 rounded-xl text-sm font-bold text-white disabled:opacity-60 active:scale-[0.98]"
+                    class="flex-[2] py-3 rounded-xl text-sm font-bold text-white disabled:opacity-60 active:scale-[0.98] cursor-pointer"
                     style="background: linear-gradient(135deg, #3B82F6, #2563EB);">
               {#if isChangingEmail}
                 <span class="flex items-center justify-center gap-2">
@@ -1092,7 +1091,7 @@
           <p class="text-[11px] text-slate-400 mt-0.5">Geser & zoom untuk menyesuaikan</p>
         </div>
         <button onclick={closeCropper}
-                class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 text-sm">✕</button>
+                class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 text-sm cursor-pointer">✕</button>
       </div>
 
       <div class="p-5 flex flex-col items-center gap-4 bg-slate-900">
@@ -1134,16 +1133,16 @@
         </div>
 
         <div class="w-full flex items-center gap-3 px-2">
-          <button onclick={zoomOut} class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center">
+          <button onclick={zoomOut} class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center cursor-pointer">
             <ZoomOut size={16} class="text-white" />
           </button>
           <input type="range" min={cropMinScale} max={cropMinScale * 4} step="0.001"
                  bind:value={cropScale} oninput={clampOffset}
                  class="flex-1 accent-orange-500 h-1" />
-          <button onclick={zoomIn} class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center">
+          <button onclick={zoomIn} class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center cursor-pointer">
             <ZoomIn size={16} class="text-white" />
           </button>
-          <button onclick={resetCrop} class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center">
+          <button onclick={resetCrop} class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center cursor-pointer">
             <RotateCcw size={15} class="text-white" />
           </button>
         </div>
@@ -1151,13 +1150,55 @@
 
       <div class="flex gap-3 px-5 py-4 border-t border-slate-100">
         <button onclick={closeCropper}
-                class="flex-1 py-3 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+                class="flex-1 py-3 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer">
           Batal
         </button>
         <button onclick={applyCrop}
-                class="flex-[2] py-3 rounded-xl text-sm font-bold text-white active:scale-[0.98]"
+                class="flex-[2] py-3 rounded-xl text-sm font-bold text-white active:scale-[0.98] cursor-pointer"
                 style="background: linear-gradient(135deg, #F97316, #EA580C);">
           Gunakan Foto
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--  Logout Confirmation Modal                               -->
+<!-- ════════════════════════════════════════════════════════ -->
+{#if showLogoutModal}
+  <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+       style="background:rgba(0,0,0,0.5); backdrop-filter:blur(8px);"
+       onclick={() => showLogoutModal = false}>
+    <div class="w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl"
+         style="animation: slideUp 0.3s cubic-bezier(0.16,1,0.3,1);"
+         onclick={(e) => e.stopPropagation()}>
+
+      <div class="flex justify-center pt-3 pb-1 sm:hidden">
+        <div class="w-10 h-1 rounded-full bg-slate-200"></div>
+      </div>
+
+      <div class="px-6 pt-6 pb-3 flex flex-col items-center text-center gap-3">
+        <div class="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center">
+          <LogOut size={22} class="text-red-500" />
+        </div>
+        <div>
+          <h3 class="font-bold text-slate-800 text-lg" style="font-family:'Plus Jakarta Sans',sans-serif;">Keluar dari Akun?</h3>
+          <p class="text-xs text-slate-500 mt-1.5 leading-relaxed">
+            Kamu akan keluar dari sesi ini.<br />Pastikan semua pekerjaan sudah tersimpan.
+          </p>
+        </div>
+      </div>
+
+      <div class="flex gap-3 px-6 py-5">
+        <button onclick={() => showLogoutModal = false}
+                class="flex-1 py-3 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer">
+          Batal
+        </button>
+        <button onclick={async () => { await supabase.auth.signOut(); location.assign('/auth') }}
+                class="flex-1 py-3 rounded-xl text-sm font-bold text-white bg-red-500 hover:bg-red-600 transition-colors active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2">
+          <LogOut size={14} />
+          Ya, Keluar
         </button>
       </div>
     </div>

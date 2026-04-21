@@ -38,6 +38,7 @@
     message: string
     is_read: boolean
     created_at: string
+    data?: Record<string, unknown> | null
   }
 
   // ── Constants ──────────────────────────────────────
@@ -57,6 +58,43 @@
     done: 'Selesai',
   }
 
+  // ── Icon Map (sesuai dengan notifications page) ──
+  const ICON_MAP: Record<string, { bg: string; color: string; path: string }> = {
+    task_collaboration_invite: { bg: 'bg-blue-50',    color: 'text-blue-500',    path: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
+    collaboration_accepted:    { bg: 'bg-green-50',   color: 'text-green-500',   path: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+    collaboration_rejected:    { bg: 'bg-red-50',     color: 'text-red-500',     path: 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z' },
+    task_completed:            { bg: 'bg-emerald-50', color: 'text-emerald-500', path: 'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z' },
+    task_ready_review:         { bg: 'bg-purple-50',  color: 'text-purple-500',  path: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z' },
+    task_deadline_today:       { bg: 'bg-red-50',     color: 'text-red-500',     path: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+    task_deleted:              { bg: 'bg-slate-100',  color: 'text-slate-500',   path: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16' },
+    task_revision:             { bg: 'bg-amber-50',   color: 'text-amber-500',   path: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15' },
+    task_assigned:             { bg: 'bg-blue-50',    color: 'text-blue-500',    path: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+  }
+  const DEFAULT_ICON = { bg: 'bg-slate-50', color: 'text-slate-500', path: 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' }
+  
+  const getIcon = (type: string) => ICON_MAP[type] ?? DEFAULT_ICON
+
+  // ── Navigation Map ────────────────────────────────
+  function getNavigationUrl(n: Notification): string {
+    switch (n.type) {
+      case 'task_collaboration_invite':
+      case 'task_assigned':
+      case 'task_deadline_today':
+      case 'task_ready_review':
+      case 'task_revision':
+      case 'task_completed':
+      case 'task_deleted':
+        return '/tasks'
+      
+      case 'collaboration_accepted':
+      case 'collaboration_rejected':
+        return '/absensi'
+      
+      default:
+        return '/dashboard'
+    }
+  }
+
   // ── State ──────────────────────────────────────────
   let user = $state<User | null>(null)
   let profile = $state<Profile | null>(null)
@@ -65,6 +103,7 @@
   let notifications = $state<Notification[]>([])
   let isLoading = $state(true)
   let gpsActive = $state(false)
+  let isNavigating = $state(false)
 
   let now = $state(new Date())
   let clockInterval: any
@@ -125,25 +164,20 @@
     return { label: `${diff} hari`, color: '#64748B', urgent: false }
   }
 
-  function formatTimeAgo(iso: string) {
-    const diff = Date.now() - new Date(iso).getTime()
-    const m = Math.floor(diff / 60000)
-    const h = Math.floor(diff / 3600000)
-    const d = Math.floor(diff / 86400000)
-    if (m < 1)  return 'Baru saja'
-    if (m < 60) return `${m}m`
-    if (h < 24) return `${h}h`
-    return `${d}d`
-  }
-
-  function getNotifIcon(type: string): { Icon: any; bg: string; color: string } {
-    const map: Record<string, { Icon: any; bg: string; color: string }> = {
-      task_assigned:  { Icon: ListTodo, bg: 'bg-blue-50', color: 'text-blue-600' },
-      task_accepted:  { Icon: CheckCircle2, bg: 'bg-green-50', color: 'text-green-600' },
-      task_completed: { Icon: CheckCircle2, bg: 'bg-green-50', color: 'text-green-600' },
-      task_ready_review: { Icon: Target, bg: 'bg-amber-50', color: 'text-amber-600' },
-    }
-    return map[type] ?? { Icon: Bell, bg: 'bg-slate-50', color: 'text-slate-600' }
+  function formatTimeAgo(iso: string): string {
+    const date = new Date(/Z$|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : iso + 'Z')
+    const diff = Date.now() - date.getTime()
+    if (diff < 0) return 'Baru saja'
+    const s = Math.floor(diff / 1000)
+    const m = Math.floor(s / 60)
+    const h = Math.floor(m / 60)
+    const d = Math.floor(h / 24)
+    if (s < 60)  return 'Baru saja'
+    if (m < 60)  return `${m} menit lalu`
+    if (h < 24)  return `${h} jam lalu`
+    if (d === 1) return 'Kemarin'
+    if (d < 7)   return `${d} hari lalu`
+    return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
   }
 
   // ── Data ───────────────────────────────────────────
@@ -184,6 +218,31 @@
     navigator.geolocation.watchPosition(() => { gpsActive = true }, () => { gpsActive = false })
   }
 
+  // Handle click notification + mark as read + navigate
+  async function handleNotifClick(n: Notification) {
+    if (isNavigating) return
+    isNavigating = true
+
+    // Mark as read optimistically
+    if (!n.is_read) {
+      notifications = notifications.map(x => x.id === n.id ? { ...x, is_read: true } : x)
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', n.id)
+      
+      if (error) {
+        notifications = notifications.map(x => x.id === n.id ? { ...x, is_read: false } : x)
+        isNavigating = false
+        return
+      }
+    }
+    
+    // Navigate
+    const url = getNavigationUrl(n)
+    location.href = url
+  }
+
   async function markAllRead() {
     if (!user || unreadCount === 0) return
     await supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id)
@@ -201,13 +260,13 @@
   
   <header class="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-orange-100 px-5 py-4 flex items-center justify-between">
     <div class="flex items-center gap-3">
-      <img src="/logo-khwarizmi.png" alt="Logo" class="w-9 h-9 rounded-xl shadow-sm p-1 bg-white border border-orange-200" />
+      <img src="/logo-khwarizmi.png" alt="Logo" class="w-9 h-9 rounded-xl shadow-sm p-1 bg-white border border-orange-200 object-contain cursor-pointer flex-shrink-0" />
       <div>
-        <span class="font-bold text-slate-900 text-base">Workspace</span>
+        <span class="font-bold text-slate-900 text-base">Workspace Khwarizmi</span>
         <p class="text-[10px] font-medium text-orange-600">Dashboard</p>
       </div>
     </div>
-    <a href="/notifications" class="relative w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center">
+    <a href="/notifications" class="relative w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center cursor-pointer hover:bg-slate-100 transition-colors">
       <Bell size={16} class="text-slate-600" />
       {#if unreadCount > 0}
         <span class="absolute -top-1 -right-1 min-w-[18px] h-5 rounded-full text-[9px] font-bold text-white bg-red-500 flex items-center justify-center">
@@ -263,17 +322,22 @@
           </div>
           <div class="bg-white rounded-2xl border border-slate-100 overflow-hidden divide-y divide-slate-50">
             {#each recentNotifs as notif}
-              {@const icon = getNotifIcon(notif.type)}
-              <div class="flex items-start gap-3 p-4 {notif.is_read ? '' : 'bg-orange-50/30'}">
+              {@const icon = getIcon(notif.type)}
+              <button 
+                onclick={() => handleNotifClick(notif)}
+                class="w-full flex items-start gap-3 p-4 hover:bg-orange-50/30 transition-colors text-left cursor-pointer {notif.is_read ? '' : 'bg-orange-50/30'}"
+              >
                 <div class="w-9 h-9 rounded-xl {icon.bg} flex items-center justify-center flex-shrink-0">
-                  <svelte:component this={icon.Icon} size={16} class={icon.color} />
+                  <svg class="w-4 h-4 {icon.color}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d={icon.path}/>
+                  </svg>
                 </div>
                 <div class="flex-1 min-w-0">
                   <p class="text-sm font-semibold text-slate-800 truncate">{notif.title}</p>
                   <p class="text-[11px] text-slate-500 truncate">{notif.message}</p>
                   <p class="text-[9px] text-slate-400 mt-1 font-medium">{formatTimeAgo(notif.created_at)}</p>
                 </div>
-              </div>
+              </button>
             {/each}
           </div>
         </section>
@@ -352,10 +416,6 @@
           </div>
         {/if}
       </section>
-
-      <footer class="text-center py-4">
-        <p class="text-[9px] text-slate-300 font-medium tracking-widest uppercase">© {now.getFullYear()} Workspace Khwarizmi</p>
-      </footer>
     </main>
   {/if}
 </div>

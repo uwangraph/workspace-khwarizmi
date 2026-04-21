@@ -262,8 +262,8 @@
     <div class="flex items-center gap-3">
       <img src="/logo-khwarizmi.png" alt="Logo" class="w-9 h-9 rounded-xl shadow-sm p-1 bg-white border border-orange-200 object-contain cursor-pointer flex-shrink-0" />
       <div>
-        <span class="font-bold text-slate-900 text-base">Workspace Khwarizmi</span>
-        <p class="text-[10px] font-medium text-orange-600">Dashboard</p>
+        <span class="font-extrabold text-slate-900 text-base tracking-tight" style="font-family:'Plus Jakarta Sans',sans-serif;">Workspace Khwarizmi</span>
+        <p class="text-[10px] font-medium text-orange-600 mt-0.5">Dashboard</p>
       </div>
     </div>
     <a href="/notifications" class="relative w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center cursor-pointer hover:bg-slate-100 transition-colors">
@@ -316,7 +316,7 @@
         <section class="flex flex-col gap-2">
           <div class="flex justify-between items-center px-1">
             <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pemberitahuan</p>
-            <a href="/notifications" class="text-[10px] font-bold text-orange-600 flex items-center gap-1">
+            <a href="/notifications" class="text-[10px] font-bold text-orange-600 flex items-center gap-1 cursor-pointer hover:text-orange-700 transition-colors">
               Lihat Semua <ArrowRight size={12} />
             </a>
           </div>
@@ -346,7 +346,7 @@
       <section class="flex flex-col gap-2">
         <div class="flex justify-between items-center px-1">
           <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Absensi Hari Ini</p>
-          <a href="/absensi" class="text-[10px] font-bold text-orange-600 flex items-center gap-1">
+          <a href="/absensi" class="text-[10px] font-bold text-orange-600 flex items-center gap-1 cursor-pointer hover:text-orange-700 transition-colors">
             Detail Absensi <ArrowRight size={12} />
           </a>
         </div>
@@ -382,7 +382,7 @@
       <section class="flex flex-col gap-2">
         <div class="flex justify-between items-center px-1">
           <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tugas Utama</p>
-          <a href="/tasks" class="text-[10px] font-bold text-green-600 flex items-center gap-1">
+          <a href="/tasks" class="text-[10px] font-bold text-green-600 flex items-center gap-1 cursor-pointer hover:text-green-700 transition-colors">
             Manajemen Task <ArrowRight size={12} />
           </a>
         </div>
@@ -395,7 +395,7 @@
           <div class="bg-white rounded-2xl border border-slate-100 overflow-hidden divide-y divide-slate-50">
             {#each recentTasks as task}
               {@const due = formatDue(task.due_date)}
-              <a href="/tasks" class="flex items-center gap-3 p-4 hover:bg-slate-50 transition-colors">
+              <a href="/tasks" class="flex items-center gap-3 p-4 hover:bg-slate-50 transition-colors cursor-pointer">
                 <div class="w-1.5 h-6 rounded-full" style="background: {PRIORITY_DOT[task.priority]}"></div>
                 <div class="flex-1 min-w-0">
                   <p class="text-sm font-semibold text-slate-800 truncate">{task.title}</p>

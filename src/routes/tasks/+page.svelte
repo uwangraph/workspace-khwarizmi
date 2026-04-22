@@ -830,7 +830,7 @@
 
 <!-- Toast -->
 {#if toastVisible}
-  <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] px-5 py-3 rounded-xl text-sm font-medium text-white shadow-xl max-w-[90vw] cursor-pointer"
+  <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] px-5 py-3 rounded-xl text-sm font-medium text-white shadow-xl max-w-[90vw]"
        style="background: {toastType === 'success' ? 'linear-gradient(135deg, #16A34A, #15803D)' : toastType === 'error' ? '#DC2626' : 'linear-gradient(135deg, #3B82F6, #2563EB)'}; font-family:'Inter',sans-serif; animation: slideInUp 0.3s ease-out;">
     {toastMsg}
   </div>
@@ -842,7 +842,7 @@
   <!-- Header -->
   <header class="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-orange-100 px-5 py-4 flex items-center justify-between">
     <div class="flex items-center gap-3">
-      <img src="/logo-khwarizmi.png" alt="Logo" class="w-9 h-9 rounded-xl object-contain shadow-md p-1 bg-white border border-orange-200 cursor-pointer" />
+      <img src="/logo-khwarizmi.png" alt="Logo" class="w-9 h-9 rounded-xl object-contain shadow-md p-1 bg-white border border-orange-200" />
       <div>
         <span class="font-extrabold text-slate-900 text-base tracking-tight" style="font-family:'Plus Jakarta Sans',sans-serif;">Task Tracker</span>
         <p class="text-[10px] font-medium text-orange-600 mt-0.5">Kolaborasi tim yang produktif</p>
@@ -892,7 +892,7 @@
           { val: taskStats.review + taskStats.revision, label: 'Review', color: 'text-purple-600' },
           { val: taskStats.done, label: 'Selesai', color: 'text-green-600' },
         ] as s}
-          <div class="rounded-xl px-2 py-3 bg-white/90 shadow-sm border border-white/50 text-center cursor-pointer hover:shadow-md transition-shadow">
+          <div class="rounded-xl px-2 py-3 bg-white/90 shadow-sm border border-white/50 text-center">
             <p class="text-lg font-bold {s.color}" style="font-family:'Plus Jakarta Sans',sans-serif;">{s.val}</p>
             <p class="text-[9px] font-medium text-slate-500 mt-0.5">{s.label}</p>
           </div>
@@ -900,7 +900,7 @@
       </div>
 
       <!-- Completion Bar -->
-      <div class="rounded-xl p-4 bg-white/90 shadow-sm border border-white/50 cursor-pointer hover:shadow-md transition-shadow">
+      <div class="rounded-xl p-4 bg-white/90 shadow-sm border border-white/50">
         <div class="flex items-center justify-between mb-2">
           <span class="text-xs font-semibold text-slate-600">Progres Penyelesaian</span>
           <span class="text-xs font-bold text-orange-600">{taskStats.completionRate}%</span>
@@ -941,7 +941,7 @@
 
       <!-- Task List -->
       {#if filteredTasks.length === 0}
-        <div class="bg-white/90 rounded-xl p-12 text-center border border-white/50 cursor-pointer hover:shadow-md transition-shadow">
+        <div class="bg-white/90 rounded-xl p-12 text-center border border-white/50">
           <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-orange-50 flex items-center justify-center">
             <svg class="w-8 h-8 text-orange-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
@@ -982,7 +982,7 @@
                     <p class="font-bold text-slate-800 text-sm leading-snug line-clamp-1" style="font-family:'Plus Jakarta Sans',sans-serif;">
                       {task.title}
                     </p>
-                    <span class="text-[9px] font-bold px-2 py-0.5 rounded-full {statusStyle.bg} {statusStyle.text} flex-shrink-0 flex items-center gap-1 cursor-pointer">
+                    <span class="text-[9px] font-bold px-2 py-0.5 rounded-full {statusStyle.bg} {statusStyle.text} flex-shrink-0 flex items-center gap-1">
                       <span class="w-1.5 h-1.5 rounded-full" style="background:{statusStyle.dot};"></span>
                       {STATUS_LABEL[task.status]}
                     </span>
@@ -992,14 +992,14 @@
                   <div class="flex items-center justify-between gap-2 mt-2">
                     <div class="flex items-center gap-3 text-[11px]">
                       {#if due}
-                        <div class="flex items-center gap-1 {due.color} {due.urgent ? 'font-semibold' : ''} cursor-pointer">
+                        <div class="flex items-center gap-1 {due.color} {due.urgent ? 'font-semibold' : ''}">
                           <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                           </svg>
                           {due.label}
                         </div>
                       {/if}
-                      <div class="text-slate-500 flex items-center gap-1 cursor-pointer">
+                      <div class="text-slate-500 flex items-center gap-1">
                         <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                           <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
                         </svg>
@@ -1009,7 +1009,7 @@
 
                     <!-- Avatar stack with real photos -->
                     {#if contributors.length > 0}
-                      <div class="flex -space-x-1.5 cursor-pointer">
+                      <div class="flex -space-x-1.5">
                         {#each contributors.slice(0, 3) as c}
                           <div class="w-6 h-6 rounded-full overflow-hidden border-2 border-white flex items-center justify-center text-[9px] font-bold text-white"
                                style="background: {c.avatar ? 'white' : getAvatarGradient(c.status)};"
@@ -1022,7 +1022,7 @@
                           </div>
                         {/each}
                         {#if contributors.length > 3}
-                          <div class="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[9px] font-bold text-slate-600 border-2 border-white cursor-pointer">
+                          <div class="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[9px] font-bold text-slate-600 border-2 border-white">
                             +{contributors.length - 3}
                           </div>
                         {/if}
@@ -1032,7 +1032,7 @@
 
                   <!-- Progress bar -->
                   {#if !isPending && task.progress > 0}
-                    <div class="mt-2.5 h-1 bg-slate-100 rounded-full overflow-hidden cursor-pointer">
+                    <div class="mt-2.5 h-1 bg-slate-100 rounded-full overflow-hidden">
                       <div class="h-full rounded-full transition-all duration-500"
                            style="width: {task.progress}%; background: linear-gradient(90deg, #F97316, #EA580C);"></div>
                     </div>
@@ -1040,7 +1040,7 @@
 
                   <!-- Pending invite banner -->
                   {#if isPending}
-                    <div class="mt-2.5 flex items-center gap-2 text-[10px] font-semibold text-blue-700 cursor-pointer">
+                    <div class="mt-2.5 flex items-center gap-2 text-[10px] font-semibold text-blue-700">
                       <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                       </svg>
@@ -1098,7 +1098,7 @@
          onclick={(e) => e.stopPropagation()}>
 
       <div class="sm:hidden flex justify-center pt-3 pb-1 sticky top-0 bg-white z-10">
-        <div class="w-10 h-1 rounded-full bg-slate-200 cursor-pointer"></div>
+        <div class="w-10 h-1 rounded-full bg-slate-200"></div>
       </div>
 
       <!-- Header -->
@@ -1106,20 +1106,20 @@
         <div class="flex items-start justify-between gap-3">
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 mb-2">
-              <div class="w-2 h-2 rounded-full cursor-pointer" style="background:{PRIORITY_DOT[t.priority]};"></div>
-              <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 cursor-pointer">
+              <div class="w-2 h-2 rounded-full" style="background:{PRIORITY_DOT[t.priority]};"></div>
+              <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                 Prioritas {PRIORITY_LABEL[t.priority]}
               </span>
             </div>
-            <h2 class="text-lg font-bold text-slate-900 leading-tight cursor-pointer" style="font-family:'Plus Jakarta Sans',sans-serif;">
+            <h2 class="text-lg font-bold text-slate-900 leading-tight" style="font-family:'Plus Jakarta Sans',sans-serif;">
               {t.title}
             </h2>
             <div class="flex items-center gap-1.5 mt-2">
-              <span class="text-[10px] font-bold px-2 py-1 rounded-full {statusStyle.bg} {statusStyle.text} flex items-center gap-1 cursor-pointer">
+              <span class="text-[10px] font-bold px-2 py-1 rounded-full {statusStyle.bg} {statusStyle.text} flex items-center gap-1">
                 <span class="w-1.5 h-1.5 rounded-full" style="background:{statusStyle.dot};"></span>
                 {STATUS_LABEL[t.status]}
               </span>
-              <span class="text-[10px] text-slate-500 cursor-pointer">• Dibuat oleh {t.created_by === user?.id ? 'Anda' : getUserName(t.created_by)}</span>
+              <span class="text-[10px] text-slate-500">• Dibuat oleh {t.created_by === user?.id ? 'Anda' : getUserName(t.created_by)}</span>
             </div>
           </div>
           <button onclick={() => showDetailModal = false}
@@ -1134,8 +1134,8 @@
 
         {#if t.description}
           <div>
-            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 cursor-pointer">Deskripsi</p>
-            <p class="text-sm text-slate-700 leading-relaxed whitespace-pre-line cursor-pointer">{t.description}</p>
+            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Deskripsi</p>
+            <p class="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{t.description}</p>
           </div>
         {/if}
 
@@ -1153,12 +1153,12 @@
           </div>
         </div>
 
-        <div class="cursor-pointer">
+        <div>
           <div class="flex items-center justify-between mb-2">
             <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Progress</p>
             <span class="text-sm font-bold text-orange-600">{t.progress}%</span>
           </div>
-          <div class="h-2.5 bg-slate-100 rounded-full overflow-hidden cursor-pointer">
+          <div class="h-2.5 bg-slate-100 rounded-full overflow-hidden">
             <div class="h-full rounded-full transition-all duration-700"
                  style="width: {t.progress}%; background: linear-gradient(90deg, #F97316, #EA580C);"></div>
           </div>
@@ -1166,7 +1166,7 @@
 
         <!-- ═══ Contributors section (renamed) ═══ -->
         <div>
-          <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 cursor-pointer">
+          <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
             {CONTRIBUTORS_LABEL} ({contributors.length})
           </p>
           <div class="flex flex-col gap-1.5">
@@ -1182,19 +1182,19 @@
                   {/if}
                 </div>
                 <div class="flex-1 min-w-0">
-                  <p class="text-sm font-semibold text-slate-800 truncate cursor-pointer">
+                  <p class="text-sm font-semibold text-slate-800 truncate">
                     {c.id === user?.id ? 'Anda' : c.name}
                     {#if c.id === t.created_by}
-                      <span class="text-[10px] font-medium text-orange-600 cursor-pointer">• Pembuat</span>
+                      <span class="text-[10px] font-medium text-orange-600">• Pembuat</span>
                     {/if}
                   </p>
-                  <p class="text-[10px] text-slate-500 cursor-pointer">
+                  <p class="text-[10px] text-slate-500">
                     {c.status === 'accepted' ? 'Telah bergabung' :
                      c.status === 'pending' ? 'Menunggu konfirmasi' :
                      c.status === 'completed' ? 'Telah menyelesaikan' : c.status}
                   </p>
                 </div>
-                <div class="w-2 h-2 rounded-full flex-shrink-0 cursor-pointer"
+                <div class="w-2 h-2 rounded-full flex-shrink-0"
                      style="background:{c.status === 'accepted' ? '#22C55E' : c.status === 'pending' ? '#3B82F6' : c.status === 'completed' ? '#A855F7' : '#94A3B8'};"></div>
               </div>
             {/each}
@@ -1260,11 +1260,11 @@
          onclick={(e) => e.stopPropagation()}>
 
       <div class="sm:hidden flex justify-center pt-3 pb-1 sticky top-0 bg-white z-10">
-        <div class="w-10 h-1 rounded-full bg-slate-200 cursor-pointer"></div>
+        <div class="w-10 h-1 rounded-full bg-slate-200"></div>
       </div>
 
       <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 sm:top-0 bg-white z-10" style:top="0.5rem">
-        <span class="text-base font-bold text-slate-800 cursor-pointer" style="font-family:'Plus Jakarta Sans',sans-serif;">
+        <span class="text-base font-bold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">
           {isEditing ? 'Edit Tugas' : 'Tugas Baru'}
         </span>
         <button onclick={() => showTaskModal = false}
@@ -1276,33 +1276,33 @@
       <div class="px-6 py-5 flex flex-col gap-4">
         <!-- Judul -->
         <div>
-          <label class="text-xs font-semibold text-slate-500 block mb-1.5 cursor-pointer">
+          <label class="text-xs font-semibold text-slate-500 block mb-1.5">
             Judul <span class="text-red-500">*</span>
           </label>
           <input type="text" bind:value={formTitle} placeholder="Masukkan judul tugas"
-                 class="w-full rounded-xl border px-4 py-3 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-400 cursor-pointer
+                 class="w-full rounded-xl border px-4 py-3 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-400
                         {formFieldErrors.title ? 'border-red-300 ring-1 ring-red-200' : 'border-slate-200'}" />
           {#if formFieldErrors.title}
-            <p class="text-[10px] text-red-500 font-medium mt-1 cursor-pointer">{formFieldErrors.title}</p>
+            <p class="text-[10px] text-red-500 font-medium mt-1">{formFieldErrors.title}</p>
           {/if}
         </div>
 
         <!-- Deskripsi (now required) -->
         <div>
-          <label class="text-xs font-semibold text-slate-500 block mb-1.5 cursor-pointer">
+          <label class="text-xs font-semibold text-slate-500 block mb-1.5">
             Deskripsi <span class="text-red-500">*</span>
           </label>
           <textarea bind:value={formDescription} rows="3" placeholder="Detail tugas..."
-                    class="w-full rounded-xl border px-4 py-3 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none cursor-pointer
+                    class="w-full rounded-xl border px-4 py-3 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none
                            {formFieldErrors.description ? 'border-red-300 ring-1 ring-red-200' : 'border-slate-200'}"></textarea>
           {#if formFieldErrors.description}
-            <p class="text-[10px] text-red-500 font-medium mt-1 cursor-pointer">{formFieldErrors.description}</p>
+            <p class="text-[10px] text-red-500 font-medium mt-1">{formFieldErrors.description}</p>
           {/if}
         </div>
 
         <!-- Kolaborator (with avatars) -->
         <div>
-          <label class="text-xs font-semibold text-slate-500 block mb-1.5 cursor-pointer">
+          <label class="text-xs font-semibold text-slate-500 block mb-1.5">
             Ajak Kolaborator
             <span class="text-[10px] font-normal text-slate-400">(opsional)</span>
           </label>
@@ -1325,10 +1325,10 @@
                     {getInitials(u.full_name)}
                   {/if}
                 </div>
-                <span class="text-sm text-slate-700 cursor-pointer">{u.full_name}</span>
+                <span class="text-sm text-slate-700">{u.full_name}</span>
               </label>
             {:else}
-              <p class="text-xs text-slate-400 text-center py-3 cursor-pointer">Tidak ada user lain</p>
+              <p class="text-xs text-slate-400 text-center py-3">Tidak ada user lain</p>
             {/each}
           </div>
         </div>
@@ -1336,7 +1336,7 @@
         <!-- Status & Prioritas -->
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="text-xs font-semibold text-slate-500 block mb-1.5 cursor-pointer">Status</label>
+            <label class="text-xs font-semibold text-slate-500 block mb-1.5">Status</label>
             <select bind:value={formStatus}
                     class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-400 cursor-pointer">
               <option value="not_started">Belum Dikerjakan</option>
@@ -1347,7 +1347,7 @@
             </select>
           </div>
           <div>
-            <label class="text-xs font-semibold text-slate-500 block mb-1.5 cursor-pointer">Prioritas</label>
+            <label class="text-xs font-semibold text-slate-500 block mb-1.5">Prioritas</label>
             <select bind:value={formPriority}
                     class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-400 cursor-pointer">
               <option value="low">Rendah</option>
@@ -1358,10 +1358,10 @@
         </div>
 
         <!-- Progress -->
-        <div class="cursor-pointer">
+        <div>
           <div class="flex items-center justify-between mb-2">
-            <label class="text-xs font-semibold text-slate-500 cursor-pointer">Progress</label>
-            <span class="text-xs font-bold text-orange-600 cursor-pointer">{formProgress}%</span>
+            <label class="text-xs font-semibold text-slate-500">Progress</label>
+            <span class="text-xs font-bold text-orange-600">{formProgress}%</span>
           </div>
           <input type="range" bind:value={formProgress} min="0" max="100" step="5"
                  class="range-orange w-full cursor-pointer"
@@ -1371,35 +1371,35 @@
         <!-- Tanggal (now required) -->
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="text-xs font-semibold text-slate-500 block mb-1.5 cursor-pointer">
+            <label class="text-xs font-semibold text-slate-500 block mb-1.5">
               Mulai <span class="text-red-500">*</span>
             </label>
             <input type="date" bind:value={formStartDate}
-                   class="w-full rounded-xl border px-4 py-3 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-400 cursor-pointer
+                   class="w-full rounded-xl border px-4 py-3 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-400
                           {formFieldErrors.startDate ? 'border-red-300 ring-1 ring-red-200' : 'border-slate-200'}" />
             {#if formFieldErrors.startDate}
-              <p class="text-[10px] text-red-500 font-medium mt-1 cursor-pointer">{formFieldErrors.startDate}</p>
+              <p class="text-[10px] text-red-500 font-medium mt-1">{formFieldErrors.startDate}</p>
             {/if}
           </div>
           <div>
-            <label class="text-xs font-semibold text-slate-500 block mb-1.5 cursor-pointer">
+            <label class="text-xs font-semibold text-slate-500 block mb-1.5">
               Deadline <span class="text-red-500">*</span>
             </label>
             <input type="date" bind:value={formDueDate}
-                   class="w-full rounded-xl border px-4 py-3 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-400 cursor-pointer
+                   class="w-full rounded-xl border px-4 py-3 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-400
                           {formFieldErrors.dueDate ? 'border-red-300 ring-1 ring-red-200' : 'border-slate-200'}" />
             {#if formFieldErrors.dueDate}
-              <p class="text-[10px] text-red-500 font-medium mt-1 cursor-pointer">{formFieldErrors.dueDate}</p>
+              <p class="text-[10px] text-red-500 font-medium mt-1">{formFieldErrors.dueDate}</p>
             {/if}
           </div>
         </div>
 
         {#if formError}
-          <div class="bg-red-50 border border-red-100 rounded-xl px-3 py-2.5 flex items-start gap-2 cursor-pointer">
+          <div class="bg-red-50 border border-red-100 rounded-xl px-3 py-2.5 flex items-start gap-2">
             <svg class="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
             </svg>
-            <p class="text-xs text-red-600 font-medium cursor-pointer">{formError}</p>
+            <p class="text-xs text-red-600 font-medium">{formError}</p>
           </div>
         {/if}
 

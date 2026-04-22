@@ -350,7 +350,9 @@
     canvas.width = vw
     canvas.height = vh
     const ctx = canvas.getContext('2d')!
-    // TIDAK mirror — gambar hasil capture sesuai realita
+    // Mirror horizontal agar hasil sama seperti preview selfie
+    ctx.translate(vw, 0)
+    ctx.scale(-1, 1)
     ctx.drawImage(videoEl, 0, 0, vw, vh)
     capturedUrl = canvas.toDataURL('image/jpeg', 0.85)
     canvas.toBlob(b => { capturedBlob = b }, 'image/jpeg', 0.75)

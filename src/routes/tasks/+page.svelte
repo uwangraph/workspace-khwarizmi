@@ -821,21 +821,6 @@
   </div>
 {/if}
 
-<!-- Pending Invites Banner -->
-{#if pendingInvites.length > 0}
-  <div class="fixed top-[68px] left-0 right-0 z-40 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-200 px-4 py-2.5 cursor-pointer hover:from-blue-100 hover:to-indigo-100 transition-colors">
-    <div class="max-w-lg mx-auto flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <div class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-        <span class="text-xs font-semibold text-blue-700">
-          {pendingInvites.length} undangan baru menunggu
-        </span>
-      </div>
-      <span class="text-[10px] text-blue-600">Scroll untuk lihat</span>
-    </div>
-  </div>
-{/if}
-
 <!-- Main App -->
 <div class="min-h-screen" style="background: linear-gradient(135deg, #FFF9F0 0%, #FFFFFF 100%); font-family:'Inter',sans-serif;">
 
@@ -866,7 +851,22 @@
       </div>
     </div>
   {:else}
-    <main class="max-w-lg mx-auto px-4 py-5 pb-24 flex flex-col gap-4 relative z-10" style:padding-top={pendingInvites.length > 0 ? '3.5rem' : '1.25rem'}>
+    <main class="max-w-lg mx-auto px-4 py-5 pb-24 flex flex-col gap-4 relative z-10">
+
+      <!-- Pending Invites Alert -->
+      {#if pendingInvites.length > 0}
+        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl px-4 py-3 cursor-pointer hover:from-blue-100 hover:to-indigo-100 transition-colors shadow-sm">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+              <span class="text-xs font-semibold text-blue-700">
+                {pendingInvites.length} undangan baru menunggu
+              </span>
+            </div>
+            <span class="text-[10px] text-blue-600 font-medium">Scroll ke bawah ↓</span>
+          </div>
+        </div>
+      {/if}
 
       <!-- Stats Row -->
       <div class="grid grid-cols-5 gap-2">

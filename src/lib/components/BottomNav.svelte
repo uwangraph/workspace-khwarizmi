@@ -13,8 +13,8 @@
   ]
 </script>
 
-<nav class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-slate-200 shadow-lg safe-bottom">
-  <div class="flex items-center justify-around max-w-lg mx-auto px-2 py-2">
+<nav class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-xl z-40 bg-white/95 backdrop-blur-xl border-t border-slate-200 shadow-lg sm:border-x sm:border-slate-200 safe-bottom">
+  <div class="flex items-center justify-around px-2 py-2">
     {#each navItems as item}
       <a
         href={item.path}

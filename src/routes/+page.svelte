@@ -5,7 +5,7 @@
   import { 
     Bell, ArrowRight, Check, Clock, AlertCircle, 
     CheckCircle2, Zap, Target, ListTodo,
-    AlertTriangle, Calendar
+    AlertTriangle, Calendar, ShieldCheck
   } from 'lucide-svelte'
 
   // ── Types ──────────────────────────────────────────
@@ -311,6 +311,32 @@
           </div>
         </div>
       </div>
+
+      {#if profile?.role === 'admin'}
+        <section class="relative overflow-hidden rounded-3xl p-6 shadow-xl border border-slate-800" style="background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);">
+          <!-- dekorasi glow efek -->
+          <div class="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-orange-500/20 blur-3xl pointer-events-none"></div>
+          
+          <div class="relative z-10 flex items-center justify-between gap-4">
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1.5">
+                <ShieldCheck size={18} class="text-orange-400" />
+                <h3 class="text-[12px] font-bold text-white tracking-widest uppercase" style="font-family:'Plus Jakarta Sans',sans-serif;">Mode Admin Aktif</h3>
+              </div>
+              <p class="text-[11px] text-slate-300/90 leading-relaxed mb-4 pr-2">Kelola pengguna, pantau tugas seluruh tim, dan kendalikan sistem secara penuh melalui panel khusus.</p>
+              
+              <a href="/admin" class="inline-flex items-center gap-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 transition-all text-white text-[11px] font-extrabold py-2.5 px-4 rounded-xl shadow-lg shadow-orange-500/30 border border-orange-400/50">
+                Masuk Panel Admin
+                <ArrowRight size={14} strokeWidth={3} />
+              </a>
+            </div>
+            
+            <div class="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0 shadow-inner backdrop-blur-md">
+              <Zap size={24} class="text-orange-400/80" />
+            </div>
+          </div>
+        </section>
+      {/if}
 
       {#if recentNotifs.length > 0}
         <section class="flex flex-col gap-2">

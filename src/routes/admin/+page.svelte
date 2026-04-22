@@ -26,9 +26,11 @@
   interface Task {
     id: string
     title: string
+    description?: string | null
     status: 'not_started' | 'in_progress' | 'review' | 'revision' | 'done'
     priority: 'low' | 'medium' | 'high'
     due_date: string | null
+    start_date?: string | null
     progress: number
     created_by: string
     created_at: string
@@ -66,11 +68,12 @@
   // Search & filter
   let userSearch = $state('')
   let taskSearch = $state('')
-  let taskFilter = $state<'all' | Task['status']>('all')
+  let taskFilter = $state<'all' | 'overdue' | 'high_priority' | Task['status']>('all')
   let attendanceDate = $state(new Date().toISOString().split('T')[0])
   let attendanceMode = $state<'daily' | 'monthly'>('daily')
   let attendanceMonth = $state(new Date().toISOString().slice(0, 7))
   let attendUserSearch = $state('')
+  let taskUserFilter = $state<string>('all') // 'all' or user id
 
   // Pagination state
   const itemsPerPage = 10
@@ -84,9 +87,11 @@
   let showDeleteTaskModal = $state(false)
   let showRoleModal = $state(false)
   let showPerformanceModal = $state(false)
+  let showTaskDetailModal = $state(false)
 
   let selectedUser = $state<Profile | null>(null)
   let selectedTask = $state<Task | null>(null)
+  let detailTask = $state<Task | null>(null)
   let performanceUser = $state<Profile | null>(null)
 
   // Edit user form
@@ -190,8 +195,21 @@
   let filteredTasks = $derived(
     allTasks.filter(t => {
       const matchSearch = !taskSearch || t.title.toLowerCase().includes(taskSearch.toLowerCase())
-      const matchFilter = taskFilter === 'all' || t.status === taskFilter
-      return matchSearch && matchFilter
+      
+      let matchFilter = false
+      if (taskFilter === 'all') matchFilter = true
+      else if (taskFilter === 'overdue') {
+        matchFilter = !!t.due_date && new Date(t.due_date) < new Date() && t.status !== 'done'
+      } else if (taskFilter === 'high_priority') {
+        matchFilter = t.priority === 'high'
+      } else {
+        matchFilter = t.status === taskFilter
+      }
+
+      const matchUser = taskUserFilter === 'all' || 
+        t.created_by === taskUserFilter || 
+        allAssignments.some(a => a.task_id === t.id && a.user_id === taskUserFilter && a.status !== 'rejected')
+      return matchSearch && matchFilter && matchUser
     })
   )
 
@@ -218,21 +236,22 @@
 
   // Reset pages on search/filter
   $effect(() => { userSearch; usersPage = 1 })
-  $effect(() => { taskSearch; taskFilter; tasksPage = 1 })
+  $effect(() => { taskSearch; taskFilter; taskUserFilter; tasksPage = 1 })
   $effect(() => { attendUserSearch; attendanceDate; attendanceMonth; attendanceMode; attendPage = 1 })
 
   function getUserAttendanceForDate(userId: string) {
     return attendanceByDate.filter(a => a.user_id === userId)
   }
 
-  function getTaskCreatorName(userId: string) {
-    return allUsers.find(u => u.id === userId)?.full_name || 'Unknown'
+  function getUserProfile(userId: string) {
+    return allUsers.find(u => u.id === userId)
   }
 
   function getTaskAssignees(taskId: string) {
     return allAssignments
       .filter(a => a.task_id === taskId && a.status !== 'rejected')
-      .map(a => allUsers.find(u => u.id === a.user_id)?.full_name || 'Unknown')
+      .map(a => allUsers.find(u => u.id === a.user_id))
+      .filter(u => !!u) as Profile[]
   }
 
   // ── Derived: Attendance & Performance ──────────────────
@@ -361,6 +380,7 @@
     const { error } = await supabase.from('tasks').update({ status: newStatus }).eq('id', task.id)
     if (error) { showToast('Gagal update status', 'error'); return }
     allTasks = allTasks.map(t => t.id === task.id ? { ...t, status: newStatus } : t)
+    if (detailTask && detailTask.id === task.id) detailTask = { ...detailTask, status: newStatus }
     showToast('Status tugas diperbarui', 'success')
   }
 
@@ -697,10 +717,36 @@
                  class="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400" />
         </div>
 
+        <!-- Filter by user -->
+        <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          <button
+            onclick={() => taskUserFilter = 'all'}
+            class="px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex-shrink-0"
+            class:text-white={taskUserFilter === 'all'}
+            class:bg-slate-100={taskUserFilter !== 'all'}
+            class:text-slate-500={taskUserFilter !== 'all'}
+            style={taskUserFilter === 'all' ? 'background:linear-gradient(135deg,#F97316,#EA580C);' : ''}>
+            Semua User
+          </button>
+          {#each allUsers as u}
+            <button
+              onclick={() => taskUserFilter = taskUserFilter === u.id ? 'all' : u.id}
+              class="px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex-shrink-0"
+              class:text-white={taskUserFilter === u.id}
+              class:bg-slate-100={taskUserFilter !== u.id}
+              class:text-slate-500={taskUserFilter !== u.id}
+              style={taskUserFilter === u.id ? 'background:linear-gradient(135deg,#F97316,#EA580C);' : ''}>
+              {u.full_name.split(' ')[0]}
+            </button>
+          {/each}
+        </div>
+
         <!-- Status filter chips -->
         <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
           {#each [
             { val: 'all', label: 'Semua' },
+            { val: 'overdue', label: 'Overdue' },
+            { val: 'high_priority', label: 'Prioritas Tinggi' },
             { val: 'not_started', label: 'Belum' },
             { val: 'in_progress', label: 'Dikerjakan' },
             { val: 'review', label: 'Review' },
@@ -713,7 +759,9 @@
               class:text-white={taskFilter === f.val}
               class:bg-slate-100={taskFilter !== f.val}
               class:text-slate-500={taskFilter !== f.val}
-              style={taskFilter === f.val ? 'background:linear-gradient(135deg,#F97316,#EA580C);' : ''}>
+              class:bg-red-500={taskFilter === 'overdue' && f.val === 'overdue'}
+              class:bg-orange-600={taskFilter === 'high_priority' && f.val === 'high_priority'}
+              style={taskFilter === f.val && f.val !== 'overdue' && f.val !== 'high_priority' ? 'background:linear-gradient(135deg,#F97316,#EA580C);' : ''}>
               {f.label}
             </button>
           {/each}
@@ -733,7 +781,8 @@
             {#each paginatedTasks as task}
               {@const ss = STATUS_STYLE[task.status]}
               {@const assignees = getTaskAssignees(task.id)}
-              <div class="px-4 py-3.5 border-b md:border-r md:border-b-0 border-slate-50 hover:bg-slate-50 transition-colors">
+              <div class="px-4 py-3.5 border-b md:border-r md:border-b-0 border-slate-50 hover:bg-orange-50/30 transition-colors cursor-pointer"
+                   onclick={() => { detailTask = task; showTaskDetailModal = true }}>
                 <div class="flex items-start gap-2.5">
                   <div class="w-1.5 h-5 rounded-full mt-0.5 flex-shrink-0" style="background:{PRIORITY_DOT[task.priority]}"></div>
                   <div class="flex-1 min-w-0">
@@ -744,13 +793,13 @@
                       </span>
                     </div>
                     <div class="flex items-center gap-3 mt-1">
-                      <span class="text-[10px] text-slate-400">Oleh: {getTaskCreatorName(task.created_by)}</span>
+                      <span class="text-[10px] text-slate-400">Oleh: {getUserProfile(task.created_by)?.full_name || 'Unknown'}</span>
                       {#if task.due_date}
                         <span class="text-[10px] text-slate-400">· {formatDate(task.due_date)}</span>
                       {/if}
                     </div>
                     {#if assignees.length > 0}
-                      <p class="text-[10px] text-slate-400 mt-0.5">Dikerjakan: {assignees.slice(0,2).join(', ')}{assignees.length > 2 ? ` +${assignees.length-2}` : ''}</p>
+                      <p class="text-[10px] text-slate-400 mt-0.5">Dikerjakan: {assignees.slice(0,2).map(a => a.full_name).join(', ')}{assignees.length > 2 ? ` +${assignees.length-2}` : ''}</p>
                     {/if}
                     <!-- Progress bar -->
                     {#if task.progress > 0}
@@ -759,10 +808,16 @@
                       </div>
                     {/if}
                   </div>
-                  <button onclick={() => { selectedTask = task; showDeleteTaskModal = true }}
-                          class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-red-50 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors cursor-pointer flex-shrink-0">
-                    <Trash2 size={12} />
-                  </button>
+                  <div class="flex flex-col gap-1">
+                    <button onclick={(e) => { e.stopPropagation(); detailTask = task; showTaskDetailModal = true }}
+                            class="w-7 h-7 rounded-lg bg-orange-50 hover:bg-orange-100 flex items-center justify-center text-orange-500 transition-colors cursor-pointer flex-shrink-0" title="Lihat Detail">
+                      <Eye size={12} />
+                    </button>
+                    <button onclick={(e) => { e.stopPropagation(); selectedTask = task; showDeleteTaskModal = true }}
+                            class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-red-50 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors cursor-pointer flex-shrink-0">
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
                 </div>
               </div>
             {/each}
@@ -1255,6 +1310,140 @@
                 class="flex-1 py-3 rounded-xl text-sm font-bold text-white bg-red-500 hover:bg-red-600 disabled:opacity-60 cursor-pointer">
           {isDeletingTask ? 'Menghapus...' : 'Ya, Hapus'}
         </button>
+      </div>
+    </div>
+  </div>
+{/if}
+<!-- ════════════════ Task Detail Modal ════════════════ -->
+{#if showTaskDetailModal && detailTask}
+  {@const ss = STATUS_STYLE[detailTask.status]}
+  {@const assignees = getTaskAssignees(detailTask.id)}
+  {@const creator = getUserProfile(detailTask.created_by)}
+  
+  <div class="fixed inset-0 z-50 flex items-end justify-center"
+       style="background:rgba(0,0,0,0.5); backdrop-filter:blur(8px);"
+       onclick={() => showTaskDetailModal = false}>
+    <div class="w-full max-w-lg bg-white rounded-t-3xl shadow-2xl pb-8"
+         style="animation:slideUp .3s cubic-bezier(.16,1,.3,1); max-height:90vh; overflow-y:auto;"
+         onclick={e => e.stopPropagation()}>
+
+      <div class="flex justify-center pt-3 pb-1">
+        <div class="w-10 h-1 rounded-full bg-slate-200"></div>
+      </div>
+      <div class="flex items-center justify-between px-6 py-3 border-b border-slate-100">
+        <div class="flex items-center gap-2">
+          <ClipboardList size={16} class="text-orange-500" />
+          <span class="font-bold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">Detail Tugas</span>
+        </div>
+        <button onclick={() => showTaskDetailModal = false}
+                class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 cursor-pointer">✕</button>
+      </div>
+
+      <div class="px-6 py-5 flex flex-col gap-6">
+        <!-- Title & Status -->
+        <div>
+          <div class="flex items-start justify-between gap-4 mb-2">
+            <h3 class="text-lg font-bold text-slate-800 leading-tight">{detailTask.title}</h3>
+            <span class="text-[10px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 {ss.bg} {ss.text}">
+              {STATUS_LABEL[detailTask.status]}
+            </span>
+          </div>
+          <div class="flex flex-wrap gap-3">
+            <div class="flex items-center gap-1.5 text-xs text-slate-500">
+              <Calendar size={12} />
+              <span>Deadline: {formatDate(detailTask.due_date)}</span>
+            </div>
+            <div class="flex items-center gap-1.5 text-xs text-slate-500">
+              <div class="w-2 h-2 rounded-full" style="background:{PRIORITY_DOT[detailTask.priority]}"></div>
+              <span class="capitalize">Prioritas {detailTask.priority}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Progress -->
+        <div>
+          <div class="flex justify-between items-end mb-2">
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Progress Kerja</p>
+            <span class="text-sm font-bold text-orange-600">{detailTask.progress}%</span>
+          </div>
+          <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div class="h-full rounded-full transition-all duration-500"
+                 style="width:{detailTask.progress}%; background:linear-gradient(90deg,#F97316,#FBBF24)"></div>
+          </div>
+        </div>
+
+        <!-- Description -->
+        {#if detailTask.description}
+          <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2">Deskripsi</p>
+            <p class="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{detailTask.description}</p>
+          </div>
+        {/if}
+
+        <!-- People -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2">Dibuat Oleh</p>
+            <div class="flex items-center gap-2">
+              <div class="w-7 h-7 rounded-lg bg-orange-100 flex items-center justify-center text-[10px] font-bold text-orange-600 overflow-hidden">
+                {#if creator?.avatar_url}
+                  <img src={creator.avatar_url} alt="" class="w-full h-full object-cover" />
+                {:else}
+                  {getInitials(creator?.full_name || 'Unknown')}
+                {/if}
+              </div>
+              <span class="text-xs font-semibold text-slate-700">{creator?.full_name || 'Unknown'}</span>
+            </div>
+          </div>
+          <div>
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2">Kolaborator</p>
+            <div class="flex -space-x-2 overflow-hidden">
+              {#each assignees as p}
+                <div class="w-7 h-7 rounded-lg border-2 border-white bg-slate-200 flex items-center justify-center text-[8px] font-bold text-slate-600 overflow-hidden" title={p.full_name}>
+                  {#if p.avatar_url}
+                    <img src={p.avatar_url} alt="" class="w-full h-full object-cover" />
+                  {:else}
+                    {getInitials(p.full_name)}
+                  {/if}
+                </div>
+              {:else}
+                <span class="text-xs text-slate-400 italic">Tidak ada</span>
+              {/each}
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="pt-2 border-t border-slate-100">
+          <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-3">Update Status (Admin)</p>
+          <div class="grid grid-cols-3 gap-2">
+            {#each Object.entries(STATUS_LABEL) as [val, label]}
+              <button
+                onclick={() => updateTaskStatus(detailTask!, val as any)}
+                class="py-2 px-1 rounded-xl text-[10px] font-bold border transition-all cursor-pointer"
+                class:bg-white={detailTask.status !== val}
+                class:text-slate-500={detailTask.status !== val}
+                class:border-slate-200={detailTask.status !== val}
+                class:text-white={detailTask.status === val}
+                class:border-transparent={detailTask.status === val}
+                style={detailTask.status === val ? 'background:linear-gradient(135deg,#F97316,#EA580C)' : ''}>
+                {label}
+              </button>
+            {/each}
+          </div>
+        </div>
+
+        <div class="flex gap-3 mt-2">
+          <button onclick={() => { selectedTask = detailTask; showDeleteTaskModal = true; showTaskDetailModal = false }}
+                  class="flex-1 py-3 rounded-xl text-sm font-bold text-red-500 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer flex items-center justify-center gap-2">
+            <Trash2 size={16} />
+            Hapus Tugas
+          </button>
+          <button onclick={() => showTaskDetailModal = false}
+                  class="flex-1 py-3 rounded-xl text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer">
+            Tutup
+          </button>
+        </div>
       </div>
     </div>
   </div>

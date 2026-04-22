@@ -90,8 +90,24 @@
   const getIcon = (type: string) => ICON_MAP[type] ?? DEFAULT_ICON
 
   let unreadCount = $derived(notifications.filter(n => !n.is_read).length)
-  let unreadList  = $derived(notifications.filter(n => !n.is_read))
-  let readList    = $derived(notifications.filter(n => n.is_read))
+
+  // Search & Pagination
+  let notifSearch = $state('')
+  let currentPage = $state(1)
+  const itemsPerPage = 15
+
+  let filteredNotifs = $derived(
+    notifications.filter(n => 
+      !notifSearch || 
+      n.title.toLowerCase().includes(notifSearch.toLowerCase()) || 
+      n.message.toLowerCase().includes(notifSearch.toLowerCase())
+    )
+  )
+
+  let paginatedNotifs = $derived(filteredNotifs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage))
+  let totalPages = $derived(Math.ceil(filteredNotifs.length / itemsPerPage))
+
+  $effect(() => { notifSearch; currentPage = 1 })
 
   // ── Navigation Map ────────────────────────────────
   function getNavigationUrl(n: Notification): string {
@@ -311,11 +327,26 @@
       </div>
 
     {:else}
-      <!-- Unread -->
-      {#if unreadList.length > 0}
+      <!-- Search bar -->
+      <div class="relative mb-4">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+        <input bind:value={notifSearch} placeholder="Cari notifikasi..."
+               class="w-full pl-9 pr-4 py-2.5 rounded-xl border border-orange-100 text-sm bg-white/90 text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400 shadow-sm" />
+      </div>
+
+      {#if filteredNotifs.length === 0}
+        <div class="flex flex-col items-center justify-center py-20 text-center">
+          <p class="text-sm font-bold text-slate-500" style="font-family:'Plus Jakarta Sans',sans-serif;">Tidak ditemukan</p>
+          <p class="text-xs text-slate-400 mt-1">Coba kata kunci lain</p>
+        </div>
+      {:else}
         <div class="flex items-center justify-between mb-2 px-1">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-orange-500">Belum Dibaca · {unreadList.length}</p>
-          {#if unreadList.length > 1}
+          <p class="text-[10px] font-bold uppercase tracking-widest text-orange-500">
+            {filteredNotifs.length} Notifikasi {unreadCount > 0 ? `· ${unreadCount} Belum Dibaca` : ''}
+          </p>
+          {#if unreadCount > 1}
             <button onclick={markAllAsRead} disabled={isUpdating}
                     class="text-[10px] font-bold text-orange-600 uppercase tracking-wider disabled:opacity-50 cursor-pointer">
               Tandai Semua ✓
@@ -323,87 +354,104 @@
           {/if}
         </div>
         <div class="flex flex-col gap-2 mb-5">
-          {#each unreadList as n (n.id)}
+          {#each paginatedNotifs as n (n.id)}
             {@const ic = getIcon(n.type)}
-            <div class="group relative bg-white border border-orange-100 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer"
-                 onclick={() => handleCardClick(n)} role="button" tabindex="0"
-                 onkeydown={(e) => e.key === 'Enter' && handleCardClick(n)}>
-              <!-- Unread dot -->
-              <div class="absolute top-4 right-4 w-2 h-2 rounded-full bg-orange-500"></div>
+            {#if !n.is_read}
+              <!-- Unread Style -->
+              <div class="group relative bg-white border border-orange-100 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer"
+                   onclick={() => handleCardClick(n)} role="button" tabindex="0"
+                   onkeydown={(e) => e.key === 'Enter' && handleCardClick(n)}>
+                <!-- Unread dot -->
+                <div class="absolute top-4 right-4 w-2 h-2 rounded-full bg-orange-500"></div>
 
-              <div class="flex gap-3">
-                <div class="flex-shrink-0 p-2 rounded-xl {ic.bg} h-fit">
-                  <svg class="w-5 h-5 {ic.color}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d={ic.path}/>
-                  </svg>
-                </div>
-                <div class="flex-1 min-w-0 pr-4">
-                  <div class="flex items-start justify-between gap-2 mb-1">
-                    <h3 class="text-sm font-bold text-slate-800 leading-snug" style="font-family:'Plus Jakarta Sans',sans-serif;">{n.title}</h3>
-                    <span class="text-[9px] font-medium text-slate-400 whitespace-nowrap flex-shrink-0">{formatRelative(n.created_at)}</span>
+                <div class="flex gap-3">
+                  <div class="flex-shrink-0 p-2 rounded-xl {ic.bg} h-fit">
+                    <svg class="w-5 h-5 {ic.color}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d={ic.path}/>
+                    </svg>
                   </div>
-                  <p class="text-xs text-slate-600 leading-relaxed mb-2">{n.message}</p>
-                  <div class="flex items-center justify-between gap-2">
-                    <!-- Tanggal detail -->
-                    <span class="text-[10px] text-slate-400">{formatDetail(n.created_at)}</span>
-                    <div class="flex gap-2">
-                      <button onclick={(e) => toggleRead(n, e)}
-                              class="text-[10px] font-bold text-orange-600 px-2 py-1 rounded-md bg-orange-50 hover:bg-orange-100 transition-colors cursor-pointer">
-                        TANDAI
-                      </button>
-                      <button onclick={(e) => deleteOne(n.id, e)}
-                              class="text-[10px] font-bold text-slate-300 hover:text-red-500 transition-colors sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer">
-                        HAPUS
-                      </button>
+                  <div class="flex-1 min-w-0 pr-4">
+                    <div class="flex items-start justify-between gap-2 mb-1">
+                      <h3 class="text-sm font-bold text-slate-800 leading-snug" style="font-family:'Plus Jakarta Sans',sans-serif;">{n.title}</h3>
+                      <span class="text-[9px] font-medium text-slate-400 whitespace-nowrap flex-shrink-0">{formatRelative(n.created_at)}</span>
+                    </div>
+                    <p class="text-xs text-slate-600 leading-relaxed mb-2">{n.message}</p>
+                    <div class="flex items-center justify-between gap-2">
+                      <!-- Tanggal detail -->
+                      <span class="text-[10px] text-slate-400">{formatDetail(n.created_at)}</span>
+                      <div class="flex gap-2">
+                        <button onclick={(e) => toggleRead(n, e)}
+                                class="text-[10px] font-bold text-orange-600 px-2 py-1 rounded-md bg-orange-50 hover:bg-orange-100 transition-colors cursor-pointer">
+                          TANDAI
+                        </button>
+                        <button onclick={(e) => deleteOne(n.id, e)}
+                                class="text-[10px] font-bold text-slate-300 hover:text-red-500 transition-colors sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer">
+                          HAPUS
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          {/each}
-        </div>
-      {/if}
-
-      <!-- Read -->
-      {#if readList.length > 0}
-        <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 px-1">Sudah Dibaca · {readList.length}</p>
-        <div class="flex flex-col gap-2">
-          {#each readList as n (n.id)}
-            {@const ic = getIcon(n.type)}
-            <div class="group relative bg-white/60 border border-slate-100 rounded-2xl p-4 transition-all hover:bg-white hover:shadow-sm cursor-pointer"
-                 onclick={() => handleCardClick(n)} role="button" tabindex="0"
-                 onkeydown={(e) => e.key === 'Enter' && handleCardClick(n)}>
-              <div class="flex gap-3">
-                <div class="flex-shrink-0 p-2 rounded-xl {ic.bg} opacity-60 h-fit">
-                  <svg class="w-5 h-5 {ic.color}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d={ic.path}/>
-                  </svg>
-                </div>
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-start justify-between gap-2 mb-1">
-                    <h3 class="text-sm font-semibold text-slate-500 leading-snug">{n.title}</h3>
-                    <span class="text-[9px] text-slate-300 whitespace-nowrap flex-shrink-0">{formatRelative(n.created_at)}</span>
+            {:else}
+              <!-- Read Style -->
+              <div class="group relative bg-white/60 border border-slate-100 rounded-2xl p-4 transition-all hover:bg-white hover:shadow-sm cursor-pointer"
+                   onclick={() => handleCardClick(n)} role="button" tabindex="0"
+                   onkeydown={(e) => e.key === 'Enter' && handleCardClick(n)}>
+                <div class="flex gap-3">
+                  <div class="flex-shrink-0 p-2 rounded-xl {ic.bg} opacity-60 h-fit">
+                    <svg class="w-5 h-5 {ic.color}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d={ic.path}/>
+                    </svg>
                   </div>
-                  <p class="text-xs text-slate-400 leading-relaxed mb-2">{n.message}</p>
-                  <div class="flex items-center justify-between gap-2">
-                    <!-- Tanggal detail -->
-                    <span class="text-[10px] text-slate-300">{formatDetail(n.created_at)}</span>
-                    <div class="flex gap-2">
-                      <button onclick={(e) => toggleRead(n, e)}
-                              class="text-[10px] font-bold text-slate-300 hover:text-orange-600 transition-colors sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer">
-                        BELUM DIBACA
-                      </button>
-                      <button onclick={(e) => deleteOne(n.id, e)}
-                              class="text-[10px] font-bold text-slate-300 hover:text-red-500 transition-colors sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer">
-                        HAPUS
-                      </button>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-start justify-between gap-2 mb-1">
+                      <h3 class="text-sm font-semibold text-slate-500 leading-snug">{n.title}</h3>
+                      <span class="text-[9px] text-slate-300 whitespace-nowrap flex-shrink-0">{formatRelative(n.created_at)}</span>
+                    </div>
+                    <p class="text-xs text-slate-400 leading-relaxed mb-2">{n.message}</p>
+                    <div class="flex items-center justify-between gap-2">
+                      <!-- Tanggal detail -->
+                      <span class="text-[10px] text-slate-300">{formatDetail(n.created_at)}</span>
+                      <div class="flex gap-2">
+                        <button onclick={(e) => toggleRead(n, e)}
+                                class="text-[10px] font-bold text-slate-300 hover:text-orange-600 transition-colors sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer">
+                          BELUM DIBACA
+                        </button>
+                        <button onclick={(e) => deleteOne(n.id, e)}
+                                class="text-[10px] font-bold text-slate-300 hover:text-red-500 transition-colors sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer">
+                          HAPUS
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
+            {/if}
           {/each}
         </div>
+
+        {#if totalPages > 1}
+          <div class="px-4 py-3 bg-white/90 rounded-2xl shadow-sm border border-white/50 flex items-center justify-between">
+            <button 
+              onclick={() => currentPage = Math.max(1, currentPage - 1)}
+              disabled={currentPage === 1}
+              class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              Prev
+            </button>
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              Hal {currentPage} / {totalPages}
+            </span>
+            <button 
+              onclick={() => currentPage = Math.min(totalPages, currentPage + 1)}
+              disabled={currentPage === totalPages}
+              class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              Next
+            </button>
+          </div>
+        {/if}
       {/if}
     {/if}
   </main>

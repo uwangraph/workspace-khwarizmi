@@ -70,6 +70,13 @@
   let attendanceDate = $state(new Date().toISOString().split('T')[0])
   let attendanceMode = $state<'daily' | 'monthly'>('daily')
   let attendanceMonth = $state(new Date().toISOString().slice(0, 7))
+  let attendUserSearch = $state('')
+
+  // Pagination state
+  const itemsPerPage = 10
+  let usersPage = $state(1)
+  let tasksPage = $state(1)
+  let attendPage = $state(1)
 
   // Modals
   let showUserModal = $state(false)
@@ -191,6 +198,28 @@
   let attendanceByDate = $derived(
     allAttendance.filter(a => a.date === attendanceDate)
   )
+
+  let filteredAttendUsers = $derived(
+    allUsers.filter(u =>
+      !attendUserSearch || u.full_name.toLowerCase().includes(attendUserSearch.toLowerCase()) ||
+      u.position?.toLowerCase().includes(attendUserSearch.toLowerCase())
+    )
+  )
+
+  // Paginated Lists
+  let paginatedUsers = $derived(filteredUsers.slice((usersPage - 1) * itemsPerPage, usersPage * itemsPerPage))
+  let paginatedTasks = $derived(filteredTasks.slice((tasksPage - 1) * itemsPerPage, tasksPage * itemsPerPage))
+  let paginatedAttendUsers = $derived(filteredAttendUsers.slice((attendPage - 1) * itemsPerPage, attendPage * itemsPerPage))
+
+  // Total Pages
+  let totalUsersPages = $derived(Math.ceil(filteredUsers.length / itemsPerPage))
+  let totalTasksPages = $derived(Math.ceil(filteredTasks.length / itemsPerPage))
+  let totalAttendPages = $derived(Math.ceil(filteredAttendUsers.length / itemsPerPage))
+
+  // Reset pages on search/filter
+  $effect(() => { userSearch; usersPage = 1 })
+  $effect(() => { taskSearch; taskFilter; tasksPage = 1 })
+  $effect(() => { attendUserSearch; attendanceDate; attendanceMonth; attendanceMode; attendPage = 1 })
 
   function getUserAttendanceForDate(userId: string) {
     return attendanceByDate.filter(a => a.user_id === userId)
@@ -598,7 +627,7 @@
             </div>
           {:else}
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-            {#each filteredUsers as u}
+            {#each paginatedUsers as u}
               <div class="flex items-center gap-3 px-4 py-3.5 border-b md:border-r md:border-b-0 border-slate-50 hover:bg-slate-50 transition-colors">
                 <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-sm font-bold text-white overflow-hidden"
                      style="background:linear-gradient(135deg,#F97316,#EA580C)">
@@ -633,6 +662,28 @@
                 </div>
               </div>
             {/each}
+            </div>
+          {/if}
+          
+          {#if totalUsersPages > 1}
+            <div class="px-4 py-3 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+              <button 
+                onclick={() => usersPage = Math.max(1, usersPage - 1)}
+                disabled={usersPage === 1}
+                class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Prev
+              </button>
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                Halaman {usersPage} / {totalUsersPages}
+              </span>
+              <button 
+                onclick={() => usersPage = Math.min(totalUsersPages, usersPage + 1)}
+                disabled={usersPage === totalUsersPages}
+                class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Next
+              </button>
             </div>
           {/if}
         </div>
@@ -679,7 +730,7 @@
             </div>
           {:else}
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-            {#each filteredTasks as task}
+            {#each paginatedTasks as task}
               {@const ss = STATUS_STYLE[task.status]}
               {@const assignees = getTaskAssignees(task.id)}
               <div class="px-4 py-3.5 border-b md:border-r md:border-b-0 border-slate-50 hover:bg-slate-50 transition-colors">
@@ -717,6 +768,28 @@
             {/each}
             </div>
           {/if}
+          
+          {#if totalTasksPages > 1}
+            <div class="px-4 py-3 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+              <button 
+                onclick={() => tasksPage = Math.max(1, tasksPage - 1)}
+                disabled={tasksPage === 1}
+                class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Prev
+              </button>
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                Halaman {tasksPage} / {totalTasksPages}
+              </span>
+              <button 
+                onclick={() => tasksPage = Math.min(totalTasksPages, tasksPage + 1)}
+                disabled={tasksPage === totalTasksPages}
+                class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Next
+              </button>
+            </div>
+          {/if}
         </div>
 
       <!-- ══════════════════ ATTENDANCE TAB ══════════════════ -->
@@ -734,6 +807,12 @@
               {m.label}
             </button>
           {/each}
+        </div>
+
+        <div class="relative mt-2">
+          <Search size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input bind:value={attendUserSearch} placeholder="Cari nama pengguna..."
+                 class="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400" />
         </div>
 
         {#if attendanceMode === 'daily'}
@@ -771,13 +850,13 @@
                 <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center w-14">{s.label}</span>
               {/each}
             </div>
-            {#if allUsers.length === 0}
+            {#if filteredAttendUsers.length === 0}
               <div class="py-12 text-center">
                 <Clock size={28} class="text-slate-200 mx-auto mb-2" />
-                <p class="text-xs text-slate-400">Belum ada data</p>
+                <p class="text-xs text-slate-400">Tidak ada pengguna ditemukan</p>
               </div>
             {:else}
-              {#each allUsers as u}
+              {#each paginatedAttendUsers as u}
                 {@const userAtt = getUserAttendanceForDate(u.id)}
                 <div class="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-center px-4 py-3 border-b border-slate-50 last:border-0">
                   <div class="flex items-center gap-2 min-w-0">
@@ -824,6 +903,28 @@
               {/each}
             {/if}
           </div>
+
+          {#if totalAttendPages > 1}
+            <div class="mt-4 px-4 py-3 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+              <button 
+                onclick={() => attendPage = Math.max(1, attendPage - 1)}
+                disabled={attendPage === 1}
+                class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Prev
+              </button>
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                Hal {attendPage} / {totalAttendPages}
+              </span>
+              <button 
+                onclick={() => attendPage = Math.min(totalAttendPages, attendPage + 1)}
+                disabled={attendPage === totalAttendPages}
+                class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Next
+              </button>
+            </div>
+          {/if}
         {:else}
           <!-- Monthly Recap View -->
           <div class="flex items-center gap-3">
@@ -840,14 +941,14 @@
               <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Hadir | Terlambat</span>
             </div>
             
-            {#if allUsers.length === 0}
+            {#if filteredAttendUsers.length === 0}
               <div class="py-12 text-center">
                 <Clock size={28} class="text-slate-200 mx-auto mb-2" />
-                <p class="text-xs text-slate-400">Belum ada data pengguna</p>
+                <p class="text-xs text-slate-400">Tidak ada pengguna ditemukan</p>
               </div>
             {:else}
               <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {#each allUsers as u}
+              {#each paginatedAttendUsers as u}
                 {@const stat = getMonthlyAttendance(u.id)}
                 <div class="px-4 py-3 border-b md:border-r md:border-b-0 border-slate-50 hover:bg-slate-50 transition-colors">
                   <div class="flex items-center justify-between gap-3 mb-2">
@@ -882,6 +983,28 @@
               </div>
             {/if}
           </div>
+
+          {#if totalAttendPages > 1}
+            <div class="mt-4 px-4 py-3 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+              <button 
+                onclick={() => attendPage = Math.max(1, attendPage - 1)}
+                disabled={attendPage === 1}
+                class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Prev
+              </button>
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                Hal {attendPage} / {totalAttendPages}
+              </span>
+              <button 
+                onclick={() => attendPage = Math.min(totalAttendPages, attendPage + 1)}
+                disabled={attendPage === totalAttendPages}
+                class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Next
+              </button>
+            </div>
+          {/if}
         {/if}
 
       {/if}

@@ -25,7 +25,7 @@
 ```
 src/routes/
 ├── +layout.ts          → Auth guard global (redirect ke /auth jika belum login)
-├── +layout.svelte      → Root layout: BottomNav + mobile container
+├── +layout.svelte      → Root layout: Toaster, BottomNav + mobile container
 ├── +page.svelte        → Dashboard (/)
 ├── auth/+page.svelte   → Login, Register, Forgot Password
 ├── absensi/+page.svelte → Presensi harian dengan GPS + Selfie
@@ -34,6 +34,19 @@ src/routes/
 ├── profile/+page.svelte → Profil & pengaturan akun
 └── admin/+page.svelte  → Admin panel (role: admin only)
 ```
+
+---
+
+## 🧱 Struktur Komponen (`src/lib/components/`)
+
+Agar halaman-halaman utama tidak membengkak (monolith), proyek ini menggunakan arsitektur modular dengan memisahkan UI ke dalam folder per-fitur:
+
+- `shared/` → Komponen umum (`AppHeader.svelte`, `LoadingSpinner.svelte`, `EmptyState.svelte`, `PaginationBar.svelte`)
+- `absensi/` → Komponen absensi (`AttendanceBanner.svelte`, `SessionCard.svelte`, `HistoryItem.svelte`, modal kamera/izin, dll)
+- `tasks/` → Komponen tugas (`TaskCard.svelte`, `TaskFilterTabs.svelte`, semua modal form/delete/detail, dll)
+- `profile/` → Komponen profil (`ProfileHero.svelte`, `ProfileStats.svelte`, `AvatarCropper.svelte`, dll)
+- `dashboard/` → Komponen dashboard (`HeroCard.svelte`, `AttendanceSummary.svelte`, `TaskSummary.svelte`, dll)
+- `admin/` → Komponen khusus admin panel.
 
 ---
 
@@ -312,5 +325,5 @@ BottomNav disembunyikan di route:
 2. **RLS Notifications:** Jika `error.code === '42501'`, berarti RLS memblokir insert → tampilkan toast warning
 3. **Svelte 5 `$effect`:** Tidak boleh async langsung, gunakan IIFE atau fungsi terpisah
 4. **`ssr = false`:** Semua auth check dan data fetch terjadi di client, tidak ada server-side rendering
-5. **Toast per-halaman:** Setiap halaman punya state toast sendiri, belum ada global toast store
+5. **Toast Notification:** Seluruh proyek menggunakan `svelte-french-toast`, jangan menggunakan state manual untuk toast.
 6. **Auto Checkout:** Dijalankan di `loadData()`, bukan background worker — hanya aktif saat user buka halaman absensi

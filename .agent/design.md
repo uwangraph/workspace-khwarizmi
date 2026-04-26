@@ -265,20 +265,29 @@ gap-2   /* 8px — antar elemen kecil */
 
 ## 🔔 Toast Notification
 
-```html
-<!-- Selalu fixed bottom-center, z-index tinggi -->
-<div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] px-5 py-3 rounded-xl
-            text-sm font-medium text-white shadow-2xl flex items-center gap-2 max-w-[90vw]"
-     style="background: {toastType === 'success' ? '#16A34A' : toastType === 'error' ? '#DC2626' : '#3B82F6'};
-            animation: slideInUp 0.3s ease-out;">
-```
+Proyek ini telah bermigrasi sepenuhnya ke `svelte-french-toast`. `<Toaster>` telah dikonfigurasi secara global di `+layout.svelte`.
 
-### Warna Toast
-| Type | Background |
-|---|---|
-| `success` | `#16A34A` (green-600) |
-| `error` | `#DC2626` (red-600) |
-| `info` | `#3B82F6` (blue-500) |
+### Styling & Konfigurasi Global
+- Posisi: `bottom-center`
+- Radius: `rounded-xl`
+- Shadow: `shadow-xl`
+- Style Override (Success): Background `#16A34A` (green-600), Text `white`
+- Style Override (Error): Background `#DC2626` (red-600), Text `white`
+
+### Contoh Penggunaan di Komponen
+```svelte
+<script lang="ts">
+  import toast from 'svelte-french-toast'
+  
+  const handleSave = () => {
+    toast.success('Data berhasil disimpan')
+  }
+
+  const handleError = () => {
+    toast.error('Gagal menghapus tugas')
+  }
+</script>
+```
 
 ---
 
@@ -494,7 +503,8 @@ Saat membuat komponen atau halaman baru, pastikan:
 - [ ] CTA button menggunakan orange gradient
 - [ ] Section label menggunakan `text-[10px] font-bold uppercase tracking-widest text-slate-400`
 - [ ] Loading state ada spinner `border-t-orange-500`
-- [ ] Toast feedback ada untuk semua aksi yang berhasil/gagal
+- [ ] Penggunaan notifikasi selalu memakai `svelte-french-toast` (`toast.success` / `toast.error`)
 - [ ] Mobile: `pb-24` di main content untuk ruang BottomNav
 - [ ] Hover state ada di semua elemen interaktif
 - [ ] `active:scale-[0.98]` di semua tombol
+- [ ] Halaman utama dipecah menjadi komponen modular di `src/lib/components/` jika dirasa sudah terlalu panjang

@@ -111,11 +111,8 @@ let isLoading = $state(true)
 let showModal = $state(false)
 let selectedItem = $state<Item | null>(null)
 
-// Toast
-let toastMsg = $state('')
-let toastType = $state<'success' | 'error' | 'info'>('success')
-let toastVisible = $state(false)
-let toastTimer = 0
+// Gunakan svelte-french-toast untuk notifikasi, bukan state manual
+// import toast from 'svelte-french-toast'
 ```
 
 ### ✅ Optimistic Update Pattern
@@ -148,15 +145,14 @@ Gunakan komentar section yang konsisten:
 // ── Actions ────────────────────────────────────────
 ```
 
-### ✅ Toast Function — Standar
+### ✅ Menggunakan `svelte-french-toast`
+Proyek ini tidak menggunakan fungsi toast lokal. Selalu gunakan `toast` dari `svelte-french-toast`.
 ```typescript
-function showToast(msg: string, type: 'success' | 'error' | 'info' = 'success', dur = 3000) {
-  clearTimeout(toastTimer)
-  toastMsg = msg
-  toastType = type
-  toastVisible = true
-  toastTimer = setTimeout(() => toastVisible = false, dur) as unknown as number
-}
+import toast from 'svelte-french-toast'
+
+toast.success('Berhasil menyimpan data')
+toast.error('Terjadi kesalahan koneksi')
+toast('Informasi tambahan', { icon: 'ℹ️' })
 ```
 
 ### ✅ Loading State Pattern

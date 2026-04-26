@@ -140,6 +140,8 @@
   let completionRate = $derived(taskTotal > 0 ? Math.round((taskDone / taskTotal) * 100) : 0)
   let unreadCount = $derived(notifications.filter(n => !n.is_read).length)
   let recentNotifs = $derived(notifications.slice(0, 3))
+  // Jumat=0, Kamis=1, hari lain=4
+  let totalSessions = $derived(now.getDay() === 5 ? 0 : now.getDay() === 4 ? 1 : 4)
 
   let recentTasks = $derived(
     tasks
@@ -298,7 +300,7 @@
 
         <div class="grid grid-cols-3 gap-3">
           <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-3 text-center">
-            <p class="text-xl font-bold text-white">{totalIn}/3</p>
+            <p class="text-xl font-bold text-white">{totalIn}/{totalSessions}</p>
             <p class="text-[9px] text-orange-100 font-medium">Kehadiran</p>
           </div>
           <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-3 text-center">

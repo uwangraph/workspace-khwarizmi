@@ -1,5 +1,5 @@
 // ── Shared Utilities & Constants — Admin Panel ──────────────────────────────
-import type { AttendanceRecord, Holiday, Task, TaskAssignment } from './_types'
+import type { AttendanceRecord, Holiday, Task, TaskAssignment, ThursdayRule } from './_types'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -61,7 +61,8 @@ export function getHolidayName(date: string, holidays: Holiday[]): string | null
 
 /**
  * Hitung hari kerja aktual dalam sebulan
- * Mengecualikan: Sabtu, Minggu, dan hari libur terdaftar
+ * Mengecualikan: Sabtu, Minggu, JUMAT (libur mingguan), dan hari libur terdaftar.
+ * Kamis tetap 1 hari kerja (meski hanya sesi pagi).
  */
 export function getWorkingDays(month: string, holidays: Holiday[]): number {
   const [year, m] = month.split('-').map(Number)
@@ -73,9 +74,43 @@ export function getWorkingDays(month: string, holidays: Holiday[]): number {
   for (let d = 1; d <= daysInMonth; d++) {
     const dow = new Date(year, m - 1, d).getDay()
     const dateStr = `${year}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-    if (dow !== 0 && dow !== 6 && !holidaySet.has(dateStr)) count++
+    // 0=Minggu, 5=Jumat, 6=Sabtu → libur mingguan
+    if (dow !== 0 && dow !== 5 && dow !== 6 && !holidaySet.has(dateStr)) count++
   }
   return count
+}
+
+// ── Thursday Helpers ─────────────────────────────────────────────────────────
+
+/** Cek apakah tanggal adalah hari Kamis (dow === 4) */
+export function isThursday(dateStr: string): boolean {
+  return new Date(dateStr).getDay() === 4
+}
+
+/** Cek apakah tanggal adalah hari Jumat (dow === 5) — libur mingguan */
+export function isFriday(dateStr: string): boolean {
+  return new Date(dateStr).getDay() === 5
+}
+
+/** Dapatkan rule Kamis untuk tanggal tertentu, atau undefined jika belum diatur */
+export function getThursdayRule(date: string, rules: ThursdayRule[]): ThursdayRule | undefined {
+  return rules.find(r => r.date === date)
+}
+
+/**
+ * Ambil daftar n hari Kamis ke depan mulai dari hari ini
+ */
+export function getUpcomingThursdays(count = 10): string[] {
+  const result: string[] = []
+  const d = new Date()
+  // Mulai dari hari ini, cari Kamis
+  while (result.length < count) {
+    if (d.getDay() === 4) {
+      result.push(d.toISOString().split('T')[0])
+    }
+    d.setDate(d.getDate() + 1)
+  }
+  return result
 }
 
 /**

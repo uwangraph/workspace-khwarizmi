@@ -48,5 +48,15 @@ export interface Holiday {
   created_at: string
 }
 
+export interface ThursdayRule {
+  id: string
+  date: string           // Harus hari Kamis
+  type: 'normal' | 'custom_time' | 'wfa'
+  start_time?: string | null  // e.g. '09:00' — only for custom_time
+  note?: string | null
+  created_by?: string | null
+  created_at: string
+}
+
 export type AdminTab = 'overview' | 'users' | 'tasks' | 'attendance' | 'rekap' | 'holidays'
 export type RekapSubTab = 'tasks' | 'attendance' | 'users'

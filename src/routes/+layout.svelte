@@ -1,6 +1,7 @@
 <script lang="ts">
   import './layout.css'
   import { page } from '$app/stores'
+  import { Toaster } from 'svelte-french-toast'
   import BottomNav from '$lib/components/BottomNav.svelte'
 
   let { children } = $props()
@@ -19,6 +20,7 @@
 </svelte:head>
 
 <div class={isFullWidthLayout ? "min-h-screen bg-slate-50 relative" : "max-w-xl mx-auto min-h-screen bg-white relative shadow-2xl overflow-hidden sm:border-x sm:border-slate-200"}>
+  <Toaster position="bottom-center" toastOptions={{ style: "font-family:'Inter',sans-serif; font-size:13px; font-weight:500; border-radius:14px; padding:12px 16px;" }} />
   {@render children()}
   {#if showNav}
     <BottomNav />

@@ -55,6 +55,14 @@
     reason: string
   }
 
+  interface ThursdayRule {
+    id: string
+    date: string
+    type: 'normal' | 'custom_time' | 'wfa'
+    start_time?: string | null
+    note?: string | null
+  }
+
   // ── Constants ──────────────────────────────────────
   const OFFICE_LAT = -6.655905
   const OFFICE_LNG = 106.696199
@@ -74,6 +82,7 @@
   let attendance = $state<AttendanceRecord[]>([])
   let leaves = $state<LeaveRecord[]>([])
   let penalties = $state<PenaltyRecord[]>([])
+  let thursdayRule = $state<ThursdayRule | null>(null)
   let isLoading = $state(true)
 
   // Camera
@@ -127,6 +136,20 @@
   // ── Computed ───────────────────────────────────────
   let attendanceMap = $derived(Object.fromEntries(attendance.map(a => [a.session_id, a])))
   let todayStr = $derived(new Date().toISOString().split('T')[0])
+  let isTodayThursday = $derived(new Date().getDay() === 4)
+  let isTodayFriday   = $derived(new Date().getDay() === 5)
+  // Kamis: hanya sesi Pagi (id=1). Jumat: tidak ada sesi (libur)
+  let activeSessions  = $derived(
+    isTodayFriday   ? [] :
+    isTodayThursday ? SESSIONS.slice(0, 1) :
+    SESSIONS
+  )
+  // Jam masuk Kamis: custom jika ada rule, default 08:00
+  let thursdayStartTime = $derived(
+    thursdayRule?.type === 'custom_time' && thursdayRule.start_time
+      ? thursdayRule.start_time
+      : '08:00'
+  )
 
   // ── Helpers ────────────────────────────────────────
   function toMin(time: string) {
@@ -253,6 +276,12 @@
     if (attendRes.data) attendance = attendRes.data
     if (leavesRes.data) leaves = leavesRes.data
     if (penaltiesRes.data) penalties = penaltiesRes.data
+
+    // Load thursday rule jika hari ini adalah hari Kamis
+    if (new Date().getDay() === 4) {
+      const { data: tr } = await supabase.from('thursday_rules').select('*').eq('date', today).single()
+      thursdayRule = tr ?? null
+    }
 
     await runAutoCheckout(u)
 
@@ -780,12 +809,51 @@
         </div>
       {/if}
 
+      <!-- Friday / Thursday banners -->
+      {#if isTodayFriday}
+        <div class="flex items-center gap-3 rounded-2xl px-4 py-3.5 border-l-4 border-violet-400"
+             style="background:#F5F3FF;">
+          <div class="w-9 h-9 rounded-lg bg-violet-100 flex items-center justify-center flex-shrink-0">
+            <span class="text-lg">🕌</span>
+          </div>
+          <div>
+            <p class="text-sm font-bold text-violet-700">Hari Jumat — Libur Mingguan</p>
+            <p class="text-xs text-violet-500 mt-0.5">Tidak ada sesi absensi hari ini. Selamat beristirahat!</p>
+          </div>
+        </div>
+      {:else if isTodayThursday}
+        <div class="flex items-center gap-3 rounded-2xl px-4 py-3.5 border-l-4"
+             style="background:{thursdayRule?.type==='wfa'?'#EFF6FF':thursdayRule?.type==='custom_time'?'#FFFBEB':'#FFF7ED'};
+                    border-left-color:{thursdayRule?.type==='wfa'?'#3B82F6':thursdayRule?.type==='custom_time'?'#F59E0B':'#F97316'}">
+          <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+               style="background:{thursdayRule?.type==='wfa'?'#DBEAFE':thursdayRule?.type==='custom_time'?'#FEF3C7':'#FFEDD5'}">
+            <span class="text-lg">{thursdayRule?.type==='wfa'?'🏠':thursdayRule?.type==='custom_time'?'⏰':'📅'}</span>
+          </div>
+          <div>
+            <p class="text-sm font-bold text-slate-700">
+              Hari Kamis — Hanya Sesi Pagi
+              {#if thursdayRule?.type === 'wfa'} · Mode WFA{/if}
+            </p>
+            <p class="text-xs text-slate-500 mt-0.5">
+              {#if thursdayRule?.type === 'custom_time' && thursdayRule.start_time}
+                Masuk jam {thursdayRule.start_time} · Siang & Sore libur
+              {:else if thursdayRule?.type === 'wfa'}
+                Work From Anywhere · GPS tidak diwajibkan
+              {:else}
+                Sesi Siang & Sore libur otomatis
+              {/if}
+            </p>
+            {#if thursdayRule?.note}<p class="text-[10px] text-slate-400 mt-1">📝 {thursdayRule.note}</p>{/if}
+          </div>
+        </div>
+      {/if}
+
       <!-- Stats -->
       <div class="grid grid-cols-3 gap-3">
         {#each [
-          { label: 'Sesi Masuk', value: attendance.length, total: SESSIONS.length, color: '#F97316', Icon: LogIn },
-          { label: 'Selesai', value: attendance.filter(a => a.check_out).length, total: SESSIONS.length, color: '#10B981', Icon: Check },
-          { label: 'Sisa', value: Math.max(0, SESSIONS.length - attendance.length), total: SESSIONS.length, color: '#F59E0B', Icon: Clock },
+          { label: 'Sesi Masuk', value: attendance.length, total: activeSessions.length, color: '#F97316', Icon: LogIn },
+          { label: 'Selesai', value: attendance.filter(a => a.check_out).length, total: activeSessions.length, color: '#10B981', Icon: Check },
+          { label: 'Sisa', value: Math.max(0, activeSessions.length - attendance.length), total: activeSessions.length, color: '#F59E0B', Icon: Clock },
         ] as stat}
           <div class="bg-white/90 rounded-2xl p-4 shadow-sm border border-slate-100 text-center">
             <div class="flex items-center justify-center gap-1.5 mb-2">
@@ -803,7 +871,14 @@
       <div class="flex flex-col gap-2.5">
         <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-1">Jadwal Sesi</p>
 
-        {#each SESSIONS as s}
+        {#if isTodayFriday}
+          <div class="bg-white/90 rounded-2xl p-6 shadow-sm border border-slate-100 text-center">
+            <span class="text-3xl block mb-2">🕌</span>
+            <p class="text-sm font-semibold text-slate-500">Tidak ada sesi hari Jumat</p>
+            <p class="text-xs text-slate-400 mt-1">Selamat menikmati hari libur mingguan</p>
+          </div>
+        {:else}
+          {#each activeSessions as s}
           {@const curMin = now.getHours() * 60 + now.getMinutes()}
           {@const startMin = toMin(s.start)}
           {@const endMin = toMin(s.end)}
@@ -894,7 +969,8 @@
               </div>
             </div>
           </div>
-        {/each}
+          {/each}
+        {/if}
       </div>
 
       <!-- History -->

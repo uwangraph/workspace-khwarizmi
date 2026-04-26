@@ -4,7 +4,7 @@
   import type { User } from '@supabase/supabase-js'
   import { Shield } from 'lucide-svelte'
 
-  import type { Profile, Task, AttendanceRecord, TaskAssignment, Holiday, AdminTab } from '$lib/components/admin/_types'
+  import type { Profile, Task, AttendanceRecord, TaskAssignment, Holiday, AdminTab, ThursdayRule } from '$lib/components/admin/_types'
 
   // ── Tab Components ─────────────────────────────────────────────────────────
   import AdminTabBar      from '$lib/components/admin/AdminTabBar.svelte'
@@ -22,6 +22,7 @@
   import TaskDetailModal    from '$lib/components/admin/modals/TaskDetailModal.svelte'
   import PerformanceModal   from '$lib/components/admin/modals/PerformanceModal.svelte'
   import HolidayFormModal   from '$lib/components/admin/modals/HolidayFormModal.svelte'
+  import ThursdayRuleModal  from '$lib/components/admin/modals/ThursdayRuleModal.svelte'
 
   // ── State ──────────────────────────────────────────────────────────────────
   let user    = $state<User | null>(null)
@@ -35,6 +36,7 @@
   let allAttendance  = $state<AttendanceRecord[]>([])
   let allAssignments = $state<TaskAssignment[]>([])
   let holidays       = $state<Holiday[]>([])
+  let thursdayRules  = $state<ThursdayRule[]>([])
 
   // Modal visibility
   let showEditUserModal     = $state(false)
@@ -43,23 +45,28 @@
   let showDeleteTaskModal   = $state(false)
   let showTaskDetailModal   = $state(false)
   let showPerformanceModal  = $state(false)
-  let showHolidayFormModal  = $state(false)
-  let showDeleteHolidayModal = $state(false)
+  let showHolidayFormModal      = $state(false)
+  let showDeleteHolidayModal    = $state(false)
+  let showThursdayRuleModal     = $state(false)
+  let showDeleteThursdayModal   = $state(false)
 
   // Modal targets
   let selectedUser     = $state<Profile | null>(null)
   let selectedTask     = $state<Task | null>(null)
   let detailTask       = $state<Task | null>(null)
   let performanceUser  = $state<Profile | null>(null)
-  let selectedHoliday  = $state<Holiday | null>(null)
+  let selectedHoliday    = $state<Holiday | null>(null)
+  let selectedThursday   = $state<ThursdayRule | null>(null)
 
   // Submitting states
   let isSubmittingUser  = $state(false)
   let isCreatingUser    = $state(false)
   let isDeletingUser    = $state(false)
   let isDeletingTask    = $state(false)
-  let isSavingHoliday   = $state(false)
-  let isDeletingHoliday = $state(false)
+  let isSavingHoliday      = $state(false)
+  let isDeletingHoliday    = $state(false)
+  let isSavingThursday     = $state(false)
+  let isDeletingThursday   = $state(false)
 
   // Toast
   let toastMsg     = $state('')
@@ -99,7 +106,10 @@
     if (tasksRes.data)    allTasks       = tasksRes.data as Task[]
     if (attendRes.data)   allAttendance  = attendRes.data as AttendanceRecord[]
     if (assignRes.data)   allAssignments = assignRes.data as TaskAssignment[]
-    if (holidaysRes.data) holidays       = holidaysRes.data as Holiday[]
+    if (holidaysRes.data)  holidays        = holidaysRes.data as Holiday[]
+
+    const { data: thursdayRes } = await supabase.from('thursday_rules').select('*').order('date')
+    if (thursdayRes) thursdayRules = thursdayRes as ThursdayRule[]
 
     isLoading = false
   }
@@ -201,6 +211,36 @@
     showToast('Hari libur dihapus', 'success')
   }
 
+  // ── Thursday Rule Actions ──────────────────────────────────────────────────
+  async function saveThursdayRule(data: { date: string; type: ThursdayRule['type']; start_time: string | null; note: string | null }) {
+    isSavingThursday = true
+    // Upsert: update jika sudah ada, insert jika belum
+    const { data: r, error } = await supabase.from('thursday_rules')
+      .upsert({ date: data.date, type: data.type, start_time: data.start_time, note: data.note, created_by: profile?.id }, { onConflict: 'date' })
+      .select().single()
+    isSavingThursday = false
+    if (error) { showToast('Gagal menyimpan aturan Kamis', 'error'); return }
+    // Update local state
+    const existing = thursdayRules.findIndex(x => x.date === data.date)
+    if (existing >= 0) thursdayRules = thursdayRules.map((x, i) => i === existing ? r as ThursdayRule : x)
+    else thursdayRules = [...thursdayRules, r as ThursdayRule].sort((a, b) => a.date.localeCompare(b.date))
+    showThursdayRuleModal = false
+    showToast('Aturan Kamis berhasil disimpan', 'success')
+  }
+
+  function handleDeleteThursdayRule(r: ThursdayRule) { selectedThursday = r; showDeleteThursdayModal = true }
+
+  async function deleteThursdayRule() {
+    if (!selectedThursday) return
+    isDeletingThursday = true
+    const { error } = await supabase.from('thursday_rules').delete().eq('id', selectedThursday.id)
+    isDeletingThursday = false
+    if (error) { showToast('Gagal menghapus aturan Kamis', 'error'); return }
+    thursdayRules = thursdayRules.filter(r => r.id !== selectedThursday!.id)
+    showDeleteThursdayModal = false; selectedThursday = null
+    showToast('Aturan Kamis dihapus', 'success')
+  }
+
   onMount(loadData)
 </script>
 
@@ -267,15 +307,17 @@
                   onViewTask={handleViewTask} />
 
       {:else if activeTab === 'attendance'}
-        <AttendanceTab {allUsers} {allAttendance} {holidays} />
+        <AttendanceTab {allUsers} {allAttendance} {holidays} {thursdayRules} />
 
       {:else if activeTab === 'rekap'}
         <RekapTab {allUsers} {allTasks} {allAssignments} {allAttendance} {holidays} />
 
       {:else if activeTab === 'holidays'}
-        <HolidaysTab {holidays}
+        <HolidaysTab {holidays} {thursdayRules}
                      onAddHoliday={() => showHolidayFormModal = true}
-                     onDeleteHoliday={handleDeleteHoliday} />
+                     onDeleteHoliday={handleDeleteHoliday}
+                     onManageThursday={() => showThursdayRuleModal = true}
+                     onDeleteThursdayRule={handleDeleteThursdayRule} />
       {/if}
     </main>
 
@@ -337,6 +379,20 @@
     isDeleting={isDeletingHoliday}
     onConfirm={deleteHoliday}
     onClose={() => showDeleteHolidayModal = false} />
+{/if}
+
+{#if showThursdayRuleModal}
+  <ThursdayRuleModal {thursdayRules} isSubmitting={isSavingThursday}
+                     onSave={saveThursdayRule} onClose={() => showThursdayRuleModal = false} />
+{/if}
+
+{#if showDeleteThursdayModal && selectedThursday}
+  <DeleteConfirmModal
+    title="Hapus Aturan Kamis?"
+    message="Aturan untuk <strong>{new Date(selectedThursday.date).toLocaleDateString('id-ID', {weekday:'long',day:'numeric',month:'long'})}</strong> akan dihapus. Kamis tersebut akan kembali ke jadwal default."
+    isDeleting={isDeletingThursday}
+    onConfirm={deleteThursdayRule}
+    onClose={() => showDeleteThursdayModal = false} />
 {/if}
 
 <style>

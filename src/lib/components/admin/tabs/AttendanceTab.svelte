@@ -1,14 +1,15 @@
 <script lang="ts">
-  import type { Profile, AttendanceRecord, Holiday } from '$lib/components/admin/_types'
-  import { getInitials, formatTime, getMonthlyAttendanceStat, getHolidayName, isHoliday, SESSIONS } from '$lib/components/admin/_utils'
+  import type { Profile, AttendanceRecord, Holiday, ThursdayRule } from '$lib/components/admin/_types'
+  import { getInitials, formatTime, getMonthlyAttendanceStat, getHolidayName, isHoliday, isThursday, isFriday, getThursdayRule, SESSIONS } from '$lib/components/admin/_utils'
   import { Search, CalendarDays, Calendar, CheckCircle2, Clock, X } from 'lucide-svelte'
 
   interface Props {
     allUsers: Profile[]
     allAttendance: AttendanceRecord[]
     holidays: Holiday[]
+    thursdayRules: ThursdayRule[]
   }
-  let { allUsers, allAttendance, holidays } = $props<Props>()
+  let { allUsers, allAttendance, holidays, thursdayRules } = $props<Props>()
 
   const ITEMS_PER_PAGE = 10
   let mode           = $state<'daily' | 'monthly'>('daily')
@@ -28,6 +29,11 @@
   let presentCount    = $derived(new Set(attendByDate.map(a => a.user_id)).size)
   let dateIsHoliday   = $derived(isHoliday(attendanceDate, holidays))
   let holidayName     = $derived(getHolidayName(attendanceDate, holidays))
+  let dateIsThursday  = $derived(isThursday(attendanceDate))
+  let dateIsFriday    = $derived(isFriday(attendanceDate))
+  let thursdayRule    = $derived(getThursdayRule(attendanceDate, thursdayRules))
+  // Sesi yang tampil: Kamis hanya sesi 1 (Pagi), hari lain semua sesi
+  let activeSessions  = $derived(dateIsThursday ? SESSIONS.slice(0, 1) : SESSIONS)
 
   $effect(() => { userSearch; attendanceDate; attendanceMonth; mode; page = 1 })
 
@@ -68,11 +74,40 @@
       </div>
     </div>
 
+    <!-- Friday banner -->
+    {#if dateIsFriday}
+      <div class="flex items-center gap-2 px-3 py-2 bg-violet-50 border border-violet-200 rounded-xl">
+        <span class="text-sm">🕌</span>
+        <p class="text-xs font-semibold text-violet-700">Hari Jumat — Libur Mingguan</p>
+      </div>
+    {/if}
+
     <!-- Holiday badge -->
     {#if dateIsHoliday}
       <div class="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl">
         <span class="text-sm">🎉</span>
         <p class="text-xs font-semibold text-amber-700">Hari Libur: {holidayName}</p>
+      </div>
+    {/if}
+
+    <!-- Thursday banner -->
+    {#if dateIsThursday}
+      <div class="flex items-center gap-3 px-3 py-2.5 rounded-xl border"
+           class:bg-amber-50={thursdayRule?.type === 'custom_time'}
+           class:border-amber-200={thursdayRule?.type === 'custom_time'}
+           class:bg-blue-50={thursdayRule?.type === 'wfa'}
+           class:border-blue-200={thursdayRule?.type === 'wfa'}
+           class:bg-orange-50={!thursdayRule || thursdayRule.type === 'normal'}
+           class:border-orange-200={!thursdayRule || thursdayRule.type === 'normal'}>
+        <span class="text-sm">{thursdayRule?.type === 'wfa' ? '🏠' : thursdayRule?.type === 'custom_time' ? '⏰' : '📅'}</span>
+        <div>
+          <p class="text-xs font-semibold text-slate-700">
+            Hari Kamis — Hanya Sesi Pagi
+            {#if thursdayRule?.type === 'wfa'} · Mode WFA{/if}
+            {#if thursdayRule?.type === 'custom_time' && thursdayRule.start_time} · Masuk {thursdayRule.start_time}{/if}
+          </p>
+          {#if thursdayRule?.note}<p class="text-[10px] text-slate-400 mt-0.5">{thursdayRule.note}</p>{/if}
+        </div>
       </div>
     {/if}
 
@@ -92,10 +127,11 @@
 
     <!-- Grid -->
     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-      <div class="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 px-4 py-2.5 bg-slate-50 border-b border-slate-100">
+      <div class="grid bg-slate-50 border-b border-slate-100 px-4 py-2.5"
+           style="grid-template-columns: 1fr {activeSessions.map(() => 'auto').join(' ')}">
         <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Pengguna</span>
-        {#each SESSIONS as s}
-          <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center w-12">{s.label}</span>
+        {#each activeSessions as s}
+          <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center w-14">{s.label}</span>
         {/each}
       </div>
       {#if filtered.length === 0}
@@ -103,7 +139,8 @@
       {:else}
         {#each paginated as u}
           {@const userAtt = getUserAtt(u.id)}
-          <div class="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 items-center px-4 py-3 border-b border-slate-50 last:border-0">
+          <div class="grid items-center px-4 py-3 border-b border-slate-50 last:border-0"
+               style="grid-template-columns: 1fr {activeSessions.map(() => 'auto').join(' ')}; gap: 8px;">
             <div class="flex items-center gap-2 min-w-0">
               <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-white overflow-hidden"
                    style="background:linear-gradient(135deg,#F97316,#EA580C)">
@@ -114,9 +151,9 @@
                 <p class="text-[9px] text-slate-400">{u.position || 'Karyawan'}</p>
               </div>
             </div>
-            {#each SESSIONS as s}
+            {#each activeSessions as s}
               {@const att = userAtt.find(a => a.session_id === s.id)}
-              <div class="w-12 text-center">
+              <div class="w-14 text-center">
                 {#if att?.check_out}
                   <div class="flex flex-col items-center gap-0.5">
                     <div class="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center"><CheckCircle2 size={11} class="text-green-600" /></div>
@@ -129,8 +166,8 @@
                   </div>
                 {:else}
                   <div class="flex justify-center">
-                    <div class="w-5 h-5 rounded-full {dateIsHoliday ? 'bg-amber-50' : 'bg-slate-100'} flex items-center justify-center">
-                      {#if dateIsHoliday}<span class="text-[8px]">🎉</span>{:else}<X size={9} class="text-slate-400" />{/if}
+                    <div class="w-5 h-5 rounded-full {dateIsHoliday || dateIsFriday ? 'bg-amber-50' : 'bg-slate-100'} flex items-center justify-center">
+                      {#if dateIsHoliday || dateIsFriday}<span class="text-[8px]">🎉</span>{:else}<X size={9} class="text-slate-400" />{/if}
                     </div>
                   </div>
                 {/if}
@@ -140,6 +177,7 @@
         {/each}
       {/if}
     </div>
+
 
   {:else}
     <!-- Monthly Recap -->

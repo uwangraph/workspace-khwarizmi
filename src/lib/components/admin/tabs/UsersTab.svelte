@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Profile, Task, TaskAssignment } from '$lib/components/admin/_types'
-  import { getInitials } from '$lib/components/admin/_utils'
-  import { Search, Plus, Activity, Pencil, Trash2, Users } from 'lucide-svelte'
+  import { getInitials, formatWA } from '$lib/components/admin/_utils'
+  import { Search, Plus, Activity, Pencil, Trash2, Users, MessageCircle } from 'lucide-svelte'
 
   interface Props {
     allUsers: Profile[]
@@ -75,6 +75,12 @@
               <p class="text-[11px] text-slate-400 truncate">{u.position || 'Belum diisi'}{u.phone ? ' · ' + u.phone : ''}</p>
             </div>
             <div class="flex items-center gap-1">
+              {#if u.phone}
+                <a href={`https://wa.me/${formatWA(u.phone)}`} target="_blank"
+                   class="w-8 h-8 rounded-lg bg-green-50 hover:bg-green-100 flex items-center justify-center text-green-600 transition-colors cursor-pointer" title="Hubungi via WhatsApp">
+                  <MessageCircle size={13} />
+                </a>
+              {/if}
               <button onclick={() => onViewPerformance(u)}
                       class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-blue-50 flex items-center justify-center text-slate-500 hover:text-blue-600 transition-colors cursor-pointer" title="Lihat Performa">
                 <Activity size={13} />

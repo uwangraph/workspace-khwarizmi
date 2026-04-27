@@ -19,11 +19,12 @@
   interface Profile { id: string; full_name: string; role: 'admin' | 'user' }
   interface AttendanceRecord { id: string; session_id: number; date: string; check_in: string | null; check_out: string | null; photo_in_url: string | null; photo_out_url: string | null; forgot_checkout: boolean; late: boolean; late_reason: string | null }
   interface Session { id: number; name: string; start: string; end: string; unlockAt: string; autoCheckoutAt: string; hasLateCheck?: boolean; requireLocation?: boolean }
-  interface LeaveRecord { id: string; date: string; type: 'izin' | 'sakit'; reason: string; session_id: number | null }
+  interface LeaveRecord { id: string; date: string; type: 'izin' | 'sakit'; reason: string; session_id: number | null; status: 'pending' | 'approved' | 'rejected' }
   interface PenaltyRecord { id: string; date: string; session_id: number; minutes: number; reason: string }
   interface ThursdayRule { id: string; date: string; type: 'normal' | 'custom_time' | 'wfa'; start_time?: string | null; note?: string | null }
+  interface AppSetting { office_lat: number; office_lng: number; office_radius: number }
 
-  const OFFICE_LAT = -6.655905, OFFICE_LNG = 106.696199, MAX_RADIUS_M = 25, LATE_TOLERANCE_MIN = 5
+  const LATE_TOLERANCE_MIN = 5
   const SESSIONS: Session[] = [
     { id: 1, name: 'Sesi Pagi',  start: '08:00', end: '11:30', unlockAt: '06:00', autoCheckoutAt: '12:00', hasLateCheck: true, requireLocation: true },
     { id: 2, name: 'Sesi Siang', start: '13:30', end: '15:00', unlockAt: '12:00', autoCheckoutAt: '15:30', hasLateCheck: true, requireLocation: true },
@@ -31,7 +32,7 @@
     { id: 4, name: 'Lembur',     start: '20:00', end: '23:59', unlockAt: '19:30', autoCheckoutAt: '23:59', requireLocation: false },
   ]
 
-  let user = $state<User | null>(null), profile = $state<Profile | null>(null), attendance = $state<AttendanceRecord[]>([]), leaves = $state<LeaveRecord[]>([]), penalties = $state<PenaltyRecord[]>([]), thursdayRule = $state<ThursdayRule | null>(null), isLoading = $state(true)
+  let user = $state<User | null>(null), profile = $state<Profile | null>(null), attendance = $state<AttendanceRecord[]>([]), leaves = $state<LeaveRecord[]>([]), penalties = $state<PenaltyRecord[]>([]), thursdayRule = $state<ThursdayRule | null>(null), appSettings = $state<AppSetting | null>(null), isLoading = $state(true)
   let showCamera = $state(false), cameraSessionId = $state(0), cameraType = $state<'in' | 'out'>('in'), cameraStream = $state<MediaStream | null>(null), capturedBlob = $state<Blob | null>(null), capturedUrl = $state(''), cameraStatus = $state(''), isSubmitting = $state(false)
   let showLateModal = $state(false), lateSessionId = $state(0), lateReason = $state(''), lateMinutes = $state(0)
   let showLeaveModal = $state(false), isSubmittingLeave = $state(false), leaveStatus = $state('')
@@ -46,7 +47,7 @@
   let isWfa = $derived(isTodayThursday && thursdayRule?.type === 'wfa')
 
   function toMin(time: string) { const [h, m] = time.split(':').map(Number); return h * 60 + m }
-  function isSessionOnLeave(sessionId: number) { return leaves.find(l => l.session_id === null || l.session_id === sessionId) || null }
+  function isSessionOnLeave(sessionId: number) { return leaves.find(l => (l.session_id === null || l.session_id === sessionId) && l.status !== 'rejected') || null }
   function formatDateIndonesian(date: Date) { return date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) }
 
   function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number) {
@@ -59,9 +60,10 @@
       if (!navigator.geolocation) return resolve({ ok: false, error: 'Perangkat tidak mendukung GPS' })
       navigator.geolocation.getCurrentPosition(
         pos => {
-          const dist = haversineMeters(pos.coords.latitude, pos.coords.longitude, OFFICE_LAT, OFFICE_LNG)
-          if (dist <= MAX_RADIUS_M) resolve({ ok: true, distance: dist })
-          else resolve({ ok: false, distance: dist, error: `Anda ${Math.round(dist)}m dari kantor (maks ${MAX_RADIUS_M}m)` })
+          if (!appSettings) return resolve({ ok: false, error: 'Pengaturan lokasi belum dikonfigurasi' })
+          const dist = haversineMeters(pos.coords.latitude, pos.coords.longitude, appSettings.office_lat, appSettings.office_lng)
+          if (dist <= appSettings.office_radius) resolve({ ok: true, distance: dist })
+          else resolve({ ok: false, distance: dist, error: `Anda ${Math.round(dist)}m dari kantor (maks ${appSettings.office_radius}m)` })
         },
         err => resolve({ ok: false, error: err.code === 1 ? 'Akses lokasi ditolak. Aktifkan GPS.' : err.code === 2 ? 'Lokasi tidak tersedia. Pastikan GPS aktif.' : 'Gagal mendapatkan lokasi' }),
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -98,13 +100,14 @@
     if (!u) { location.assign('/auth'); return }
     user = u
     const today = new Date().toISOString().split('T')[0]
-    const [profileRes, attendRes, leavesRes, penaltiesRes] = await Promise.all([
+    const [profileRes, attendRes, leavesRes, penaltiesRes, settingsRes] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', u.id).single(),
       supabase.from('attendance').select('*').eq('user_id', u.id).eq('date', today),
       supabase.from('attendance_leaves').select('*').eq('user_id', u.id).eq('date', today),
-      supabase.from('attendance_penalties').select('*').eq('user_id', u.id).eq('date', today)
+      supabase.from('attendance_penalties').select('*').eq('user_id', u.id).eq('date', today),
+      supabase.from('app_settings').select('*').eq('id', 1).single()
     ])
-    if (profileRes.data) profile = profileRes.data; if (attendRes.data) attendance = attendRes.data; if (leavesRes.data) leaves = leavesRes.data; if (penaltiesRes.data) penalties = penaltiesRes.data
+    if (profileRes.data) profile = profileRes.data; if (attendRes.data) attendance = attendRes.data; if (leavesRes.data) leaves = leavesRes.data; if (penaltiesRes.data) penalties = penaltiesRes.data; if (settingsRes.data) appSettings = settingsRes.data
     if (new Date().getDay() === 4) { const { data } = await supabase.from('thursday_rules').select('*').eq('date', today).single(); thursdayRule = data || null }
     await runAutoCheckout(u)
     const freshA = await supabase.from('attendance').select('*').eq('user_id', u.id).eq('date', today), freshP = await supabase.from('attendance_penalties').select('*').eq('user_id', u.id).eq('date', today)
@@ -199,7 +202,7 @@
         </div>
       </div>
 
-      <AttendanceBanner {isThursday} {isFriday} {thursdayRule} />
+      <AttendanceBanner isThursday={isTodayThursday} isFriday={isTodayFriday} {thursdayRule} />
 
       {#if activeSessions.length > 0}
         <AttendanceStats {attendance} {activeSessions} />
@@ -225,6 +228,9 @@
                     <p class="text-sm font-bold text-slate-800 capitalize">{leave.type}</p>
                     <span class="text-[9px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 uppercase">
                       {leave.session_id === null ? 'Semua Sesi' : SESSIONS.find(s => s.id === leave.session_id)?.name}
+                    </span>
+                    <span class="text-[9px] font-bold px-2 py-0.5 rounded-md text-white uppercase {leave.status === 'approved' ? 'bg-green-500' : leave.status === 'rejected' ? 'bg-red-500' : 'bg-slate-400'}">
+                      {leave.status === 'approved' ? 'Disetujui' : leave.status === 'rejected' ? 'Ditolak' : 'Pending'}
                     </span>
                   </div>
                   <p class="text-xs text-slate-500 mt-1">{leave.reason}</p>

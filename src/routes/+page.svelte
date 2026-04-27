@@ -152,7 +152,7 @@
 
       <AttendanceSummary {attendance} sessions={[{ id: 1, label: 'Pagi', time: '08:00 - 11:30' }, { id: 2, label: 'Siang', time: '13:30 - 15:00' }, { id: 3, label: 'Sore', time: '16:00 - 17:00' }]} />
 
-      <TaskSummary {recentTasks} {formatDue} {statusLabel} {priorityDot} />
+      <TaskSummary {recentTasks} {formatDue} statusLabel={STATUS_LABEL} priorityDot={PRIORITY_DOT} />
     </main>
   {/if}
 </div>

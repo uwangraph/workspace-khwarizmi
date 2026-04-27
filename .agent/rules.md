@@ -93,6 +93,16 @@ if (!u) { location.assign('/auth'); return }
 user = u
 ```
 
+### ✅ Admin Actions (Server-side API)
+Gunakan backend API Endpoint (`/api/.../+server.ts`) dengan `supabaseAdmin` (Service Role Key) untuk operasi administratif (contoh: membuat akun user baru tanpa mengaktifkan email konfirmasi). Jangan gunakan `supabase.auth.signUp()` di panel Admin karena akan membuat Admin ter-logout dan berpindah sesi secara otomatis.
+```typescript
+// ✅ BENAR — Panggil API
+await fetch('/api/admin/users', { method: 'POST', body: JSON.stringify(data) })
+
+// ❌ SALAH — Menjalankan signUp di sisi client Admin
+await supabase.auth.signUp({ ... })
+```
+
 ---
 
 ## 3. State Management

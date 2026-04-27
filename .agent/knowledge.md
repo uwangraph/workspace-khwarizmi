@@ -89,7 +89,17 @@ date        date
 type        text ('izin' | 'sakit')
 reason      text
 session_id  int | null  (null = semua sesi)
-created_at  timestamptz
+status      text ('pending' | 'approved' | 'rejected') default 'pending'
+approved_by uuid | null FK → profiles (Admin ID)
+```
+
+### Tabel `app_settings` (Singleton)
+```sql
+id            int PK (selalu 1)
+office_lat    float
+office_lng    float
+office_radius int
+updated_at    timestamptz
 ```
 
 ### Tabel `attendance_penalties`
@@ -195,9 +205,10 @@ const SESSIONS = [
 ]
 ```
 
-- **Toleransi Terlambat:** 5 menit
+- **Toleransi Terlambat:** Berdasarkan konfigurasi sesi
 - **Auto Checkout Penalty:** 10 menit jika lupa checkout
-- **Radius GPS:** 25 meter dari kantor (`-6.655905, 106.696199`)
+- **Radius GPS:** Dinamis berdasarkan data `office_lat`, `office_lng`, dan `office_radius` di tabel `app_settings` (bukan *hardcoded*).
+- **Format Keterlambatan:** Otomatis mengubah satuan ke `Jam & Menit` jika melebihi 60 menit.
 
 ---
 

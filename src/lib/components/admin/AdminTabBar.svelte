@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { AdminTab } from '$lib/components/admin/_types'
   import {
-    BarChart3, Users, ClipboardList, Clock, FileText, CalendarOff
+    BarChart3, Users, ClipboardList, Clock, FileText, CalendarOff, Settings
   } from 'lucide-svelte'
 
   interface Props {
@@ -17,6 +17,7 @@
     { id: 'attendance',  label: 'Kehadiran',  Icon: Clock,         desc: 'Absensi harian' },
     { id: 'rekap',       label: 'Rekap',      Icon: FileText,      desc: 'Laporan lengkap' },
     { id: 'holidays',    label: 'Hari Libur', Icon: CalendarOff,   desc: 'Kelola libur' },
+    { id: 'settings',    label: 'Pengaturan', Icon: Settings,      desc: 'Sistem app' },
   ]
 </script>
 

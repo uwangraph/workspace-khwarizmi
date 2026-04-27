@@ -2,7 +2,7 @@
   import type { Profile, Task, TaskAssignment, AttendanceRecord, Holiday } from '$lib/components/admin/_types'
   import { STATUS_LABEL, STATUS_STYLE, PRIORITY_DOT, PRIORITY_LABEL, getInitials, formatDate, getMonthlyAttendanceStat, getUserPerformanceStats } from '$lib/components/admin/_utils'
   import type { RekapSubTab } from '$lib/components/admin/_types'
-  import { AlertTriangle, CheckCircle2, Target, Users, ClipboardList, Calendar } from 'lucide-svelte'
+  import { AlertTriangle, CheckCircle2, Target, Users, ClipboardList, Calendar, Download } from 'lucide-svelte'
 
   interface Props {
     allUsers: Profile[]
@@ -55,6 +55,26 @@
       att: getMonthlyAttendanceStat(u.id, currentMonth, allAttendance, holidays),
     }))
   )
+
+  function exportCsv() {
+    const header = ['Nama Pengguna', 'Posisi', 'Hadir', 'Hari Kerja', 'Telat', 'Persentase Kehadiran']
+    const rows = attendStats.map(s => [
+      s.user.full_name,
+      s.user.position || 'Karyawan',
+      s.totalPresentDays.toString(),
+      s.totalWorkingDays.toString(),
+      s.totalLate.toString(),
+      s.presentRate + '%'
+    ])
+    const csvContent = [header, ...rows].map(e => e.map(i => `"${i}"`).join(',')).join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `rekap_kehadiran_${currentMonth}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
 </script>
 
 <div class="flex flex-col gap-4">
@@ -160,11 +180,16 @@
 
   <!-- ── REKAP KEHADIRAN ── -->
   {:else if sub === 'attendance'}
-    <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-      <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Bulan</p>
-      <p class="text-sm font-bold text-slate-700">
-        {new Date(currentMonth + '-01').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
-      </p>
+    <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between">
+      <div>
+        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Bulan</p>
+        <p class="text-sm font-bold text-slate-700">
+          {new Date(currentMonth + '-01').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+        </p>
+      </div>
+      <button onclick={exportCsv} class="px-4 py-2 rounded-xl text-xs font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 transition-colors flex items-center gap-2 border border-orange-100">
+        <Download size={14} /> Export CSV
+      </button>
     </div>
 
     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">

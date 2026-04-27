@@ -8,6 +8,12 @@
   }
   let { lateMinutes, toleranceMin, onConfirm, onCancel }: Props = $props()
   let reason = $state('')
+
+  let formattedLate = $derived(
+    lateMinutes >= 60 
+      ? `${Math.floor(lateMinutes / 60)} Jam ${lateMinutes % 60} Menit`
+      : `${lateMinutes} Menit`
+  )
 </script>
 
 <div class="fixed inset-0 z-[55] flex items-center justify-center p-4"
@@ -20,7 +26,7 @@
         </div>
         <div>
           <p class="text-base font-bold text-amber-800" style="font-family:'Plus Jakarta Sans',sans-serif;">
-            Terlambat {lateMinutes} Menit
+            Terlambat {formattedLate}
           </p>
           <p class="text-xs text-amber-600 mt-0.5">Melebihi toleransi {toleranceMin} menit</p>
         </div>

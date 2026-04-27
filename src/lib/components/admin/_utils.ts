@@ -41,6 +41,13 @@ export function getInitials(name: string): string {
   return name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()
 }
 
+export function formatWA(phone: string | null | undefined): string {
+  if (!phone) return ''
+  let cleaned = phone.replace(/\D/g, '')
+  if (cleaned.startsWith('0')) cleaned = '62' + cleaned.slice(1)
+  return cleaned
+}
+
 export function formatDate(iso: string | null | undefined): string {
   if (!iso) return '—'
   return new Date(iso).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })

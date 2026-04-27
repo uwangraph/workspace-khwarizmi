@@ -30,7 +30,10 @@ export interface AttendanceRecord {
   date: string
   check_in: string | null
   check_out: string | null
+  photo_in_url?: string | null
+  photo_out_url?: string | null
   late: boolean
+  late_reason?: string | null
   forgot_checkout: boolean
 }
 
@@ -58,5 +61,24 @@ export interface ThursdayRule {
   created_at: string
 }
 
-export type AdminTab = 'overview' | 'users' | 'tasks' | 'attendance' | 'rekap' | 'holidays'
+export type AdminTab = 'overview' | 'users' | 'tasks' | 'attendance' | 'rekap' | 'holidays' | 'settings'
 export type RekapSubTab = 'tasks' | 'attendance' | 'users'
+
+export interface AttendanceLeave {
+  id: string
+  user_id: string
+  date: string
+  type: 'izin' | 'sakit'
+  reason: string
+  session_id: number | null
+  status: 'pending' | 'approved' | 'rejected'
+  approved_by?: string | null
+}
+
+export interface AppSetting {
+  id: number
+  office_lat: number
+  office_lng: number
+  office_radius: number
+  updated_at: string
+}

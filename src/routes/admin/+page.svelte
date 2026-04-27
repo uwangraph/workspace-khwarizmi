@@ -3,8 +3,9 @@
   import { supabase } from '$lib/supabase'
   import type { User } from '@supabase/supabase-js'
   import { Shield } from 'lucide-svelte'
+  import toast from 'svelte-french-toast'
 
-  import type { Profile, Task, AttendanceRecord, TaskAssignment, Holiday, AdminTab, ThursdayRule } from '$lib/components/admin/_types'
+  import type { Profile, Task, AttendanceRecord, TaskAssignment, Holiday, AdminTab, ThursdayRule, AppSetting, AttendanceLeave } from '$lib/components/admin/_types'
 
   // ── Tab Components ─────────────────────────────────────────────────────────
   import AdminTabBar      from '$lib/components/admin/AdminTabBar.svelte'
@@ -14,6 +15,7 @@
   import AttendanceTab    from '$lib/components/admin/tabs/AttendanceTab.svelte'
   import RekapTab         from '$lib/components/admin/tabs/RekapTab.svelte'
   import HolidaysTab      from '$lib/components/admin/tabs/HolidaysTab.svelte'
+  import SettingsTab      from '$lib/components/admin/tabs/SettingsTab.svelte'
 
   // ── Modal Components ───────────────────────────────────────────────────────
   import EditUserModal      from '$lib/components/admin/modals/EditUserModal.svelte'
@@ -37,6 +39,8 @@
   let allAssignments = $state<TaskAssignment[]>([])
   let holidays       = $state<Holiday[]>([])
   let thursdayRules  = $state<ThursdayRule[]>([])
+  let allLeaves      = $state<AttendanceLeave[]>([])
+  let appSettings    = $state<AppSetting | null>(null)
 
   // Modal visibility
   let showEditUserModal     = $state(false)
@@ -67,6 +71,7 @@
   let isDeletingHoliday    = $state(false)
   let isSavingThursday     = $state(false)
   let isDeletingThursday   = $state(false)
+  let isSavingSettings     = $state(false)
 
   // Toast
   let toastMsg     = $state('')
@@ -77,10 +82,10 @@
   const attendanceMonth = $derived(new Date().toISOString().slice(0, 7))
 
   // ── Helpers ────────────────────────────────────────────────────────────────
-  function showToast(msg: string, type: 'success' | 'error' | 'info' = 'success', dur = 3000) {
-    clearTimeout(toastTimer)
-    toastMsg = msg; toastType = type; toastVisible = true
-    toastTimer = setTimeout(() => toastVisible = false, dur) as unknown as number
+  function showToast(msg: string, type: 'success' | 'error' | 'info' = 'success') {
+    if (type === 'error') toast.error(msg)
+    else if (type === 'success') toast.success(msg)
+    else toast(msg, { icon: 'ℹ️' })
   }
 
   // ── Load Data ──────────────────────────────────────────────────────────────
@@ -94,19 +99,23 @@
     if (!p || p.role !== 'admin') { location.assign('/'); return }
     profile = p
 
-    const [usersRes, tasksRes, attendRes, assignRes, holidaysRes] = await Promise.all([
+    const [usersRes, tasksRes, attendRes, assignRes, holidaysRes, settingsRes, leavesRes] = await Promise.all([
       supabase.from('profiles').select('*').order('full_name'),
       supabase.from('tasks').select('*').order('created_at', { ascending: false }),
       supabase.from('attendance').select('*').order('date', { ascending: false }),
       supabase.from('task_assignments').select('*'),
       supabase.from('holidays').select('*').order('date'),
+      supabase.from('app_settings').select('*').eq('id', 1).single(),
+      supabase.from('attendance_leaves').select('*').order('date', { ascending: false })
     ])
 
     if (usersRes.data)    allUsers       = usersRes.data as Profile[]
     if (tasksRes.data)    allTasks       = tasksRes.data as Task[]
     if (attendRes.data)   allAttendance  = attendRes.data as AttendanceRecord[]
     if (assignRes.data)   allAssignments = assignRes.data as TaskAssignment[]
-    if (holidaysRes.data)  holidays        = holidaysRes.data as Holiday[]
+    if (holidaysRes.data) holidays       = holidaysRes.data as Holiday[]
+    if (settingsRes.data) appSettings    = settingsRes.data as AppSetting
+    if (leavesRes.data)   allLeaves      = leavesRes.data as AttendanceLeave[]
 
     const { data: thursdayRes } = await supabase.from('thursday_rules').select('*').order('date')
     if (thursdayRes) thursdayRules = thursdayRes as ThursdayRule[]
@@ -147,19 +156,25 @@
     }
     if (data.password.length < 8) { showToast('Password minimal 8 karakter', 'error'); return }
     isCreatingUser = true
-    const { data: authData, error } = await supabase.auth.signUp({
-      email: data.email.trim(), password: data.password.trim(),
-      options: { data: { full_name: data.name.trim() } }
-    })
-    isCreatingUser = false
-    if (error || !authData.user) { showToast(error?.message || 'Gagal membuat akun', 'error'); return }
-    await supabase.from('profiles').upsert({
-      id: authData.user.id, full_name: data.name.trim(),
-      role: data.role, position: data.position.trim() || null,
-    })
-    showNewUserModal = false
-    showToast('Pengguna baru berhasil dibuat', 'success')
-    await loadData()
+    
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+      const result = await res.json()
+      
+      if (!res.ok) throw new Error(result.error || 'Gagal membuat akun')
+      
+      showNewUserModal = false
+      showToast('Pengguna baru berhasil dibuat', 'success')
+      await loadData()
+    } catch (err: any) {
+      showToast(err.message, 'error')
+    } finally {
+      isCreatingUser = false
+    }
   }
 
   // ── Task Actions ───────────────────────────────────────────────────────────
@@ -241,6 +256,31 @@
     showToast('Aturan Kamis dihapus', 'success')
   }
 
+  // ── Settings Actions ───────────────────────────────────────────────────────
+  async function saveSettings(data: { office_lat: number; office_lng: number; office_radius: number }) {
+    isSavingSettings = true
+    const { data: updated, error } = await supabase.from('app_settings')
+      .update(data)
+      .eq('id', 1)
+      .select().single()
+    
+    isSavingSettings = false
+    if (error) { showToast('Gagal menyimpan pengaturan', 'error'); return }
+    appSettings = updated as AppSetting
+    showToast('Pengaturan sistem berhasil disimpan', 'success')
+  }
+
+  // ── Leave Actions ──────────────────────────────────────────────────────────
+  async function updateLeaveStatus(leave: AttendanceLeave, status: 'approved' | 'rejected') {
+    if (!profile) return
+    const { error } = await supabase.from('attendance_leaves')
+      .update({ status, approved_by: profile.id })
+      .eq('id', leave.id)
+    if (error) { showToast('Gagal mengupdate status izin', 'error'); return }
+    allLeaves = allLeaves.map(l => l.id === leave.id ? { ...l, status, approved_by: profile!.id } : l)
+    showToast(`Izin berhasil di-${status === 'approved' ? 'setujui' : 'tolak'}`, 'success')
+  }
+
   onMount(loadData)
 </script>
 
@@ -248,14 +288,6 @@
   <title>Admin Panel — Workspace Khwarizmi</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
 </svelte:head>
-
-<!-- Toast -->
-{#if toastVisible}
-  <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] px-4 py-3 rounded-xl text-sm font-medium text-white shadow-2xl flex items-center gap-2 max-w-[90vw]"
-       style="background:{toastType==='success'?'#16A34A':toastType==='error'?'#DC2626':'#3B82F6'}; animation:slideInUp .3s ease-out">
-    {toastMsg}
-  </div>
-{/if}
 
 <div class="min-h-screen bg-slate-50 pb-24" style="font-family:'Inter',sans-serif;">
 
@@ -307,7 +339,8 @@
                   onViewTask={handleViewTask} />
 
       {:else if activeTab === 'attendance'}
-        <AttendanceTab {allUsers} {allAttendance} {holidays} {thursdayRules} />
+        <AttendanceTab {allUsers} {allAttendance} {holidays} {thursdayRules} {allLeaves}
+                       onUpdateLeave={updateLeaveStatus} />
 
       {:else if activeTab === 'rekap'}
         <RekapTab {allUsers} {allTasks} {allAssignments} {allAttendance} {holidays} />
@@ -318,6 +351,11 @@
                      onDeleteHoliday={handleDeleteHoliday}
                      onManageThursday={() => showThursdayRuleModal = true}
                      onDeleteThursdayRule={handleDeleteThursdayRule} />
+
+      {:else if activeTab === 'settings'}
+        <SettingsTab settings={appSettings}
+                     onSave={saveSettings}
+                     isSaving={isSavingSettings} />
       {/if}
     </main>
 
@@ -394,10 +432,3 @@
     onConfirm={deleteThursdayRule}
     onClose={() => showDeleteThursdayModal = false} />
 {/if}
-
-<style>
-  @keyframes slideInUp {
-    from { transform: translate(-50%, 20px); opacity: 0; }
-    to   { transform: translate(-50%, 0);    opacity: 1; }
-  }
-</style>

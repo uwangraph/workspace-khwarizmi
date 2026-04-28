@@ -10,6 +10,8 @@
     getUserName: (id: string) => string
     getInitials: (n: string) => string
     getAvatarGradient: (s?: string) => string
+    isPinned: boolean
+    onTogglePin: () => void
     onClose: () => void; onProgress: () => void; onEdit: () => void; onDelete: () => void
     onAccept: () => void; onReject: () => void
   }
@@ -25,7 +27,7 @@
   const PRIORITY_LABEL: Record<string,string> = { low:'Rendah', medium:'Sedang', high:'Tinggi' }
   const PRIORITY_DOT: Record<string,string> = { low:'#94A3B8', medium:'#F59E0B', high:'#EF4444' }
 
-  let { task: t, userId, contributors, myAssignment: myA, canEdit, canDelete, due, formatDateShort, getUserName, getInitials, getAvatarGradient, onClose, onProgress, onEdit, onDelete, onAccept, onReject }: Props = $props()
+  let { task: t, userId, contributors, myAssignment: myA, canEdit, canDelete, isPinned, onTogglePin, due, formatDateShort, getUserName, getInitials, getAvatarGradient, onClose, onProgress, onEdit, onDelete, onAccept, onReject }: Props = $props()
   let statusStyle = $derived(STATUS_STYLE[t.status])
 </script>
 
@@ -50,7 +52,14 @@
             <span class="text-[10px] text-slate-500">• Dibuat oleh {t.created_by === userId ? 'Anda' : getUserName(t.created_by)}</span>
           </div>
         </div>
-        <button onclick={onClose} class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 cursor-pointer flex-shrink-0">✕</button>
+        <div class="flex items-center gap-2">
+          <button onclick={onTogglePin} class="w-8 h-8 rounded-full {isPinned ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-400'} hover:bg-orange-200 flex items-center justify-center transition-colors cursor-pointer" title={isPinned ? 'Lepas Sematan' : 'Sematkan Tugas'}>
+            <svg class="w-4 h-4" fill={isPinned ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16 12V4H17V2H7V4H8V12L6 14V16H11V22H13V16H18V14L16 12Z"/>
+            </svg>
+          </button>
+          <button onclick={onClose} class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 cursor-pointer flex-shrink-0">✕</button>
+        </div>
       </div>
     </div>
     <div class="px-6 py-5 flex flex-col gap-5">

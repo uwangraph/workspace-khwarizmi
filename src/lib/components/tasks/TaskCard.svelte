@@ -7,6 +7,7 @@
   interface Props {
     task: Task
     isPending: boolean
+    isPinned: boolean
     due: { label: string; color: string; urgent: boolean } | null
     contributors: Contributor[]
     onClick: () => void
@@ -25,7 +26,7 @@
   }
   const PRIORITY_LABEL: Record<string,string> = { low:'Rendah', medium:'Sedang', high:'Tinggi' }
 
-  let { task, isPending, due, contributors, onClick, getInitials, getAvatarGradient }: Props = $props()
+  let { task, isPending, isPinned, due, contributors, onClick, getInitials, getAvatarGradient }: Props = $props()
   let statusStyle = $derived(STATUS_STYLE[task.status])
 </script>
 
@@ -41,10 +42,17 @@
         <p class="font-bold text-slate-800 text-sm leading-snug line-clamp-1" style="font-family:'Plus Jakarta Sans',sans-serif;">
           {task.title}
         </p>
-        <span class="text-[9px] font-bold px-2 py-0.5 rounded-full {statusStyle.bg} {statusStyle.text} flex-shrink-0 flex items-center gap-1">
-          <span class="w-1.5 h-1.5 rounded-full" style="background:{statusStyle.dot};"></span>
-          {STATUS_LABEL[task.status]}
-        </span>
+        <div class="flex items-center gap-1.5 flex-shrink-0">
+          {#if isPinned}
+            <span class="text-orange-500">
+              <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V4H17V2H7V4H8V12L6 14V16H11V22H13V16H18V14L16 12Z"/></svg>
+            </span>
+          {/if}
+          <span class="text-[9px] font-bold px-2 py-0.5 rounded-full {statusStyle.bg} {statusStyle.text} flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full" style="background:{statusStyle.dot};"></span>
+            {STATUS_LABEL[task.status]}
+          </span>
+        </div>
       </div>
 
       <div class="flex items-center justify-between gap-2 mt-2">

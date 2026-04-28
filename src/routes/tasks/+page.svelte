@@ -46,18 +46,46 @@
   let formFieldErrors = $state<Record<string, string>>({})
 
   let activeFilter = $state<'all' | 'not_started' | 'in_progress' | 'review' | 'revision' | 'done'>('all')
+  let activePriority = $state<'all' | 'low' | 'medium' | 'high'>('all')
   let taskSearch = $state('')
   const itemsPerPage = 10
   let currentPage = $state(1)
 
-  let filteredTasks = $derived(tasks.filter(t => {
-    const matchSearch = !taskSearch || t.title.toLowerCase().includes(taskSearch.toLowerCase()) || (t.description?.toLowerCase().includes(taskSearch.toLowerCase()))
-    const matchFilter = activeFilter === 'all' || t.status === activeFilter
-    return matchSearch && matchFilter
-  }))
+  let pinnedTaskIds = $state<string[]>([])
+
+  onMount(() => {
+    loadData()
+    const stored = localStorage.getItem('pinned_tasks')
+    if (stored) pinnedTaskIds = JSON.parse(stored)
+  })
+
+  function togglePin(taskId: string) {
+    if (pinnedTaskIds.includes(taskId)) pinnedTaskIds = pinnedTaskIds.filter(id => id !== taskId)
+    else pinnedTaskIds = [taskId, ...pinnedTaskIds]
+    localStorage.setItem('pinned_tasks', JSON.stringify(pinnedTaskIds))
+    toast.success(pinnedTaskIds.includes(taskId) ? '📌 Tugas disematkan' : 'Tugas dilepas')
+  }
+
+  let filteredTasks = $derived.by(() => {
+    let list = tasks.filter(t => {
+      const matchSearch = !taskSearch || t.title.toLowerCase().includes(taskSearch.toLowerCase()) || (t.description?.toLowerCase().includes(taskSearch.toLowerCase()))
+      const matchFilter = activeFilter === 'all' || t.status === activeFilter
+      const matchPriority = activePriority === 'all' || t.priority === activePriority
+      return matchSearch && matchFilter && matchPriority
+    })
+    
+    // Sort pinned to top
+    return list.sort((a, b) => {
+      const aPinned = pinnedTaskIds.includes(a.id)
+      const bPinned = pinnedTaskIds.includes(b.id)
+      if (aPinned && !bPinned) return -1
+      if (!aPinned && bPinned) return 1
+      return 0
+    })
+  })
   let paginatedTasks = $derived(filteredTasks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage))
   let totalPages = $derived(Math.ceil(filteredTasks.length / itemsPerPage))
-  $effect(() => { taskSearch; activeFilter; currentPage = 1 })
+  $effect(() => { taskSearch; activeFilter; activePriority; currentPage = 1 })
 
   let formTitle = $state(''), formDescription = $state(''), formStatus = $state<Task['status']>('not_started'), formPriority = $state<Task['priority']>('medium')
   let formProgress = $state(0), formStartDate = $state(''), formDueDate = $state(''), formAssignedUsers = $state<string[]>([])
@@ -249,7 +277,12 @@
       } else if (newStatus === 'review' && task && task.created_by !== user!.id) {
         await insertNotification(task.created_by, 'task_ready_review', 'Siap Direview', `${updaterName} menandai tugas "${task.title}" siap direview (${progressValue}%).`, { task_id: task.id, task_title: task.title })
       }
-      toast.success(`Progress diperbarui: ${progressValue}%`); showProgressModal = false; await refreshAll()
+      toast.success(`Progress diperbarui: ${progressValue}%`); 
+      showProgressModal = false; 
+      await refreshAll();
+      if (detailTask && detailTask.id === progressTaskId) {
+        detailTask = tasks.find(t => t.id === progressTaskId) || null;
+      }
     } catch { toast.error('Gagal memperbarui progress') } finally { isUpdatingProgress = false }
   }
 
@@ -275,8 +308,6 @@
     const notStarted = tasks.filter(t => t.status === 'not_started').length, inProgress = tasks.filter(t => t.status === 'in_progress').length, review = tasks.filter(t => t.status === 'review').length, revision = tasks.filter(t => t.status === 'revision').length, done = tasks.filter(t => t.status === 'done').length, total = tasks.length
     return { notStarted, inProgress, review, revision, done, total, completionRate: total > 0 ? Math.round((done / total) * 100) : 0 }
   })
-
-  onMount(loadData)
 </script>
 
 <svelte:head>
@@ -295,7 +326,10 @@
       <LoadingSpinner message="Memuat tugas..." />
     {:else}
       <TaskStatsBar stats={taskStats} />
-      <TaskFilterTabs {activeFilter} search={taskSearch} onFilterChange={(f) => activeFilter = f} onSearchChange={(s) => taskSearch = s} />
+      <TaskFilterTabs {activeFilter} {activePriority} search={taskSearch} 
+                      onFilterChange={(f) => activeFilter = f} 
+                      onPriorityChange={(p) => activePriority = p}
+                      onSearchChange={(s) => taskSearch = s} />
       
       {#if filteredTasks.length === 0}
         <EmptyState title="Tidak Ada Tugas" subtitle="Belum ada tugas yang sesuai." emoji="📋" />
@@ -304,6 +338,7 @@
           {#each paginatedTasks as t (t.id)}
             {@const myA = getUserAssignment(t.id)}
             <TaskCard task={t} isPending={myA?.status === 'pending'} due={formatDueDate(t.due_date)}
+                      isPinned={pinnedTaskIds.includes(t.id)}
                       contributors={getTaskContributors(t.id)} onClick={() => openDetail(t)}
                       {getInitials} {getAvatarGradient} />
           {/each}
@@ -317,11 +352,13 @@
 {#if showDetailModal && detailTask}
   <TaskDetailModal task={detailTask} userId={user?.id || ''} contributors={getTaskContributors(detailTask.id)}
                    myAssignment={getUserAssignment(detailTask.id)} canEdit={canEditTask(detailTask)} canDelete={canDeleteTask(detailTask)}
+                   isPinned={pinnedTaskIds.includes(detailTask.id)}
+                   onTogglePin={() => togglePin(detailTask!.id)}
                    due={formatDueDate(detailTask.due_date)} {formatDateShort} {getUserName} {getInitials} {getAvatarGradient}
-                   onClose={() => showDetailModal = false} onProgress={() => openProgressModal(detailTask)}
-                   onEdit={() => openEditModal(detailTask)} onDelete={() => confirmDelete(detailTask)}
-                   onAccept={() => openConfirmActionModal('accept', getUserAssignment(detailTask.id)!, detailTask!.title)}
-                   onReject={() => openConfirmActionModal('reject', getUserAssignment(detailTask.id)!, detailTask!.title)} />
+                   onClose={() => showDetailModal = false} onProgress={() => openProgressModal(detailTask!)}
+                   onEdit={() => openEditModal(detailTask!)} onDelete={() => confirmDelete(detailTask!)}
+                   onAccept={() => openConfirmActionModal('accept', getUserAssignment(detailTask!.id)!, detailTask!.title)}
+                   onReject={() => openConfirmActionModal('reject', getUserAssignment(detailTask!.id)!, detailTask!.title)} />
 {/if}
 
 {#if showTaskModal}

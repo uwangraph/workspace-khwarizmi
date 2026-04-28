@@ -2,6 +2,10 @@
   import { onMount } from 'svelte'
   import { supabase } from '$lib/supabase'
   import type { User } from '@supabase/supabase-js'
+  import { page } from '$app/stores'
+  import confetti from 'canvas-confetti'
+  import { flip } from 'svelte/animate'
+  import { fade, fly } from 'svelte/transition'
   import toast from 'svelte-french-toast'
   
   import AppHeader from '$lib/components/shared/AppHeader.svelte'
@@ -19,7 +23,7 @@
   import ConfirmActionModal from '$lib/components/tasks/ConfirmActionModal.svelte'
 
   interface Profile { id: string; full_name: string; role: 'admin' | 'user'; avatar_url?: string | null }
-  interface Task { id: string; title: string; description: string | null; status: 'not_started' | 'in_progress' | 'review' | 'revision' | 'done'; priority: 'low' | 'medium' | 'high'; progress: number; start_date: string | null; due_date: string | null; created_by: string; created_at: string }
+  interface Task { id: string; title: string; description: string | null; status: 'not_started' | 'in_progress' | 'review' | 'revision' | 'done'; priority: 'low' | 'medium' | 'high'; progress: number; start_date: string | null; due_date: string | null; created_by: string; created_at: string; subtasks?: any[] }
   interface TaskAssignment { id: string; task_id: string; user_id: string; status: 'pending' | 'accepted' | 'rejected' | 'completed'; accepted_at: string | null; completed_at: string | null }
   interface UserProfile { id: string; full_name: string; avatar_url?: string | null }
 
@@ -53,11 +57,28 @@
   let currentPage = $state(1)
 
   let pinnedTaskIds = $state<string[]>([])
+  let selectedTaskIds = $state<string[]>([])
+  let isSelectionMode = $state(false)
+  let isBulkActing = $state(false)
 
   onMount(() => {
     loadData()
     const stored = localStorage.getItem('pinned_tasks')
     if (stored) pinnedTaskIds = JSON.parse(stored)
+
+    const taskIdFromUrl = $page.url.searchParams.get('taskId')
+    if (taskIdFromUrl) {
+      setTimeout(() => {
+        const taskToOpen = tasks.find(t => t.id === taskIdFromUrl)
+        if (taskToOpen) {
+          openDetail(taskToOpen)
+          // Clean up URL without reloading
+          const newUrl = new URL(window.location.href)
+          newUrl.searchParams.delete('taskId')
+          window.history.replaceState({}, '', newUrl)
+        }
+      }, 500) // slight delay to allow data to load
+    }
   })
 
   function togglePin(taskId: string) {
@@ -100,6 +121,34 @@
   let paginatedTasks = $derived(filteredTasks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage))
   let totalPages = $derived(Math.ceil(filteredTasks.length / itemsPerPage))
   $effect(() => { taskSearch; activeFilter; activePriority; sortBy; currentPage = 1 })
+
+  function toggleSelection(taskId: string) {
+    if (selectedTaskIds.includes(taskId)) selectedTaskIds = selectedTaskIds.filter(id => id !== taskId)
+    else selectedTaskIds = [...selectedTaskIds, taskId]
+  }
+
+  async function bulkMarkDone() {
+    if (selectedTaskIds.length === 0) return
+    isBulkActing = true
+    try {
+      await supabase.from('tasks').update({ status: 'done', progress: 100 }).in('id', selectedTaskIds)
+      toast.success(`${selectedTaskIds.length} tugas diselesaikan`)
+      selectedTaskIds = []
+      confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } })
+      await refreshAll()
+    } catch (e: any) {
+      toast.error(e.message || 'Gagal menyelesaikan tugas')
+    } finally {
+      isBulkActing = false
+    }
+  }
+
+  function bulkDelete() {
+    if (selectedTaskIds.length === 0) return
+    deletingTaskId = 'bulk'
+    deletingTaskTitle = `${selectedTaskIds.length} tugas terpilih`
+    showDeleteModal = true
+  }
 
   let formTitle = $state(''), formDescription = $state(''), formStatus = $state<Task['status']>('not_started'), formPriority = $state<Task['priority']>('medium')
   let formProgress = $state(0), formStartDate = $state(''), formDueDate = $state(''), formAssignedUsers = $state<string[]>([])
@@ -288,6 +337,10 @@
         if (task.created_by !== user!.id) await insertNotification(task.created_by, 'task_completed', 'Tugas Selesai', `${updaterName} menyelesaikan tugas "${task.title}".`, { task_id: task.id, task_title: task.title })
         const otherIds = allAssignments.filter(a => a.task_id === progressTaskId && a.user_id !== user!.id && a.user_id !== task.created_by && a.status === 'accepted').map(a => a.user_id)
         if (otherIds.length > 0) await insertNotificationMany(otherIds, 'task_completed', 'Tugas Diselesaikan', `${updaterName} menyelesaikan tugas "${task.title}".`, { task_id: task.id, task_title: task.title })
+        
+        // Confetti! 🎉
+        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } })
+        
       } else if (newStatus === 'review' && task && task.created_by !== user!.id) {
         await insertNotification(task.created_by, 'task_ready_review', 'Siap Direview', `${updaterName} menandai tugas "${task.title}" siap direview (${progressValue}%).`, { task_id: task.id, task_title: task.title })
       }
@@ -300,19 +353,42 @@
     } catch { toast.error('Gagal memperbarui progress') } finally { isUpdatingProgress = false }
   }
 
+  async function updateSubtasks(taskId: string, subtasks: any[]) {
+    try {
+      const { error } = await supabase.from('tasks').update({ subtasks }).eq('id', taskId)
+      if (error) throw error
+      await refreshAll()
+      if (detailTask && detailTask.id === taskId) {
+        detailTask = tasks.find(t => t.id === taskId) || null;
+      }
+    } catch (e: any) {
+      toast.error('Gagal menyimpan sub-tugas: ' + e.message)
+    }
+  }
+
   function confirmDelete(task: Task) { if (!canDeleteTask(task)) { toast.error('Hanya pembuat tugas yang bisa menghapus'); return }; deletingTaskId = task.id; deletingTaskTitle = task.title; showDetailModal = false; showDeleteModal = true }
   
   async function deleteTask() {
     if (!deletingTaskId) return
     isDeleting = true
     try {
-      const { data: tA } = await supabase.from('task_assignments').select('user_id').eq('task_id', deletingTaskId)
-      const taskTitle = deletingTaskTitle, deleterName = getUserName(user!.id)
-      const collaborators = (tA || []).map(a => a.user_id).filter(uid => uid !== user!.id)
-      await supabase.from('task_assignments').delete().eq('task_id', deletingTaskId)
-      await supabase.from('tasks').delete().eq('id', deletingTaskId)
-      if (collaborators.length > 0) await insertNotificationMany(collaborators, 'task_deleted', 'Tugas Dihapus', `${deleterName} menghapus tugas "${taskTitle}".`, { task_title: taskTitle })
-      toast.success('Tugas berhasil dihapus'); showDeleteModal = false; await refreshAll()
+      if (deletingTaskId === 'bulk') {
+        await supabase.from('task_assignments').delete().in('task_id', selectedTaskIds)
+        await supabase.from('tasks').delete().in('id', selectedTaskIds)
+        toast.success(`${selectedTaskIds.length} tugas dihapus`)
+        selectedTaskIds = []
+        isSelectionMode = false
+        showDeleteModal = false
+        await refreshAll()
+      } else {
+        const { data: tA } = await supabase.from('task_assignments').select('user_id').eq('task_id', deletingTaskId)
+        const taskTitle = deletingTaskTitle, deleterName = getUserName(user!.id)
+        const collaborators = (tA || []).map(a => a.user_id).filter(uid => uid !== user!.id)
+        await supabase.from('task_assignments').delete().eq('task_id', deletingTaskId)
+        await supabase.from('tasks').delete().eq('id', deletingTaskId)
+        if (collaborators.length > 0) await insertNotificationMany(collaborators, 'task_deleted', 'Tugas Dihapus', `${deleterName} menghapus tugas "${taskTitle}".`, { task_title: taskTitle })
+        toast.success('Tugas berhasil dihapus'); showDeleteModal = false; await refreshAll()
+      }
     } catch (e: any) { toast.error(e.message || 'Gagal menghapus') } finally { isDeleting = false; deletingTaskId = null }
   }
 
@@ -340,11 +416,26 @@
       <LoadingSpinner message="Memuat tugas..." />
     {:else}
       <TaskStatsBar stats={taskStats} />
-      <TaskFilterTabs {activeFilter} {activePriority} {sortBy} search={taskSearch} 
-                      onFilterChange={(f) => activeFilter = f} 
-                      onPriorityChange={(p) => activePriority = p}
-                      onSortChange={(s) => sortBy = s}
-                      onSearchChange={(s) => taskSearch = s} />
+      <div class="flex items-center justify-between">
+        <div class="flex-1 min-w-0">
+          <TaskFilterTabs {activeFilter} {activePriority} {sortBy} search={taskSearch} 
+                        onFilterChange={(f) => activeFilter = f} 
+                        onPriorityChange={(p) => activePriority = p}
+                        onSortChange={(s) => sortBy = s}
+                        onSearchChange={(s) => taskSearch = s} />
+        </div>
+        {#if filteredTasks.length > 0}
+          <div class="flex items-center ml-3 gap-2 flex-shrink-0">
+            <button onclick={() => { isSelectionMode = !isSelectionMode; if (!isSelectionMode) selectedTaskIds = [] }}
+                    class="flex items-center justify-center p-2 rounded-full {isSelectionMode ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'} transition-colors"
+                    title={isSelectionMode ? 'Batal Pilih' : 'Pilih Tugas'}>
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+            </button>
+          </div>
+        {/if}
+      </div>
       
       {#if filteredTasks.length === 0}
         <EmptyState title="Tidak Ada Tugas" subtitle="Belum ada tugas yang sesuai." emoji="📋" />
@@ -352,16 +443,51 @@
         <div class="flex flex-col gap-3">
           {#each paginatedTasks as t (t.id)}
             {@const myA = getUserAssignment(t.id)}
-            <TaskCard task={t} isPending={myA?.status === 'pending'} due={formatDueDate(t.due_date)}
-                      isPinned={pinnedTaskIds.includes(t.id)}
-                      contributors={getTaskContributors(t.id)} onClick={() => openDetail(t)}
-                      {getInitials} {getAvatarGradient} />
+            <div animate:flip={{ duration: 300 }} transition:fade={{ duration: 200 }}>
+              <TaskCard task={t} isPending={myA?.status === 'pending'} due={formatDueDate(t.due_date)}
+                        isPinned={pinnedTaskIds.includes(t.id)}
+                        selectionMode={isSelectionMode}
+                        isSelected={selectedTaskIds.includes(t.id)}
+                        contributors={getTaskContributors(t.id)} onClick={() => {
+                          if (isSelectionMode) toggleSelection(t.id)
+                          else openDetail(t)
+                        }}
+                        onSelect={() => toggleSelection(t.id)}
+                        {getInitials} {getAvatarGradient} />
+            </div>
           {/each}
         </div>
         <PaginationBar {currentPage} {totalPages} onPrev={() => currentPage--} onNext={() => currentPage++} />
       {/if}
     {/if}
   </main>
+
+  {#if isSelectionMode}
+    <div class="fixed bottom-24 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-slate-900 text-white rounded-2xl p-3 shadow-2xl flex items-center justify-between z-40" transition:fly={{ y: 50, duration: 250 }}>
+      <div class="flex items-center gap-3">
+        <button onclick={() => { isSelectionMode = false; selectedTaskIds = [] }} class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-700 transition-colors">✕</button>
+        <div class="flex flex-col">
+          <span class="text-sm font-bold leading-tight">{selectedTaskIds.length} tugas dipilih</span>
+          {#if selectedTaskIds.length !== filteredTasks.length}
+            <button onclick={() => selectedTaskIds = filteredTasks.map(t => t.id)} class="text-[10px] text-slate-400 hover:text-white text-left">Pilih Semua</button>
+          {:else}
+            <button onclick={() => selectedTaskIds = []} class="text-[10px] text-slate-400 hover:text-white text-left">Kosongkan</button>
+          {/if}
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        {#if selectedTaskIds.length > 0}
+          <button onclick={bulkDelete} disabled={isBulkActing} class="p-2 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors disabled:opacity-50" title="Hapus">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+          </button>
+          <button onclick={bulkMarkDone} disabled={isBulkActing} class="px-3 py-2 rounded-xl bg-green-500 text-white font-bold text-xs hover:bg-green-600 transition-colors flex items-center gap-1 disabled:opacity-50">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+            Selesai
+          </button>
+        {/if}
+      </div>
+    </div>
+  {/if}
 </div>
 
 {#if showDetailModal && detailTask}
@@ -369,6 +495,7 @@
                    myAssignment={getUserAssignment(detailTask.id)} canEdit={canEditTask(detailTask)} canDelete={canDeleteTask(detailTask)}
                    isPinned={pinnedTaskIds.includes(detailTask.id)}
                    onTogglePin={() => togglePin(detailTask!.id)}
+                   onUpdateSubtasks={(subtasks) => updateSubtasks(detailTask!.id, subtasks)}
                    due={formatDueDate(detailTask.due_date)} {formatDateShort} {getUserName} {getInitials} {getAvatarGradient}
                    onClose={() => showDetailModal = false} onProgress={() => openProgressModal(detailTask!)}
                    onEdit={() => openEditModal(detailTask!)} onDelete={() => confirmDelete(detailTask!)}

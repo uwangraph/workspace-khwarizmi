@@ -1,5 +1,7 @@
 <script lang="ts">
-  interface Task { id: string; title: string; description: string|null; status: string; priority: string; progress: number; due_date: string|null; start_date: string|null; created_by: string }
+  import toast from 'svelte-french-toast'
+  interface Subtask { id: string; title: string; completed: boolean }
+  interface Task { id: string; title: string; description: string|null; status: string; priority: string; progress: number; due_date: string|null; start_date: string|null; created_by: string; subtasks?: Subtask[] }
   interface Contributor { id: string; name: string; avatar: string|null; status: string }
   interface Assignment { id: string; task_id: string; user_id: string; status: string }
   interface Props {
@@ -12,6 +14,7 @@
     getAvatarGradient: (s?: string) => string
     isPinned: boolean
     onTogglePin: () => void
+    onUpdateSubtasks?: (subtasks: Subtask[]) => void
     onClose: () => void; onProgress: () => void; onEdit: () => void; onDelete: () => void
     onAccept: () => void; onReject: () => void
   }
@@ -27,8 +30,56 @@
   const PRIORITY_LABEL: Record<string,string> = { low:'Rendah', medium:'Sedang', high:'Tinggi' }
   const PRIORITY_DOT: Record<string,string> = { low:'#94A3B8', medium:'#F59E0B', high:'#EF4444' }
 
-  let { task: t, userId, contributors, myAssignment: myA, canEdit, canDelete, isPinned, onTogglePin, due, formatDateShort, getUserName, getInitials, getAvatarGradient, onClose, onProgress, onEdit, onDelete, onAccept, onReject }: Props = $props()
+  let { task: t, userId, contributors, myAssignment: myA, canEdit, canDelete, isPinned, onTogglePin, onUpdateSubtasks, due, formatDateShort, getUserName, getInitials, getAvatarGradient, onClose, onProgress, onEdit, onDelete, onAccept, onReject }: Props = $props()
   let statusStyle = $derived(STATUS_STYLE[t.status])
+
+  let newSubtaskTitle = $state('')
+  let isAddingSubtask = $state(false)
+
+  function toggleSubtask(index: number) {
+    if (!onUpdateSubtasks || (!canEdit && myA?.status !== 'accepted')) return
+    const currentSubtasks = Array.isArray(t.subtasks) ? [...t.subtasks] : []
+    currentSubtasks[index].completed = !currentSubtasks[index].completed
+    onUpdateSubtasks(currentSubtasks)
+  }
+
+  function addSubtask(e: Event) {
+    e.preventDefault()
+    if (!newSubtaskTitle.trim() || !onUpdateSubtasks) return
+    const currentSubtasks = Array.isArray(t.subtasks) ? [...t.subtasks] : []
+    currentSubtasks.push({ id: Date.now().toString(), title: newSubtaskTitle.trim(), completed: false })
+    onUpdateSubtasks(currentSubtasks)
+    newSubtaskTitle = ''
+    isAddingSubtask = false
+  }
+
+  function deleteSubtask(index: number) {
+    if (!onUpdateSubtasks) return
+    const currentSubtasks = Array.isArray(t.subtasks) ? [...t.subtasks] : []
+    currentSubtasks.splice(index, 1)
+    onUpdateSubtasks(currentSubtasks)
+  }
+
+  async function handleShare() {
+    const url = new URL(window.location.href)
+    url.searchParams.set('taskId', t.id)
+    const shareUrl = url.toString()
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: t.title, text: `Tugas: ${t.title}`, url: shareUrl })
+      } catch (err) {
+        // user cancelled or error
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareUrl)
+        toast.success('Link disalin ke clipboard')
+      } catch (err) {
+        toast.error('Gagal menyalin link')
+      }
+    }
+  }
 </script>
 
 <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
@@ -53,6 +104,11 @@
           </div>
         </div>
         <div class="flex items-center gap-2">
+          <button onclick={handleShare} class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:bg-slate-200 flex items-center justify-center transition-colors cursor-pointer" title="Bagikan Tugas">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+          </button>
           <button onclick={onTogglePin} class="w-8 h-8 rounded-full {isPinned ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-400'} hover:bg-orange-200 flex items-center justify-center transition-colors cursor-pointer" title={isPinned ? 'Lepas Sematan' : 'Sematkan Tugas'}>
             <svg class="w-4 h-4" fill={isPinned ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M16 12V4H17V2H7V4H8V12L6 14V16H11V22H13V16H18V14L16 12Z"/>
@@ -68,6 +124,45 @@
         <div class="bg-slate-50 rounded-xl p-3"><p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Mulai</p><p class="text-xs font-semibold text-slate-700">{formatDateShort(t.start_date) || '—'}</p></div>
         <div class="bg-slate-50 rounded-xl p-3"><p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Deadline</p><p class="text-xs font-semibold {due?.color || 'text-slate-700'}">{formatDateShort(t.due_date) || '—'}{#if due}<span class="text-[10px] font-normal block mt-0.5">{due.label}</span>{/if}</p></div>
       </div>
+
+      <!-- Subtasks / Checklist -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Sub-Tugas (Checklist)</p>
+          {#if (canEdit || myA?.status === 'accepted') && onUpdateSubtasks}
+            <button onclick={() => isAddingSubtask = !isAddingSubtask} class="text-xs text-orange-600 font-bold hover:underline">
+              {isAddingSubtask ? 'Batal' : '+ Tambah'}
+            </button>
+          {/if}
+        </div>
+        <div class="flex flex-col gap-2">
+          {#if Array.isArray(t.subtasks) && t.subtasks.length > 0}
+            {#each t.subtasks as st, i}
+              <div class="flex items-start gap-2.5 group">
+                <button onclick={() => toggleSubtask(i)} class="mt-0.5 flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors {st.completed ? 'bg-orange-500 border-orange-500 text-white' : 'border-slate-300 hover:border-orange-400'}">
+                  {#if st.completed}<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>{/if}
+                </button>
+                <span class="text-sm {st.completed ? 'text-slate-400 line-through' : 'text-slate-700'} flex-1 leading-snug">{st.title}</span>
+                {#if (canEdit || myA?.status === 'accepted') && onUpdateSubtasks}
+                  <button onclick={() => deleteSubtask(i)} class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-opacity">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                  </button>
+                {/if}
+              </div>
+            {/each}
+          {:else}
+            <p class="text-xs text-slate-500 italic">Belum ada sub-tugas.</p>
+          {/if}
+          
+          {#if isAddingSubtask}
+            <form onsubmit={addSubtask} class="flex items-center gap-2 mt-1">
+              <input type="text" bind:value={newSubtaskTitle} placeholder="Nama sub-tugas..." class="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-orange-400" autofocus />
+              <button type="submit" disabled={!newSubtaskTitle.trim()} class="bg-orange-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-50">Simpan</button>
+            </form>
+          {/if}
+        </div>
+      </div>
+
       <div>
         <div class="flex items-center justify-between mb-2">
           <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Progress</p>

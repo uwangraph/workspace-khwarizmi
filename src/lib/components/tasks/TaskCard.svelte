@@ -8,9 +8,12 @@
     task: Task
     isPending: boolean
     isPinned: boolean
+    selectionMode?: boolean
+    isSelected?: boolean
     due: { label: string; color: string; urgent: boolean } | null
     contributors: Contributor[]
     onClick: () => void
+    onSelect?: () => void
     getInitials: (n: string) => string
     getAvatarGradient: (s?: string) => string
   }
@@ -26,14 +29,22 @@
   }
   const PRIORITY_LABEL: Record<string,string> = { low:'Rendah', medium:'Sedang', high:'Tinggi' }
 
-  let { task, isPending, isPinned, due, contributors, onClick, getInitials, getAvatarGradient }: Props = $props()
+  let { task, isPending, isPinned, selectionMode = false, isSelected = false, due, contributors, onClick, onSelect, getInitials, getAvatarGradient }: Props = $props()
   let statusStyle = $derived(STATUS_STYLE[task.status])
 </script>
 
-<button type="button" onclick={onClick}
+<button type="button" onclick={(e) => { if (selectionMode && onSelect) { e.preventDefault(); e.stopPropagation(); onSelect(); } else { onClick(); } }}
         class="text-left bg-white/90 rounded-xl p-3.5 shadow-sm border transition-all hover:shadow-md hover:-translate-y-0.5 active:scale-[0.99] cursor-pointer w-full
-               {isPending ? 'border-blue-200 ring-2 ring-blue-100' : 'border-white/50'}">
-  <div class="flex items-start gap-2.5">
+               {isPending ? 'border-blue-200 ring-2 ring-blue-100' : (isSelected ? 'border-orange-500 ring-2 ring-orange-100 bg-orange-50/50' : 'border-white/50')}">
+  <div class="flex items-start gap-2.5 relative">
+    {#if selectionMode}
+      <div class="mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors {isSelected ? 'bg-orange-500 border-orange-500 text-white' : 'border-slate-300 bg-white'}">
+        {#if isSelected}
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+        {/if}
+      </div>
+    {/if}
+    
     <div class="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0"
          style="background:{PRIORITY_DOT[task.priority]};"
          title="Prioritas {PRIORITY_LABEL[task.priority]}"></div>

@@ -187,7 +187,8 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: uid, type, title, message, data })
       });
-      return res.ok;
+      if (!res.ok) throw new Error(`API returned ${res.status}`);
+      return true;
     } catch (err) {
       console.error('Error calling notification API:', err);
       // Fallback ke direct insert jika API gagal
@@ -221,7 +222,7 @@
     const { data: { user: u } } = await supabase.auth.getUser()
     if (!u) { location.assign('/auth'); return }
     user = u
-    const { data: p } = await supabase.from('profiles').select('*').eq('id', u.id).single()
+    const { data: p } = await supabase.from('profiles').select('*').eq('id', u.id).maybeSingle()
     if (p) profile = p as Profile
     const { data: usrs } = await supabase.from('profiles').select('id, full_name, avatar_url').order('full_name')
     if (usrs) users = usrs as UserProfile[]

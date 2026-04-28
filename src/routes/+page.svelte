@@ -44,8 +44,27 @@
   let user = $state<User | null>(null), profile = $state<Profile | null>(null), attendance = $state<AttendanceRecord[]>([]), tasks = $state<Task[]>([]), notifications = $state<Notification[]>([])
   let isLoading = $state(true), gpsActive = $state(false), isNavigating = $state(false), now = $state(new Date())
   let clockInterval: ReturnType<typeof setInterval>
+  let notifSubscription: any;
 
-  onMount(() => { clockInterval = setInterval(() => { now = new Date() }, 60000); loadData(); initGps(); return () => clearInterval(clockInterval) })
+  onMount(() => { 
+    clockInterval = setInterval(() => { now = new Date() }, 60000); 
+    loadData(); 
+    initGps(); 
+    
+    // Subscribe to real-time notifications
+    notifSubscription = supabase.channel('public:notifications')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, payload => {
+        if (user && payload.new.user_id === user.id) {
+          notifications = [payload.new as Notification, ...notifications];
+        }
+      })
+      .subscribe()
+
+    return () => { 
+      clearInterval(clockInterval); 
+      if (notifSubscription) supabase.removeChannel(notifSubscription);
+    } 
+  })
 
   function getGreeting() { const h = now.getHours(); if (h < 4) return 'Selamat malam'; if (h < 11) return 'Selamat pagi'; if (h < 15) return 'Selamat siang'; if (h < 18) return 'Selamat sore'; return 'Selamat malam' }
   let heroDate = $derived(`${DAYS[now.getDay()]}, ${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`)

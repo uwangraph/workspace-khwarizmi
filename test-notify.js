@@ -13,7 +13,6 @@ const supabase = createClient(url, key);
 
 async function run() {
   const { data: users } = await supabase.from('profiles').select('id').limit(1);
-  if (!users || users.length === 0) { console.log('No users found'); return; }
   const uid = users[0].id;
 
   const res = await fetch('http://localhost:5174/api/notifications', {
@@ -21,7 +20,7 @@ async function run() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       user_id: uid,
-      type: 'test',
+      type: 'task_collaboration_invite',
       title: 'test title',
       message: 'test message'
     })
@@ -30,9 +29,6 @@ async function run() {
   console.log('API Status:', res.status);
   const text = await res.text();
   console.log('API Response:', text);
-  
-  const { data: notif } = await supabase.from('notifications').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(1);
-  console.log('DB Notif:', notif);
 }
 
 run();

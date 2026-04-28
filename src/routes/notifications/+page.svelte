@@ -140,13 +140,27 @@
 
   function onVisible() { if (document.visibilityState==='visible' && user) fetchNotifications() }
 
+  let notifSubscription: any;
+
   onMount(async () => {
     const { data: { user: u }, error } = await supabase.auth.getUser()
     if (error || !u) { location.assign('/auth'); return }
     user = u; await fetchNotifications()
     document.addEventListener('visibilitychange', onVisible)
+
+    notifSubscription = supabase.channel('public:notifications_page')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, payload => {
+        if (user && payload.new.user_id === user.id) {
+          notifications = [payload.new as Notification, ...notifications];
+        }
+      })
+      .subscribe()
   })
-  onDestroy(() => document.removeEventListener('visibilitychange', onVisible))
+
+  onDestroy(() => {
+    document.removeEventListener('visibilitychange', onVisible)
+    if (notifSubscription) supabase.removeChannel(notifSubscription)
+  })
 </script>
 
 <svelte:head>

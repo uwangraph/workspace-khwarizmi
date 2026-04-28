@@ -13,7 +13,7 @@ export default defineConfig({
       manifest: {
         name: 'Workspace Khwarizmi',
         short_name: 'Workspace Khwarizmi',
-        description: 'Digital Workspace by AlKhwarizmi',
+        description: 'Digital Workspace by AlKhwarizmi', 
         theme_color: '#ffffff',
         background_color: '#ffffff',
         display: 'standalone',

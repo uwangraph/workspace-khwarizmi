@@ -6,7 +6,8 @@
     title: string; 
     status: string; 
     priority: string; 
-    due_date: string | null 
+    due_date: string | null;
+    isPending?: boolean;
   }
 
   interface Props {
@@ -170,8 +171,9 @@
         
         <div class="flex flex-col gap-1 overflow-hidden">
           {#each dayTasks.slice(0, 2) as task}
-            <div class="px-1.5 py-0.5 rounded-md text-[9px] font-medium truncate 
-                           {task.status === 'done' ? 'bg-green-50 text-green-700 opacity-60' : 'bg-slate-100 text-slate-700'}">
+            <div class="px-1.5 py-0.5 rounded-md text-[9px] font-medium truncate border
+                           {task.status === 'done' ? 'bg-green-50 text-green-700 opacity-60 border-green-100' : 
+                            (task.isPending ? 'bg-blue-50 text-blue-700 border-dashed border-blue-300' : 'bg-slate-100 text-slate-700 border-slate-200')}">
               <div class="flex items-center gap-1">
                 <div class="w-1.5 h-1.5 rounded-full flex-shrink-0 {PRIORITY_COLOR[task.priority]}"></div>
                 <span class="truncate">{task.title}</span>
@@ -216,9 +218,15 @@
             <div class="flex-1 min-w-0">
               <p class="text-sm font-bold text-slate-800 truncate group-hover:text-orange-700">{task.title}</p>
               <div class="flex items-center gap-2 mt-1">
-                <span class="text-[10px] px-1.5 py-0.5 rounded-md bg-white border border-slate-200 text-slate-500 uppercase font-bold tracking-tight">
-                  {task.status.replace('_', ' ')}
-                </span>
+                {#if task.isPending}
+                  <span class="text-[9px] px-1.5 py-0.5 rounded-md bg-blue-100 text-blue-700 font-bold tracking-tight uppercase">
+                    Menunggu Konfirmasi
+                  </span>
+                {:else}
+                  <span class="text-[9px] px-1.5 py-0.5 rounded-md bg-white border border-slate-200 text-slate-500 uppercase font-bold tracking-tight">
+                    {task.status.replace('_', ' ')}
+                  </span>
+                {/if}
               </div>
             </div>
             <svg class="w-4 h-4 text-slate-300 group-hover:text-orange-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>

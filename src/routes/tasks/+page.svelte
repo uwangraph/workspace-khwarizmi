@@ -280,21 +280,57 @@
       const taskData = { title: formTitle.trim(), description: formDescription.trim(), status: formStatus, priority: formPriority, progress: formProgress, start_date: formStartDate, due_date: formDueDate }
       let taskId: string; const creatorName = getUserName(user!.id)
       if (isEditing && editingTaskId) {
+        // Ambil data tugas lama untuk tahu siapa pembuatnya
+        const { data: currentTask } = await supabase.from('tasks').select('created_at, created_by').eq('id', editingTaskId).single()
         await supabase.from('tasks').update(taskData).eq('id', editingTaskId)
         taskId = editingTaskId
-        const { data: oldA } = await supabase.from('task_assignments').select('user_id, status').eq('task_id', taskId)
-        const oldUserIds = (oldA || []).filter(a => a.status !== 'rejected').map(a => a.user_id)
+        
+        // Ambil data assignment lama dengan statusnya
+        const { data: oldAssignments } = await supabase.from('task_assignments').select('user_id, status').eq('task_id', taskId)
+        const oldStatusMap = new Map((oldAssignments || []).map(a => [a.user_id, a.status]))
+        const ownerId = currentTask?.created_by || user!.id
+
+        // Hapus semua assignment lama untuk refresh
         await supabase.from('task_assignments').delete().eq('task_id', taskId)
-        const allUsers = [...new Set([...formAssignedUsers, user!.id])]
-        await supabase.from('task_assignments').insert(allUsers.map(uid => ({ task_id: taskId, user_id: uid, status: uid === user!.id ? 'accepted' : 'pending' })))
-        const newCollabs = formAssignedUsers.filter(uid => uid !== user!.id && !oldUserIds.includes(uid))
+        
+        // Gabungkan semua user yang harus ada
+        const allUserIds = [...new Set([...formAssignedUsers, ownerId, user!.id])]
+        
+        const newAssignments = allUserIds.map(uid => {
+          const oldStatus = oldStatusMap.get(uid)
+          let status: 'accepted' | 'pending' | 'completed' = 'pending'
+          
+          if (uid === ownerId || uid === user!.id) {
+            // Owner atau pengedit tetap accepted, kecuali jika sebelumnya sudah completed
+            status = (oldStatus === 'completed') ? 'completed' : 'accepted'
+          } else if (oldStatus === 'accepted' || oldStatus === 'completed') {
+            // User lama yang sudah bergabung tetap pada status mereka
+            status = oldStatus
+          }
+          return { task_id: taskId, user_id: uid, status }
+        })
+
+        await supabase.from('task_assignments').insert(newAssignments)
+        
+        // Notifikasi hanya untuk yang benar-benar belum pernah ada di daftar (bukan accepted, pending, atau completed)
+        const newCollabs = formAssignedUsers.filter(uid => 
+          uid !== user!.id && 
+          uid !== ownerId && 
+          !oldStatusMap.has(uid)
+        )
         if (newCollabs.length > 0) await insertNotificationMany(newCollabs, 'task_collaboration_invite', 'Undangan Kolaborasi', `${creatorName} mengundang Anda untuk berkolaborasi di tugas "${formTitle.trim()}".`, { task_id: taskId, task_title: formTitle.trim() })
         toast.success('Tugas berhasil diperbarui')
       } else {
-        const { data } = await supabase.from('tasks').insert({ ...taskData, created_by: user!.id }).select().single()
-        taskId = data!.id
-        const allUsers = [...new Set([...formAssignedUsers, user!.id])]
-        await supabase.from('task_assignments').insert(allUsers.map(uid => ({ task_id: taskId, user_id: uid, status: uid === user!.id ? 'accepted' : 'pending' })))
+        const { data: newTask } = await supabase.from('tasks').insert({ ...taskData, created_by: user!.id }).select().single()
+        taskId = newTask!.id
+        const allUserIds = [...new Set([...formAssignedUsers, user!.id])]
+        
+        await supabase.from('task_assignments').insert(allUserIds.map(uid => ({ 
+          task_id: taskId, 
+          user_id: uid, 
+          status: uid === user!.id ? 'accepted' : 'pending' 
+        })))
+        
         const others = formAssignedUsers.filter(uid => uid !== user!.id)
         if (others.length > 0) await insertNotificationMany(others, 'task_collaboration_invite', 'Undangan Kolaborasi', `${creatorName} mengundang Anda untuk berkolaborasi di tugas "${formTitle.trim()}".`, { task_id: taskId, task_title: formTitle.trim() })
         toast.success('Tugas berhasil dibuat')
@@ -515,7 +551,10 @@
           </div>
         {:else}
           <div transition:fly={{ y: 10, duration: 300 }}>
-            <TaskCalendarView {tasks} onTaskClick={openDetail} />
+            <TaskCalendarView 
+              tasks={tasks.map(t => ({...t, isPending: getUserAssignment(t.id)?.status === 'pending'}))} 
+              onTaskClick={openDetail} 
+            />
           </div>
         {/if}
       </div>

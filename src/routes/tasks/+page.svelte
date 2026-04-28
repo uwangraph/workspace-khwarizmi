@@ -47,6 +47,7 @@
 
   let activeFilter = $state<'all' | 'not_started' | 'in_progress' | 'review' | 'revision' | 'done'>('all')
   let activePriority = $state<'all' | 'low' | 'medium' | 'high'>('all')
+  let sortBy = $state<'newest' | 'oldest' | 'due_date' | 'progress'>('newest')
   let taskSearch = $state('')
   const itemsPerPage = 10
   let currentPage = $state(1)
@@ -74,6 +75,19 @@
       return matchSearch && matchFilter && matchPriority
     })
     
+    // Initial sort
+    list.sort((a, b) => {
+      if (sortBy === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      if (sortBy === 'oldest') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      if (sortBy === 'due_date') {
+        if (!a.due_date) return 1
+        if (!b.due_date) return -1
+        return new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
+      }
+      if (sortBy === 'progress') return b.progress - a.progress
+      return 0
+    })
+
     // Sort pinned to top
     return list.sort((a, b) => {
       const aPinned = pinnedTaskIds.includes(a.id)
@@ -85,7 +99,7 @@
   })
   let paginatedTasks = $derived(filteredTasks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage))
   let totalPages = $derived(Math.ceil(filteredTasks.length / itemsPerPage))
-  $effect(() => { taskSearch; activeFilter; activePriority; currentPage = 1 })
+  $effect(() => { taskSearch; activeFilter; activePriority; sortBy; currentPage = 1 })
 
   let formTitle = $state(''), formDescription = $state(''), formStatus = $state<Task['status']>('not_started'), formPriority = $state<Task['priority']>('medium')
   let formProgress = $state(0), formStartDate = $state(''), formDueDate = $state(''), formAssignedUsers = $state<string[]>([])
@@ -326,9 +340,10 @@
       <LoadingSpinner message="Memuat tugas..." />
     {:else}
       <TaskStatsBar stats={taskStats} />
-      <TaskFilterTabs {activeFilter} {activePriority} search={taskSearch} 
+      <TaskFilterTabs {activeFilter} {activePriority} {sortBy} search={taskSearch} 
                       onFilterChange={(f) => activeFilter = f} 
                       onPriorityChange={(p) => activePriority = p}
+                      onSortChange={(s) => sortBy = s}
                       onSearchChange={(s) => taskSearch = s} />
       
       {#if filteredTasks.length === 0}

@@ -5,6 +5,9 @@
   import { page } from '$app/stores'
   import { Toaster } from 'svelte-french-toast'
   import BottomNav from '$lib/components/BottomNav.svelte'
+  import { onMount } from 'svelte'
+  import { supabase } from '$lib/supabase'
+  import { notificationService } from '$lib/services/notificationService'
 
   let { children } = $props()
 
@@ -16,6 +19,7 @@
   const fullWidthRoutes = ['/admin', '/auth', '/login', '/register']
   const isFullWidthLayout = $derived(fullWidthRoutes.some(route => $page.url.pathname.startsWith(route)))
 
+<<<<<<< Updated upstream
   // Audio for notification
   const NOTIF_SOUND = "data:audio/mpeg;base64,SUQzBAAAAAABAFRYWFgAAAASAAADbWFqb3JfYnJhbmQAZGFzaABUWFhYAAAAEAAAA21pbm9yX3ZlcnNpb24AMABUWFhYAAAAHAAAA2NvbXBhdGlibGVfYnJhbmRzAGlzbzZtcDQxAFRTU0UAAAAPAAADTGF2ZjYwLjMuMTAwAAAAAAAAAAAAAAD/80MUAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAMAAAbWAAfHx8fHx8fPz8/Pz8/Pz9PT09PT09PT19fX19fX19fX39/f39/f39/f////////////////wAAAABMYXZmAAAAAAAAAAAAAAAAAAAAAAAkAAAAAAAAAAAbWAAAAAAAAAAAAP/zQxQkAAAAtYABZDAAAAlIADzSDAAAAAYAAAAIAAAAMAAAAAAAAA/8EAcB/8EAcB//zQxREAAAAtYABZDAAAAlIADzSDAAAAAAYAAAAIAAAAMAAAAAAAAA/8EAcB/8EAcB//zQxRkAAAAtYABZDAAAAlIADzSDAAAAAAYAAAAIAAAAMAAAAAAAAA/8EAcB/8EAcB"
 
@@ -47,6 +51,17 @@
 
     setupRealtime()
   })
+=======
+  onMount(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      // Tunggu sebentar sebelum minta izin agar tidak mengagetkan user
+      setTimeout(() => {
+        notificationService.requestPermissionAndGetToken(session.user.id);
+      }, 3000);
+    }
+  });
+>>>>>>> Stashed changes
 </script>
 
 <svelte:head>

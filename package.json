@@ -31,7 +31,12 @@
 	},
 	"dependencies": {
 		"@supabase/supabase-js": "^2.103.0",
+<<<<<<< Updated upstream
 		"canvas-confetti": "^1.9.4",
+=======
+		"firebase": "^12.12.1",
+		"firebase-admin": "^13.8.0",
+>>>>>>> Stashed changes
 		"lucide-svelte": "^1.0.1",
 		"svelte-french-toast": "^1.2.0"
 	}

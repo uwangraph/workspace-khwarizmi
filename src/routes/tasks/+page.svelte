@@ -182,14 +182,22 @@
 
   async function insertNotification(uid: string, type: string, title: string, message: string, data: Record<string, unknown> = {}) {
     try {
-      const { error: rpcError } = await supabase.rpc('send_notification', { p_user_id: uid, p_type: type, p_title: title, p_message: message, p_data: data })
-      if (!rpcError) return true
-    } catch {}
-    try {
-      const { error } = await supabase.from('notifications').insert({ user_id: uid, type, title, message, data, is_read: false })
-      if (!error) return true
-    } catch {}
-    return false
+      const res = await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: uid, type, title, message, data })
+      });
+      return res.ok;
+    } catch (err) {
+      console.error('Error calling notification API:', err);
+      // Fallback ke direct insert jika API gagal
+      try {
+        const { error } = await supabase.from('notifications').insert({ user_id: uid, type, title, message, data, is_read: false })
+        return !error
+      } catch {
+        return false
+      }
+    }
   }
 
   async function insertNotificationMany(uids: string[], type: string, title: string, message: string, data: Record<string, unknown> = {}) {

@@ -2,32 +2,51 @@
   interface Stats { total: number; notStarted: number; inProgress: number; review: number; revision: number; done: number; completionRate: number }
   interface Props { stats: Stats }
   let { stats }: Props = $props()
-  let items = $derived([
-    { val: stats.total,                        label: 'Total',    color: 'text-slate-800' },
-    { val: stats.notStarted,                   label: 'Belum',    color: 'text-slate-500' },
-    { val: stats.inProgress,                   label: 'Progress', color: 'text-blue-600' },
-    { val: stats.review + stats.revision,      label: 'Review',   color: 'text-purple-600' },
-    { val: stats.done,                         label: 'Selesai',  color: 'text-green-600' },
-  ])
+
+  const ITEMS = [
+    { label: 'Total', val: stats.total, color: 'bg-slate-400' },
+    { label: 'Belum', val: stats.notStarted, color: 'bg-slate-300' },
+    { label: 'Progress', val: stats.inProgress, color: 'bg-blue-400' },
+    { label: 'Selesai', val: stats.done, color: 'bg-green-400' },
+  ]
 </script>
 
-<div class="flex flex-col gap-3">
-  <div class="grid grid-cols-5 gap-2">
-    {#each items as s}
-      <div class="rounded-xl px-2 py-3 bg-white/90 shadow-sm border border-white/50 text-center">
-        <p class="text-lg font-bold {s.color}" style="font-family:'Plus Jakarta Sans',sans-serif;">{s.val}</p>
-        <p class="text-[9px] font-medium text-slate-500 mt-0.5">{s.label}</p>
+<div class="bg-white rounded-3xl p-5 border border-orange-100/50 shadow-sm relative overflow-hidden">
+  <!-- Subtle Background Accent -->
+  <div class="absolute -top-6 -right-6 w-20 h-20 bg-orange-50 rounded-full blur-2xl opacity-60"></div>
+
+  <div class="relative z-10">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex flex-col">
+        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Statistik Tugas</span>
+        <div class="flex items-center gap-2">
+          <span class="text-3xl font-black text-slate-800 tracking-tighter" style="font-family:'Plus Jakarta Sans',sans-serif;">{stats.completionRate}%</span>
+          <span class="px-2 py-0.5 rounded-full bg-orange-50 text-orange-600 text-[10px] font-bold border border-orange-100">Selesai</span>
+        </div>
       </div>
-    {/each}
-  </div>
-  <div class="rounded-xl p-4 bg-white/90 shadow-sm border border-white/50">
-    <div class="flex items-center justify-between mb-2">
-      <span class="text-xs font-semibold text-slate-600">Progres Penyelesaian</span>
-      <span class="text-xs font-bold text-orange-600">{stats.completionRate}%</span>
+      <div class="text-right">
+        <span class="text-xs font-bold text-slate-400">{stats.done} / {stats.total}</span>
+      </div>
     </div>
-    <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
-      <div class="h-full rounded-full transition-all duration-700"
-           style="width: {stats.completionRate}%; background: linear-gradient(90deg, #F97316, #EA580C);"></div>
+
+    <!-- Progress Bar with subtle glow -->
+    <div class="h-[6px] w-full bg-slate-50 rounded-full overflow-hidden mb-6 shadow-inner">
+      <div class="h-full bg-gradient-to-r from-orange-400 to-orange-500 rounded-full transition-all duration-1000 ease-out"
+           style="width: {stats.completionRate}%"></div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-4 gap-2">
+      {#each ITEMS as item}
+        <div class="flex flex-col gap-1">
+          <div class="flex items-center gap-1.5">
+            <div class="w-1.5 h-1.5 rounded-full {item.color}"></div>
+            <span class="text-xs font-black text-slate-800">{item.val}</span>
+          </div>
+          <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tight">{item.label}</span>
+        </div>
+      {/each}
     </div>
   </div>
 </div>

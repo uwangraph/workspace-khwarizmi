@@ -21,6 +21,7 @@
   import TaskProgressModal from '$lib/components/tasks/TaskProgressModal.svelte'
   import TaskDeleteModal from '$lib/components/tasks/TaskDeleteModal.svelte'
   import ConfirmActionModal from '$lib/components/tasks/ConfirmActionModal.svelte'
+  import TaskCalendarView from '$lib/components/tasks/TaskCalendarView.svelte'
 
   interface Profile { id: string; full_name: string; role: 'admin' | 'user'; avatar_url?: string | null }
   interface Task { id: string; title: string; description: string | null; status: 'not_started' | 'in_progress' | 'review' | 'revision' | 'done'; priority: 'low' | 'medium' | 'high'; progress: number; start_date: string | null; due_date: string | null; created_by: string; created_at: string; subtasks?: any[] }
@@ -60,6 +61,7 @@
   let selectedTaskIds = $state<string[]>([])
   let isSelectionMode = $state(false)
   let isBulkActing = $state(false)
+  let viewMode = $state<'list' | 'calendar'>('list')
 
   onMount(() => {
     loadData()
@@ -405,60 +407,118 @@
 </svelte:head>
 
 <div class="min-h-screen pb-24 bg-[#FFF9F0]">
-  <AppHeader title="Daftar Tugas" subtitle="Kelola proyek & kolaborasi">
-    <button onclick={openCreateModal} class="w-9 h-9 rounded-xl bg-orange-500 text-white flex items-center justify-center hover:bg-orange-600 transition-colors cursor-pointer shadow-sm">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-    </button>
-  </AppHeader>
+  <AppHeader title="Daftar Tugas" subtitle="Kelola proyek & kolaborasi" />
 
-  <main class="max-w-lg mx-auto p-4 flex flex-col gap-5">
+  <main class="{viewMode === 'calendar' ? 'max-w-4xl' : 'max-w-lg'} mx-auto p-4 flex flex-col gap-5 transition-all duration-500">
     {#if isLoading}
       <LoadingSpinner message="Memuat tugas..." />
     {:else}
       <TaskStatsBar stats={taskStats} />
-      <div class="flex items-center justify-between">
-        <div class="flex-1 min-w-0">
-          <TaskFilterTabs {activeFilter} {activePriority} {sortBy} search={taskSearch} 
-                        onFilterChange={(f) => activeFilter = f} 
-                        onPriorityChange={(p) => activePriority = p}
-                        onSortChange={(s) => sortBy = s}
-                        onSearchChange={(s) => taskSearch = s} />
-        </div>
-        {#if filteredTasks.length > 0}
-          <div class="flex items-center ml-3 gap-2 flex-shrink-0">
-            <button onclick={() => { isSelectionMode = !isSelectionMode; if (!isSelectionMode) selectedTaskIds = [] }}
-                    class="flex items-center justify-center p-2 rounded-full {isSelectionMode ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'} transition-colors"
-                    title={isSelectionMode ? 'Batal Pilih' : 'Pilih Tugas'}>
-              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-              </svg>
-            </button>
+      
+      <!-- Integrated View Tabs -->
+      <div class="flex items-center border-b border-slate-200/60 mb-2 mt-1">
+        <button onclick={() => viewMode = 'list'} 
+                class="flex-1 py-3.5 text-xs font-black transition-all relative uppercase tracking-widest
+                       {viewMode === 'list' ? 'text-orange-600' : 'text-slate-400 hover:text-slate-500'}">
+          <div class="flex items-center justify-center gap-2.5">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            <span>Daftar</span>
+            <span class="px-1.5 py-0.5 rounded-md text-[9px] {viewMode === 'list' ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-400'} transition-colors">
+              {tasks.length}
+            </span>
+          </div>
+          {#if viewMode === 'list'}
+            <div class="absolute bottom-0 left-0 right-0 h-[3px] bg-orange-500 rounded-t-full" transition:fade={{ duration: 150 }}></div>
+          {/if}
+        </button>
+        <button onclick={() => viewMode = 'calendar'} 
+                class="flex-1 py-3.5 text-xs font-black transition-all relative uppercase tracking-widest
+                       {viewMode === 'calendar' ? 'text-orange-600' : 'text-slate-400 hover:text-slate-500'}">
+          <div class="flex items-center justify-center gap-2.5">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            <span>Kalender</span>
+            <span class="px-1.5 py-0.5 rounded-md text-[9px] {viewMode === 'calendar' ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-400'} transition-colors">
+              {tasks.filter(t => t.due_date).length}
+            </span>
+          </div>
+          {#if viewMode === 'calendar'}
+            <div class="absolute bottom-0 left-0 right-0 h-[3px] bg-orange-500 rounded-t-full" transition:fade={{ duration: 150 }}></div>
+          {/if}
+        </button>
+      </div>
+
+      <div class="flex flex-col gap-5">
+        {#if viewMode === 'list'}
+          <div transition:fly={{ y: 10, duration: 300 }}>
+            <div class="flex items-center gap-2 mb-4">
+              <!-- Search Bar -->
+              <div class="relative flex-1">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                <input value={taskSearch} oninput={(e) => taskSearch = (e.target as HTMLInputElement).value}
+                       placeholder="Cari tugas..."
+                       class="w-full pl-9 pr-4 py-2.5 rounded-2xl border border-orange-100 text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400/20 shadow-sm" />
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="flex items-center gap-2 flex-shrink-0">
+                <button onclick={() => { isSelectionMode = !isSelectionMode; if (!isSelectionMode) selectedTaskIds = [] }}
+                        class="flex items-center justify-center p-2.5 rounded-2xl {isSelectionMode ? 'bg-orange-100 text-orange-600' : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-200'} transition-all shadow-sm active:scale-95"
+                        title={isSelectionMode ? 'Batal Pilih' : 'Pilih Tugas'}>
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                  </svg>
+                </button>
+                <button onclick={openCreateModal}
+                        class="flex items-center justify-center p-2.5 rounded-2xl bg-orange-500 text-white shadow-lg shadow-orange-100 hover:bg-orange-600 transition-all active:scale-95"
+                        title="Tambah Tugas">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex-1 min-w-0">
+                <TaskFilterTabs {activeFilter} {activePriority} {sortBy} search={taskSearch} 
+                              onFilterChange={(f) => activeFilter = f} 
+                              onPriorityChange={(p) => activePriority = p}
+                              onSortChange={(s) => sortBy = s}
+                              onSearchChange={(s) => taskSearch = s} />
+              </div>
+            </div>
+            
+            {#if filteredTasks.length === 0}
+              <EmptyState title="Tidak Ada Tugas" subtitle="Belum ada tugas yang sesuai." emoji="📋" />
+            {:else}
+              <div class="flex flex-col gap-3.5">
+                {#each paginatedTasks as t (t.id)}
+                  {@const myA = getUserAssignment(t.id)}
+                  <div animate:flip={{ duration: 300 }} transition:fade={{ duration: 200 }}>
+                    <TaskCard task={t} isPending={myA?.status === 'pending'} due={formatDueDate(t.due_date)}
+                              isPinned={pinnedTaskIds.includes(t.id)}
+                              selectionMode={isSelectionMode}
+                              isSelected={selectedTaskIds.includes(t.id)}
+                              contributors={getTaskContributors(t.id)} onClick={() => {
+                                if (isSelectionMode) toggleSelection(t.id)
+                                else openDetail(t)
+                              }}
+                              onSelect={() => toggleSelection(t.id)}
+                              {getInitials} {getAvatarGradient} />
+                  </div>
+                {/each}
+              </div>
+              <PaginationBar {currentPage} {totalPages} onPrev={() => currentPage--} onNext={() => currentPage++} />
+            {/if}
+          </div>
+        {:else}
+          <div transition:fly={{ y: 10, duration: 300 }}>
+            <TaskCalendarView {tasks} onTaskClick={openDetail} />
           </div>
         {/if}
       </div>
-      
-      {#if filteredTasks.length === 0}
-        <EmptyState title="Tidak Ada Tugas" subtitle="Belum ada tugas yang sesuai." emoji="📋" />
-      {:else}
-        <div class="flex flex-col gap-3">
-          {#each paginatedTasks as t (t.id)}
-            {@const myA = getUserAssignment(t.id)}
-            <div animate:flip={{ duration: 300 }} transition:fade={{ duration: 200 }}>
-              <TaskCard task={t} isPending={myA?.status === 'pending'} due={formatDueDate(t.due_date)}
-                        isPinned={pinnedTaskIds.includes(t.id)}
-                        selectionMode={isSelectionMode}
-                        isSelected={selectedTaskIds.includes(t.id)}
-                        contributors={getTaskContributors(t.id)} onClick={() => {
-                          if (isSelectionMode) toggleSelection(t.id)
-                          else openDetail(t)
-                        }}
-                        onSelect={() => toggleSelection(t.id)}
-                        {getInitials} {getAvatarGradient} />
-            </div>
-          {/each}
-        </div>
-        <PaginationBar {currentPage} {totalPages} onPrev={() => currentPage--} onNext={() => currentPage++} />
-      {/if}
     {/if}
   </main>
 

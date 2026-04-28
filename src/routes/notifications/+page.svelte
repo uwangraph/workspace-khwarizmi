@@ -54,6 +54,33 @@
   let filteredNotifs = $derived(notifications.filter(n => !notifSearch || n.title.toLowerCase().includes(notifSearch.toLowerCase()) || n.message.toLowerCase().includes(notifSearch.toLowerCase())))
   let paginatedNotifs = $derived(filteredNotifs.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage))
   let totalPages = $derived(Math.ceil(filteredNotifs.length / itemsPerPage))
+  
+  function getDateLabel(iso: string) {
+    const d = parseDate(iso)
+    const today = new Date(); today.setHours(0,0,0,0)
+    const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1)
+    const itemDate = new Date(d); itemDate.setHours(0,0,0,0)
+    
+    if (itemDate.getTime() === today.getTime()) return 'Hari Ini'
+    if (itemDate.getTime() === yesterday.getTime()) return 'Kemarin'
+    return d.toLocaleDateString('id-ID', { day:'numeric', month:'long', year: 'numeric' })
+  }
+
+  let groupedNotifs = $derived.by(() => {
+    const groups: { label: string; items: Notification[] }[] = []
+    let currentLabel = ''
+    for (const n of paginatedNotifs) {
+      const label = getDateLabel(n.created_at)
+      if (label !== currentLabel) {
+        currentLabel = label
+        groups.push({ label, items: [n] })
+      } else {
+        groups[groups.length - 1].items.push(n)
+      }
+    }
+    return groups
+  })
+
   $effect(() => { notifSearch; currentPage = 1 })
 
   function getNavUrl(n: Notification) {
@@ -190,35 +217,42 @@
             </button>
           {/if}
         </div>
-        <div class="flex flex-col gap-2 mb-5">
-          {#each paginatedNotifs as n (n.id)}
-            {@const ic = getIcon(n.type)}
-            <div class="group relative {n.is_read ? 'bg-white/60 border-slate-100' : 'bg-white border-orange-100 shadow-sm'} border rounded-2xl p-4 transition-all hover:shadow-md cursor-pointer {!n.is_read ? 'hover:shadow-md' : 'hover:bg-white hover:shadow-sm'}"
-                 onclick={() => handleCardClick(n)} role="button" tabindex="0"
-                 onkeydown={(e) => e.key === 'Enter' && handleCardClick(n)}>
-              {#if !n.is_read}<div class="absolute top-4 right-4 w-2 h-2 rounded-full bg-orange-500"></div>{/if}
-              <div class="flex gap-3">
-                <div class="flex-shrink-0 p-2 rounded-xl {ic.bg} h-fit {n.is_read ? 'opacity-60' : ''}">
-                  <svg class="w-5 h-5 {ic.color}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d={ic.path}/>
-                  </svg>
-                </div>
-                <div class="flex-1 min-w-0 {!n.is_read ? 'pr-4' : ''}">
-                  <div class="flex items-start justify-between gap-2 mb-1">
-                    <h3 class="text-sm {n.is_read ? 'font-semibold text-slate-500' : 'font-bold text-slate-800'} leading-snug" style="font-family:'Plus Jakarta Sans',sans-serif;">{n.title}</h3>
-                    <span class="text-[9px] {n.is_read ? 'text-slate-300' : 'font-medium text-slate-400'} whitespace-nowrap flex-shrink-0">{formatRelative(n.created_at)}</span>
-                  </div>
-                  <p class="text-xs {n.is_read ? 'text-slate-400' : 'text-slate-600'} leading-relaxed mb-2">{n.message}</p>
-                  <div class="flex items-center justify-between gap-2">
-                    <span class="text-[10px] {n.is_read ? 'text-slate-300' : 'text-slate-400'}">{formatDetail(n.created_at)}</span>
-                    <div class="flex gap-2">
-                      <button onclick={(e) => toggleRead(n, e)} class="text-[10px] font-bold {n.is_read ? 'text-slate-300 hover:text-orange-600' : 'text-orange-600 px-2 py-1 rounded-md bg-orange-50 hover:bg-orange-100'} transition-colors cursor-pointer sm:opacity-0 sm:group-hover:opacity-100">
-                        {n.is_read ? 'BELUM DIBACA' : 'TANDAI'}
-                      </button>
-                      <button onclick={(e) => deleteOne(n.id, e)} class="text-[10px] font-bold text-slate-300 hover:text-red-500 transition-colors cursor-pointer sm:opacity-0 sm:group-hover:opacity-100">HAPUS</button>
+        <div class="flex flex-col gap-5 mb-5">
+          {#each groupedNotifs as group}
+            <div>
+              <h2 class="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3 pl-1">{group.label}</h2>
+              <div class="flex flex-col gap-2">
+                {#each group.items as n (n.id)}
+                  {@const ic = getIcon(n.type)}
+                  <div class="group relative {n.is_read ? 'bg-white/60 border-slate-100' : 'bg-white border-orange-100 shadow-sm'} border rounded-2xl p-4 transition-all hover:shadow-md cursor-pointer {!n.is_read ? 'hover:shadow-md' : 'hover:bg-white hover:shadow-sm'}"
+                       onclick={() => handleCardClick(n)} role="button" tabindex="0"
+                       onkeydown={(e) => e.key === 'Enter' && handleCardClick(n)}>
+                    {#if !n.is_read}<div class="absolute top-4 right-4 w-2 h-2 rounded-full bg-orange-500"></div>{/if}
+                    <div class="flex gap-3">
+                      <div class="flex-shrink-0 p-2 rounded-xl {ic.bg} h-fit {n.is_read ? 'opacity-60' : ''}">
+                        <svg class="w-5 h-5 {ic.color}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d={ic.path}/>
+                        </svg>
+                      </div>
+                      <div class="flex-1 min-w-0 {!n.is_read ? 'pr-4' : ''}">
+                        <div class="flex items-start justify-between gap-2 mb-1">
+                          <h3 class="text-sm {n.is_read ? 'font-semibold text-slate-500' : 'font-bold text-slate-800'} leading-snug" style="font-family:'Plus Jakarta Sans',sans-serif;">{n.title}</h3>
+                          <span class="text-[9px] {n.is_read ? 'text-slate-300' : 'font-medium text-slate-400'} whitespace-nowrap flex-shrink-0">{formatRelative(n.created_at)}</span>
+                        </div>
+                        <p class="text-xs {n.is_read ? 'text-slate-400' : 'text-slate-600'} leading-relaxed mb-2">{n.message}</p>
+                        <div class="flex items-center justify-between gap-2">
+                          <span class="text-[10px] {n.is_read ? 'text-slate-300' : 'text-slate-400'}">{formatDetail(n.created_at)}</span>
+                          <div class="flex gap-2">
+                            <button onclick={(e) => toggleRead(n, e)} class="text-[10px] font-bold {n.is_read ? 'text-slate-300 hover:text-orange-600' : 'text-orange-600 px-2 py-1 rounded-md bg-orange-50 hover:bg-orange-100'} transition-colors cursor-pointer sm:opacity-0 sm:group-hover:opacity-100">
+                              {n.is_read ? 'BELUM DIBACA' : 'TANDAI'}
+                            </button>
+                            <button onclick={(e) => deleteOne(n.id, e)} class="text-[10px] font-bold text-slate-300 hover:text-red-500 transition-colors cursor-pointer sm:opacity-0 sm:group-hover:opacity-100">HAPUS</button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                {/each}
               </div>
             </div>
           {/each}

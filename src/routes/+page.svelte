@@ -79,7 +79,7 @@
       supabase.from('profiles').select('*').eq('id', u.id).single(),
       supabase.from('attendance').select('session_id,check_in,check_out').eq('user_id', u.id).eq('date', today),
       assignedTaskIds.length > 0 ? supabase.from('tasks').select('*').or(`created_by.eq.${u.id},id.in.(${assignedTaskIds.join(',')})`).order('created_at', { ascending: false }) : supabase.from('tasks').select('*').eq('created_by', u.id).order('created_at', { ascending: false }),
-      supabase.from('notifications').select('*').eq('user_id', u.id).order('created_at', { ascending: false }).limit(10)
+      supabase.from('notifications').select('*').eq('user_id', u.id).order('created_at', { ascending: false }).limit(100)
     ])
     if (profileRes.data) profile = profileRes.data; if (attendRes.data) attendance = attendRes.data; if (taskRes.data) tasks = taskRes.data; if (notifRes.data) notifications = notifRes.data; isLoading = false
   }
@@ -111,7 +111,7 @@
     <a href="/notifications" class="relative w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center cursor-pointer hover:bg-slate-100 transition-colors">
       <Bell size={16} class="text-slate-600" />
       {#if unreadCount > 0}
-        <span class="absolute -top-1 -right-1 min-w-[18px] h-5 rounded-full text-[9px] font-bold text-white bg-red-500 flex items-center justify-center">{unreadCount > 9 ? '9+' : unreadCount}</span>
+        <span class="absolute -top-1 -right-1 min-w-[18px] h-5 px-1 rounded-full text-[9px] font-bold text-white bg-red-500 flex items-center justify-center">{unreadCount > 99 ? '99+' : unreadCount}</span>
       {/if}
     </a>
   </header>

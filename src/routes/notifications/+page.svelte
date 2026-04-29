@@ -101,7 +101,7 @@
   }
 
   let groupedNotifs = $derived.by(() => {
-    const groups: { label: string; items: Notification[] }[] = []
+    const groups: { label: string; items: PageNotification[] }[] = []
     let currentLabel = ''
     for (const n of paginatedNotifs) {
       const label = getDateLabel(n.created_at)
@@ -117,7 +117,7 @@
 
   $effect(() => { notifSearch; currentPage = 1 })
 
-  function getNavUrl(n: Notification) {
+  function getNavUrl(n: PageNotification) {
     switch (n.type) {
       case 'task_collaboration_invite': case 'task_assigned': case 'task_deadline_today':
       case 'task_ready_review': case 'task_revision': case 'task_completed': case 'task_deleted': return '/tasks'
@@ -127,26 +127,40 @@
   }
 
   async function fetchNotifications() {
-    if (!user || isDataHidden) return; isLoading = true; loadError = null
-    const { data, error } = await notificationService.getNotifications(user.id)
-    if (error) loadError = error.message
-    else notifications = (data ?? []) as PageNotification[]
-    
-    // Subscribe to real-time notifications for this specific user
-    if (!notifSubscription) {
-      notifSubscription = supabase.channel(`notifications_page:${user.id}`)
-        .on('postgres_changes', { 
-          event: 'INSERT', 
-          schema: 'public', 
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`
-        }, payload => {
-          notifications = [payload.new as PageNotification, ...notifications]
-        })
-        .subscribe()
+    if (!user || isDataHidden) {
+      isLoading = false
+      return
     }
     
-    isLoading = false
+    isLoading = true
+    loadError = null
+    
+    try {
+      const { data, error } = await notificationService.getNotifications(user.id)
+      if (error) {
+        loadError = error.message
+      } else {
+        notifications = (data ?? []) as PageNotification[]
+      }
+      
+      // Subscribe to real-time notifications for this specific user
+      if (!notifSubscription) {
+        notifSubscription = supabase.channel(`notifications_page:${user.id}`)
+          .on('postgres_changes', { 
+            event: 'INSERT', 
+            schema: 'public', 
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`
+          }, payload => {
+            notifications = [payload.new as PageNotification, ...notifications]
+          })
+          .subscribe()
+      }
+    } catch (e: any) {
+      loadError = e.message || 'Terjadi kesalahan sistem'
+    } finally {
+      isLoading = false
+    }
   }
 
   async function handleCardClick(n: PageNotification) {

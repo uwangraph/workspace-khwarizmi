@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Eye, EyeOff, X, AlertTriangle } from 'lucide-svelte'
+  import { Eye, EyeOff, X } from 'lucide-svelte'
 
   interface CreateData {
     name: string; email: string; password: string
@@ -77,10 +77,6 @@
             </button>
           {/each}
         </div>
-      </div>
-      <div class="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 flex items-start gap-3">
-        <AlertTriangle size={14} class="text-amber-600 flex-shrink-0 mt-0.5" />
-        <p class="text-[11px] text-amber-700 font-medium leading-relaxed">Pengguna baru perlu konfirmasi email sebelum bisa login, tergantung konfigurasi Supabase.</p>
       </div>
       <div class="flex gap-3 pt-1 pb-6">
         <button onclick={onClose} class="flex-1 py-3 rounded-xl text-sm font-semibold bg-slate-100 text-slate-500 hover:bg-slate-200 cursor-pointer">Batal</button>

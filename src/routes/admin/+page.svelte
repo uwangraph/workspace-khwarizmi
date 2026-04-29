@@ -287,7 +287,7 @@
   }
 
   // ── Settings Actions ───────────────────────────────────────────────────────
-  async function saveSettings(data: { office_lat: number; office_lng: number; office_radius: number }) {
+  async function saveSettings(data: { office_lat: number; office_lng: number; office_radius: number; admin_contact: string | null }) {
     isSavingSettings = true
     const { error } = await adminService.updateSettings(data)
     isSavingSettings = false

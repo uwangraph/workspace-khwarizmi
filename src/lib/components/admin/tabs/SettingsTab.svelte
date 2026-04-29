@@ -1,10 +1,10 @@
 <script lang="ts">
   import type { AppSetting } from '$lib/components/admin/_types'
-  import { Settings, MapPin, Target } from 'lucide-svelte'
+  import { Settings, MapPin, Target, Phone } from 'lucide-svelte'
 
   interface Props {
     settings: AppSetting | null
-    onSave: (data: { office_lat: number; office_lng: number; office_radius: number }) => void
+    onSave: (data: { office_lat: number; office_lng: number; office_radius: number; admin_contact: string | null }) => void
     onClearData: () => void
     onCancelClearData: () => void
     onExecuteImmediateDeletion: () => void
@@ -16,6 +16,7 @@
   let lat = $state(settings?.office_lat ?? -6.655905)
   let lng = $state(settings?.office_lng ?? 106.696199)
   let radius = $state(settings?.office_radius ?? 25)
+  let adminContact = $state(settings?.admin_contact ?? '')
   
   let deletionTimeLeft = $state('')
   let isDeletionScheduled = $derived(!!settings?.deletion_scheduled_at)
@@ -43,12 +44,13 @@
       lat = settings.office_lat
       lng = settings.office_lng
       radius = settings.office_radius
+      adminContact = settings.admin_contact ?? ''
     }
   })
 
   function handleSubmit(e: Event) {
     e.preventDefault()
-    onSave({ office_lat: lat, office_lng: lng, office_radius: radius })
+    onSave({ office_lat: lat, office_lng: lng, office_radius: radius, admin_contact: adminContact || null })
   }
 </script>
 
@@ -89,6 +91,15 @@
         <input type="number" bind:value={radius} required min="5"
                class="w-full px-4 py-3 text-sm text-slate-800 bg-slate-50/50 border border-slate-200 rounded-xl outline-none focus:border-orange-400 focus:bg-white focus:ring-2 focus:ring-orange-400/20" />
         <p class="text-[10px] text-slate-400 mt-1.5">Jarak maksimal user dari koordinat di atas untuk bisa melakukan check-in/out.</p>
+      </div>
+
+      <div>
+        <label class="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 tracking-widest uppercase mb-2">
+          <Phone size={12} /> WhatsApp Admin
+        </label>
+        <input type="text" bind:value={adminContact} placeholder="Contoh: 628123456789"
+               class="w-full px-4 py-3 text-sm text-slate-800 bg-slate-50/50 border border-slate-200 rounded-xl outline-none focus:border-orange-400 focus:bg-white focus:ring-2 focus:ring-orange-400/20" />
+        <p class="text-[10px] text-slate-400 mt-1.5">Digunakan untuk tombol "Hubungi Admin" di halaman pendaftaran.</p>
       </div>
 
       <div class="pt-4 border-t border-slate-100 flex justify-end">

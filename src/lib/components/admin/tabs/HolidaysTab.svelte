@@ -1,3 +1,5 @@
+<script lang="ts">
+  import type { Holiday, ThursdayRule } from '../_types'
   import { CalendarDays, Plus, Trash2, Settings, X, CalendarCheck, CalendarOff, Calendar, Home, Clock, FileText, ClipboardList, PartyPopper } from 'lucide-svelte'
 
   interface Props {

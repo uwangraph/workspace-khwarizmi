@@ -78,6 +78,14 @@
         };
     });
 
+    // Check session on route change
+    $effect(() => {
+        const path = $page.url.pathname;
+        if (user && !['/auth', '/login', '/register'].some(p => path.startsWith(p))) {
+            validateUserSession();
+        }
+    });
+
     onMount(() => {
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
@@ -97,7 +105,36 @@
         });
 
         checkDeletionStatus();
+        validateUserSession();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_OUT') {
+                window.location.href = '/auth';
+            }
+            if (event === 'TOKEN_REFRESHED' && !session) {
+                window.location.href = '/auth';
+            }
+        });
+
+        return () => {
+            subscription.unsubscribe();
+        };
     });
+
+    async function validateUserSession() {
+        if (user) {
+            const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('id')
+                .eq('id', user.id)
+                .single();
+            
+            if (error || !profile) {
+                await supabase.auth.signOut();
+                window.location.href = '/auth';
+            }
+        }
+    }
 
     async function checkDeletionStatus() {
         if (user) {

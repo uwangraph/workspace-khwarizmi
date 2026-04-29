@@ -7,6 +7,10 @@
     KeyRound, ArrowLeft
   } from 'lucide-svelte'
 
+  import { onMount } from 'svelte'
+  import { MessageSquare, PhoneCall } from 'lucide-svelte'
+  import type { AppSetting } from '$lib/components/admin/_types'
+
   type Tab = 'login' | 'register' | 'confirm' | 'forgot' | 'forgot_sent'
 
   let activeTab = $state<Tab>('login')
@@ -18,11 +22,19 @@
   let loginPassword = $state('')
   let showLoginPw = $state(false)
 
-  // Register state
-  let regName = $state('')
-  let regEmail = $state('')
-  let regPassword = $state('')
-  let showRegPw = $state(false)
+  // Forgot password state
+  let appSettings = $state<AppSetting | null>(null)
+
+  onMount(async () => {
+    const { data: settings } = await supabase.from('app_settings').select('*').eq('id', 1).single()
+    if (settings) appSettings = settings
+  })
+
+  function formatWA(phone: string) {
+    let cleaned = phone.replace(/\D/g, '')
+    if (cleaned.startsWith('0')) cleaned = '62' + cleaned.slice(1)
+    return cleaned
+  }
 
   // Forgot password state
   let forgotEmail = $state('')
@@ -58,42 +70,6 @@
     }
   }
 
-  async function handleRegister() {
-    errorMsg = ''
-    if (!regName.trim() || !regEmail.trim() || !regPassword) {
-      errorMsg = 'Semua field wajib diisi'
-      return
-    }
-    if (regPassword.length < 8) {
-      errorMsg = 'Password minimal 8 karakter'
-      return
-    }
-    isLoading = true
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email: regEmail.trim(),
-        password: regPassword,
-        options: {
-          data: { full_name: regName.trim(), role: 'user' },
-        },
-      })
-      if (error) throw error
-      if (!data.user) throw new Error('Gagal membuat akun')
-      activeTab = 'confirm'
-    } catch (e: unknown) {
-      if (e instanceof Error) {
-        if (e.message.includes('already registered')) {
-          errorMsg = 'Email sudah terdaftar. Silakan masuk.'
-        } else {
-          errorMsg = e.message
-        }
-      } else {
-        errorMsg = 'Terjadi kesalahan'
-      }
-    } finally {
-      isLoading = false
-    }
-  }
 
   async function handleForgotPassword() {
     errorMsg = ''
@@ -299,76 +275,40 @@
         </div>
       {/if}
 
-      <!-- ── REGISTER ── -->
       {#if activeTab === 'register'}
-        <div>
-          <h2 class="text-3xl font-bold text-slate-800 mb-2" style="font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-0.3px;">
-            Bergabung sekarang
-          </h2>
-          <p class="text-sm font-medium text-slate-500 mb-8">
-            Isi data diri Anda untuk bergabung
-          </p>
-
-          <div class="flex flex-col gap-5">
-            <div class="group">
-              <label class="block text-[11px] font-bold text-slate-600 tracking-widest uppercase mb-2">Nama Lengkap</label>
-              <div class="relative">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User size={18} class="text-slate-400 group-focus-within:text-orange-500 transition-colors" />
-                </div>
-                <input type="text" bind:value={regName} placeholder="Muhammad Rizki"
-                       class="w-full pl-10 pr-4 py-3.5 text-sm text-slate-800 bg-slate-50/50 border border-slate-200 rounded-xl outline-none transition-all placeholder:text-slate-400 focus:border-orange-400 focus:bg-white focus:ring-2 focus:ring-orange-400/20" />
-              </div>
-            </div>
-
-            <div class="group">
-              <label class="block text-[11px] font-bold text-slate-600 tracking-widest uppercase mb-2">Email</label>
-              <div class="relative">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail size={18} class="text-slate-400 group-focus-within:text-orange-500 transition-colors" />
-                </div>
-                <input type="email" bind:value={regEmail} placeholder="nama@perusahaan.com"
-                       class="w-full pl-10 pr-4 py-3.5 text-sm text-slate-800 bg-slate-50/50 border border-slate-200 rounded-xl outline-none transition-all placeholder:text-slate-400 focus:border-orange-400 focus:bg-white focus:ring-2 focus:ring-orange-400/20" />
-              </div>
-            </div>
-
-            <div class="group">
-              <label class="block text-[11px] font-bold text-slate-600 tracking-widest uppercase mb-2">Password</label>
-              <div class="relative">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock size={18} class="text-slate-400 group-focus-within:text-orange-500 transition-colors" />
-                </div>
-                <input type={showRegPw ? 'text' : 'password'} bind:value={regPassword} placeholder="Minimal 8 karakter"
-                       class="w-full pl-10 pr-11 py-3.5 text-sm text-slate-800 bg-slate-50/50 border border-slate-200 rounded-xl outline-none transition-all placeholder:text-slate-400 focus:border-orange-400 focus:bg-white focus:ring-2 focus:ring-orange-400/20" />
-                <button type="button" onclick={() => showRegPw = !showRegPw}
-                        class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                  {#if showRegPw}<EyeOff size={16} />{:else}<Eye size={16} />{/if}
-                </button>
-              </div>
-            </div>
-
-            <button onclick={handleRegister} disabled={isLoading}
-                    class="w-full mt-2 py-3.5 rounded-xl text-sm font-bold tracking-wide uppercase text-white transition-all disabled:opacity-60 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98] bg-gradient-to-r from-orange-500 to-orange-600 shadow-md flex items-center justify-center gap-2">
-              {#if isLoading}
-                <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                </svg>
-                Memproses...
-              {:else}
-                Buat Akun
-                <ArrowRight size={16} />
-              {/if}
-            </button>
+        <div class="flex flex-col items-center text-center py-4">
+          <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-6 bg-orange-100 border border-orange-200">
+            <User size={28} class="text-orange-600" />
           </div>
 
-          <p class="text-center mt-6 text-sm text-slate-500">
-            Sudah punya akun?
-            <button onclick={() => switchTab('login')}
-                    class="font-semibold text-orange-600 hover:text-orange-700 transition-colors ml-1">
-              Masuk di sini
-            </button>
+          <h2 class="text-2xl font-bold text-slate-800 mb-3" style="font-family:'Plus Jakarta Sans',sans-serif;">
+            Pendaftaran Internal
+          </h2>
+          <p class="text-sm text-slate-500 leading-relaxed mb-8">
+            Workspace ini bersifat internal perusahaan. Pendaftaran akun hanya dapat dilakukan melalui Administrator.
           </p>
+
+          <div class="w-full p-5 rounded-2xl bg-slate-50 border border-slate-100 mb-8">
+            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Ingin bergabung?</p>
+            <p class="text-sm text-slate-600 mb-5">Silakan hubungi Admin untuk dibuatkan akun baru.</p>
+            
+            {#if appSettings?.admin_contact}
+              <a href="https://wa.me/{formatWA(appSettings.admin_contact)}?text=Halo%20Admin%2C%20saya%20ingin%20mendaftar%20akun%20di%20Workspace%20Khwarizmi.%20Mohon%20bantuannya." target="_blank"
+                 class="w-full py-3.5 rounded-xl text-sm font-bold tracking-wide uppercase text-white transition-all hover:shadow-lg active:scale-[0.98] bg-green-500 shadow-md flex items-center justify-center gap-2">
+                <MessageSquare size={18} />
+                Hubungi Admin via WA
+              </a>
+            {:else}
+              <div class="py-3 px-4 rounded-xl bg-slate-100 text-slate-400 text-xs italic">
+                Nomor kontak admin belum diatur.
+              </div>
+            {/if}
+          </div>
+
+          <button onclick={() => switchTab('login')}
+                  class="text-sm font-semibold text-slate-500 hover:text-slate-700 transition-colors">
+            Kembali ke Login
+          </button>
         </div>
       {/if}
 

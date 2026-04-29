@@ -44,68 +44,86 @@
 </script>
 
 <div class="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4"
-     style="background:rgba(0,0,0,0.6); backdrop-filter:blur(8px);" onclick={onClose}>
-  <div class="w-full max-w-md bg-white sm:rounded-2xl rounded-t-2xl shadow-2xl"
-       style="animation: slideUp 0.3s cubic-bezier(0.16,1,0.3,1);"
+     style="background:rgba(15, 23, 42, 0.4); backdrop-filter:blur(8px);" onclick={onClose}>
+  <div class="w-full max-w-md bg-white sm:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden flex flex-col"
+       style="animation: slideUp 0.3s cubic-bezier(0.16,1,0.3,1); max-height:92vh;"
        onclick={(e) => e.stopPropagation()}>
+    
     <div class="sm:hidden flex justify-center pt-3 pb-1"><div class="w-10 h-1 rounded-full bg-slate-200"></div></div>
-    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-      <span class="font-bold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">Ganti Password</span>
-      <button onclick={onClose} class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
-        <X size={16} />
+    
+    <!-- Header -->
+    <div class="flex items-center justify-between px-8 py-6">
+      <div class="flex flex-col">
+        <h3 class="text-lg font-bold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">Ganti Password</h3>
+        <p class="text-[11px] text-slate-400">Pastikan password baru Anda kuat & aman</p>
+      </div>
+      <button onclick={onClose} class="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-all active:scale-90">
+        <X size={18} />
       </button>
     </div>
-    <div class="px-6 py-5 flex flex-col gap-4">
+
+    <div class="px-8 pb-8 overflow-y-auto scrollbar-hide flex flex-col gap-6">
       {#each [['Password Lama', currentPassword, (v: string) => currentPassword = v, showCurrentPw, () => showCurrentPw = !showCurrentPw],
               ['Password Baru', newPassword,     (v: string) => newPassword = v,      showNewPw,     () => showNewPw = !showNewPw]] as [label, value, setter, show, toggle]}
-        <div class="relative">
-          <label class="text-xs font-semibold text-slate-500 block mb-1.5">{label}</label>
-          <input type={show ? 'text' : 'password'} value={value} oninput={(e) => setter((e.target as HTMLInputElement).value)}
-                 class="w-full px-4 py-3 pr-11 rounded-xl border border-slate-200 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-400" />
-          <button onclick={toggle} type="button" class="absolute right-3 top-[2.1rem] text-slate-400 hover:text-slate-600 cursor-pointer">
-            {#if show}<Eye size={16} />{:else}<EyeOff size={16} />{/if}
-          </button>
+        <div class="space-y-1.5 relative">
+          <label class="ml-0.5 text-[11px] font-semibold text-slate-500">{label}</label>
+          <div class="relative">
+            <input type={show ? 'text' : 'password'} value={value} oninput={(e) => setter((e.target as HTMLInputElement).value)}
+                   placeholder="••••••••"
+                   class="w-full px-4 py-2.5 pr-11 rounded-xl border border-slate-200 text-sm text-slate-700 bg-white focus:border-orange-500 focus:outline-none transition-all placeholder:text-slate-200" />
+            <button onclick={toggle} type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors">
+              {#if show}<Eye size={16} />{:else}<EyeOff size={16} />{/if}
+            </button>
+          </div>
         </div>
       {/each}
 
       {#if newPassword}
-        <div>
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-xs text-slate-500">Kekuatan password</span>
-            <span class="text-xs font-semibold" style="color:{pwStrength.color};">{pwStrength.label}</span>
+        <div class="animate-slideDown">
+          <div class="flex items-center justify-between mb-2 px-0.5">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Keamanan</span>
+            <span class="text-[10px] font-bold" style="color:{pwStrength.color};">{pwStrength.label.toUpperCase()}</span>
           </div>
-          <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-            <div class="h-full rounded-full transition-all" style="width:{pwStrength.score * 20}%; background:{pwStrength.color};"></div>
+          <div class="h-1.5 bg-slate-50 rounded-full overflow-hidden flex gap-1">
+            {#each Array(4) as _, i}
+              <div class="h-full flex-1 rounded-full transition-all duration-500" 
+                   style="background:{i < pwStrength.score ? pwStrength.color : '#f1f5f9'}; opacity:{i < pwStrength.score ? 1 : 0.5};"></div>
+            {/each}
           </div>
         </div>
       {/if}
 
-      <div>
-        <label class="text-xs font-semibold text-slate-500 block mb-1.5">Konfirmasi Password Baru</label>
+      <div class="space-y-1.5">
+        <label class="ml-0.5 text-[11px] font-semibold text-slate-500">Konfirmasi Password Baru</label>
         <div class="relative">
           <input type="password" bind:value={confirmPassword}
-                 class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                 placeholder="••••••••"
+                 class="w-full px-4 py-2.5 pr-11 rounded-xl border border-slate-200 text-sm text-slate-700 bg-white focus:border-orange-500 focus:outline-none transition-all placeholder:text-slate-200" />
           {#if confirmPassword}
-            <span class="absolute right-3 top-1/2 -translate-y-1/2">
-              {#if confirmPassword === newPassword}<CheckCircle2 size={16} class="text-green-500" />{:else}<AlertCircle size={16} class="text-red-400" />{/if}
-            </span>
+            <div class="absolute right-3 top-1/2 -translate-y-1/2 animate-in zoom-in-50 duration-200">
+              {#if confirmPassword === newPassword}
+                <CheckCircle2 size={16} class="text-emerald-500" />
+              {:else}
+                <AlertCircle size={16} class="text-red-400" />
+              {/if}
+            </div>
           {/if}
         </div>
       </div>
 
       {#if passwordError}
-        <div class="bg-red-50 border border-red-100 rounded-xl px-3 py-2.5 flex items-center gap-2">
-          <AlertCircle size={14} class="text-red-500 flex-shrink-0" />
-          <p class="text-xs text-red-600 font-medium">{passwordError}</p>
+        <div class="bg-red-50/50 border border-red-100 rounded-2xl px-4 py-3 flex items-center gap-3 animate-slideDown">
+          <AlertCircle size={16} class="text-red-500 flex-shrink-0" />
+          <p class="text-[11px] text-red-600 font-bold leading-tight">{passwordError}</p>
         </div>
       {/if}
 
-      <div class="flex gap-3 pb-2">
-        <button onclick={onClose} class="flex-1 py-3 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 cursor-pointer">Batal</button>
+      <div class="flex gap-3 pt-2">
+        <button onclick={onClose} class="flex-1 py-3.5 rounded-xl text-sm font-semibold text-slate-400 hover:bg-slate-50 transition-colors">Batal</button>
         <button onclick={changePassword} disabled={isLoading}
-                class="flex-[2] py-3 rounded-xl text-sm font-bold text-white disabled:opacity-60 cursor-pointer"
-                style="background: linear-gradient(135deg, #F97316, #EA580C);">
-          {isLoading ? 'Menyimpan...' : 'Ubah Password'}
+                class="flex-[2] py-3.5 rounded-xl text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition-all active:scale-[0.98] disabled:opacity-50"
+                style="background: linear-gradient(to right, #F97316, #EA580C);">
+          {isLoading ? 'Memperbarui...' : 'Simpan Password'}
         </button>
       </div>
     </div>
@@ -113,5 +131,9 @@
 </div>
 
 <style>
-  @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+  .animate-slideDown { animation: slideDown 0.2s ease-out; }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 </style>

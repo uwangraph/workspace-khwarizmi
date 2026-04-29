@@ -73,35 +73,31 @@
   }
 </script>
 
-<div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-     style="background:rgba(0,0,0,0.5); backdrop-filter:blur(8px);" onclick={onClose}>
-  <div class="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl"
-       style="animation:slideUp .3s cubic-bezier(.16,1,.3,1); max-height:92vh; overflow-y:auto;"
+<div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+     style="background:rgba(15, 23, 42, 0.4); backdrop-filter:blur(8px);" onclick={onClose}>
+  <div class="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col"
+       style="animation:slideUp .3s cubic-bezier(.16,1,.3,1); max-height:92vh;"
        onclick={e => e.stopPropagation()}>
+    
     <div class="flex justify-center pt-3 pb-1 sm:hidden"><div class="w-10 h-1 rounded-full bg-slate-200"></div></div>
 
     <!-- Header -->
-    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-      <div class="flex items-center gap-2">
-        <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white" style="background:linear-gradient(135deg,#F97316,#EA580C)">
-          <Settings size={16} />
-        </div>
-        <div>
-          <p class="font-bold text-slate-800 text-sm" style="font-family:'Plus Jakarta Sans',sans-serif;">Aturan Kamis</p>
-          <p class="text-[10px] text-slate-400">Atur jadwal masuk Kamis ini</p>
-        </div>
+    <div class="flex items-center justify-between px-8 py-6">
+      <div class="flex flex-col">
+        <h3 class="text-lg font-bold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">Aturan Kamis</h3>
+        <p class="text-[11px] text-slate-400">Konfigurasi khusus untuk hari Kamis tertentu</p>
       </div>
-      <button onclick={onClose} class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors cursor-pointer">
-        <X size={16} />
+      <button onclick={onClose} class="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-all active:scale-90">
+        <X size={18} />
       </button>
     </div>
 
-    <div class="px-6 py-5 flex flex-col gap-5">
+    <div class="px-8 pb-8 overflow-y-auto scrollbar-hide flex flex-col gap-6">
       <!-- Pilih tanggal Kamis -->
-      <div>
-        <label class="text-xs font-bold text-slate-500 block mb-2 uppercase tracking-wider">Pilih Hari Kamis</label>
+      <div class="space-y-1.5">
+        <label class="ml-0.5 text-[11px] font-semibold text-slate-500">Pilih Tanggal Kamis</label>
         <select bind:value={selectedDate}
-                class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-400">
+                class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 bg-white focus:border-orange-500 focus:outline-none transition-all">
           {#each upcomingThursdays as d}
             <option value={d}>{formatThursdayLabel(d)}</option>
           {/each}
@@ -109,78 +105,92 @@
       </div>
 
       <!-- Tipe aturan -->
-      <div>
-        <label class="text-xs font-bold text-slate-500 block mb-2 uppercase tracking-wider">Tipe Aturan</label>
-        <div class="flex flex-col gap-2">
+      <div class="space-y-3">
+        <label class="ml-0.5 text-[11px] font-semibold text-slate-500">Tipe Aturan</label>
+        <div class="grid grid-cols-1 gap-2">
           {#each TYPE_OPTIONS as opt}
             <button onclick={() => ruleType = opt.val}
-                    class="flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all cursor-pointer text-left"
-                    class:border-orange-400={ruleType === opt.val}
+                    class="flex items-center gap-3 p-3 rounded-2xl border transition-all cursor-pointer text-left"
+                    class:border-orange-500={ruleType === opt.val}
                     class:bg-orange-50={ruleType === opt.val}
-                    class:border-slate-200={ruleType !== opt.val}
-                    class:bg-white={ruleType !== opt.val}>
+                    class:border-slate-100={ruleType !== opt.val}
+                    class:bg-white={ruleType !== opt.val}
+                    class:shadow-sm={ruleType === opt.val}>
               <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
                    class:bg-orange-500={ruleType === opt.val} class:text-white={ruleType === opt.val}
-                   class:bg-slate-100={ruleType !== opt.val} class:text-slate-400={ruleType !== opt.val}>
-                <opt.Icon size={20} />
+                   class:bg-slate-50={ruleType !== opt.val} class:text-slate-400={ruleType !== opt.val}>
+                <opt.Icon size={18} />
               </div>
-              <div class="flex-1">
-                <p class="text-sm font-bold text-slate-700">{opt.label}</p>
-                <p class="text-[11px] text-slate-400 mt-0.5">{opt.desc}</p>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold text-slate-700">{opt.label}</p>
+                <p class="text-[10px] text-slate-400 truncate">{opt.desc}</p>
               </div>
-              <div class="w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0"
-                   class:border-orange-500={ruleType === opt.val}
-                   class:border-slate-300={ruleType !== opt.val}>
-                {#if ruleType === opt.val}
-                  <div class="w-2 h-2 rounded-full bg-orange-500"></div>
-                {/if}
-              </div>
+              {#if ruleType === opt.val}
+                <div class="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center text-white">
+                  <Check size={12} strokeWidth={4} />
+                </div>
+              {:else}
+                <div class="w-5 h-5 rounded-full border border-slate-200"></div>
+              {/if}
             </button>
           {/each}
         </div>
       </div>
 
-      <!-- Custom time input -->
-      {#if ruleType === 'custom_time'}
-        <div class="bg-amber-50 border border-amber-100 rounded-xl p-4">
-        <label class="text-xs font-bold text-amber-700 flex items-center gap-2 mb-2 uppercase tracking-wider">
-          <Clock size={12} /> Jam Masuk Kamis Ini
-        </label>
-          <input type="time" bind:value={startTime}
-                 class="w-full px-4 py-3 rounded-xl border border-amber-200 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400" />
-          <p class="text-[10px] text-amber-600 mt-2">Jam masuk normal sesi Pagi adalah 08:00. Atur jam yang berbeda untuk Kamis ini.</p>
+      <!-- Conditional UI -->
+      {#if ruleType === 'custom_time' || ruleType === 'wfa'}
+        <div class="animate-slideDown">
+          {#if ruleType === 'custom_time'}
+            <div class="bg-orange-50/50 border border-orange-100 rounded-2xl p-4 space-y-3">
+              <div class="flex items-center gap-2">
+                <Clock size={14} class="text-orange-500" />
+                <label class="text-[11px] font-bold text-orange-700">Jam Masuk Khusus</label>
+              </div>
+              <input type="time" bind:value={startTime}
+                     class="w-full px-4 py-2.5 rounded-xl border border-orange-200 text-sm text-slate-700 bg-white focus:outline-none" />
+              <p class="text-[10px] text-orange-600/70">Normalnya jam 08:00. Silakan atur jam khusus untuk Kamis ini.</p>
+            </div>
+          {/if}
+
+          {#if ruleType === 'wfa'}
+            <div class="bg-blue-50/50 border border-blue-100 rounded-2xl p-4 flex gap-3">
+              <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">
+                <Home size={16} />
+              </div>
+              <div>
+                <p class="text-xs font-bold text-blue-700">Mode Kerja Remote (WFA)</p>
+                <p class="text-[10px] text-blue-600/70 mt-0.5 leading-relaxed">Karyawan tidak perlu ke kantor. GPS akan dinonaktifkan. Jam masuk tetap 08:00.</p>
+              </div>
+            </div>
+          {/if}
         </div>
       {/if}
 
-      <!-- WFA info -->
-      {#if ruleType === 'wfa'}
-        <div class="bg-blue-50 border border-blue-100 rounded-xl p-4">
-        <div class="flex items-center gap-2 mb-1">
-          <Home size={14} class="text-blue-700" />
-          <p class="text-xs font-semibold text-blue-700">Mode WFA Aktif</p>
-        </div>
-          <p class="text-[11px] text-blue-600 mt-1">Karyawan tidak perlu hadir di kantor. Validasi GPS akan dinonaktifkan untuk hari Kamis ini. Jam masuk tetap mengacu pada sesi Pagi normal (08:00).</p>
-        </div>
-      {/if}
-
-      <!-- Catatan opsional -->
-      <div>
-        <label class="text-xs font-bold text-slate-500 block mb-2 uppercase tracking-wider">Catatan (Opsional)</label>
-        <textarea bind:value={note} placeholder="Contoh: Ada kegiatan halaqoh dulu, masuk jam 10.00..."
+      <!-- Catatan -->
+      <div class="space-y-1.5">
+        <label class="ml-0.5 text-[11px] font-semibold text-slate-500">Catatan Khusus (Opsional)</label>
+        <textarea bind:value={note} placeholder="Contoh: Ada agenda rapat di luar kantor..."
                   rows="2"
-                  class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"></textarea>
+                  class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-700 bg-white focus:border-orange-500 focus:outline-none transition-all resize-none placeholder:text-slate-300"></textarea>
       </div>
 
       <!-- Actions -->
-      <div class="flex gap-3 pb-4">
-        <button onclick={onClose} class="flex-1 py-3 rounded-xl text-sm font-semibold bg-slate-100 text-slate-500 hover:bg-slate-200 cursor-pointer">Batal</button>
+      <div class="flex gap-3 pt-2">
+        <button onclick={onClose} class="flex-1 py-3.5 rounded-xl text-sm font-semibold text-slate-400 hover:bg-slate-50 transition-colors">Batal</button>
         <button onclick={handleSave} disabled={isSubmitting}
-                class="flex-[2] py-3 rounded-xl text-sm font-bold text-white disabled:opacity-60 cursor-pointer"
-                style="background:linear-gradient(135deg,#F97316,#EA580C)">
-          {isSubmitting ? 'Menyimpan...' : 'Simpan Aturan Kamis'}
+                class="flex-[2] py-3.5 rounded-xl text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition-all active:scale-[0.98] disabled:opacity-50"
+                style="background:linear-gradient(to right, #F97316, #EA580C)">
+          {isSubmitting ? 'Menyimpan...' : 'Simpan Aturan'}
         </button>
       </div>
     </div>
   </div>
 </div>
-<style>@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }</style>
+
+<style>
+  @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+  .animate-slideDown { animation: slideDown 0.2s ease-out; }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+</style>

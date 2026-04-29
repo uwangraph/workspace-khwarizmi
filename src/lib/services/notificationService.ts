@@ -35,25 +35,45 @@ export const notificationService = {
 
   async send(uid: string, type: string, title: string, message: string, data: Record<string, any> = {}) {
     try {
-      const res = await fetch('/api/notifications', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: uid, type, title, message, data })
+      // Bypass RLS menggunakan RPC sesuai dokumen
+      const { error } = await supabase.rpc('send_notification', { 
+        p_user_id: uid, 
+        p_type: type, 
+        p_title: title, 
+        p_message: message, 
+        p_data: data 
       });
-      if (!res.ok) throw new Error(`API returned ${res.status}`);
+      if (error) throw error;
       return true;
     } catch (err) {
-      console.error('Error calling notification API:', err);
-      // Fallback to direct insert if API fails
-      try {
-        const { error } = await supabase.from('notifications').insert({ 
-          user_id: uid, type, title, message, data, is_read: false 
-        });
-        return !error;
-      } catch {
-        return false;
-      }
+      console.error('RPC failed, falling back to direct insert:', err);
+      // Strategy 2: Direct insert (fallback)
+      const { error } = await supabase.from('notifications').insert({ 
+        user_id: uid, type, title, message, data, is_read: false 
+      });
+      return !error;
     }
+  },
+
+  // [TAMBAHAN]: Pindahkan logika subscribe dari +layout.svelte ke sini
+  subscribeRealtime(userId: string, onNewNotification: (payload: any) => void) {
+    const channel = supabase
+      .channel(`public:notifications:user_id=eq.${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`
+        },
+        (payload) => onNewNotification(payload.new)
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   },
 
   async sendBulk(uids: string[], type: string, title: string, message: string, data: Record<string, any> = {}) {

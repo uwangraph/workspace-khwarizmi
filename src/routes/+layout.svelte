@@ -1,125 +1,99 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { supabase } from '$lib/supabase';
-	import './layout.css';
-	import { page } from '$app/stores';
-	import { Toaster, toast } from 'svelte-french-toast';
-	import { notificationService } from '$lib/services/notificationService';
-	import { unreadCount, fetchUnreadCount, incrementUnread } from '$lib/stores/notificationStore';
-	import { fade } from 'svelte/transition';
-	import BottomNav from '$lib/components/BottomNav.svelte';
+    import { onMount } from 'svelte';
+    import './layout.css';
+    import { page } from '$app/stores';
+    import { Toaster, toast } from 'svelte-french-toast';
+    import { notificationService } from '$lib/services/notificationService';
+    import { fetchUnreadCount, incrementUnread } from '$lib/stores/notificationStore';
+    import { fade } from 'svelte/transition';
+    import BottomNav from '$lib/components/BottomNav.svelte';
 
-	let { children } = $props();
+    // Ambil data session yang sudah di-load oleh +layout.ts
+    let { data, children } = $props();
+    let user = $derived(data?.session?.user);
 
-	// Routes yang tidak perlu BottomNav
-	const hiddenNavRoutes = ['/auth', '/login', '/register', '/admin'];
-	const showNav = $derived(!hiddenNavRoutes.some((route) => $page.url.pathname.startsWith(route)));
+    // ── Constants & Layout ──────────────────────────────
+    const hiddenNavRoutes = ['/auth', '/login', '/register', '/admin'];
+    const showNav = $derived(!hiddenNavRoutes.some((route) => $page.url.pathname.startsWith(route)));
 
-	// Routes yang perlu tampil penuh di desktop tanpa batas max-w-xl
-	const fullWidthRoutes = ['/admin', '/auth', '/login', '/register'];
-	const isFullWidthLayout = $derived(
-		fullWidthRoutes.some((route) => $page.url.pathname.startsWith(route))
-	);
+    const fullWidthRoutes = ['/admin', '/auth', '/login', '/register'];
+    const isFullWidthLayout = $derived(
+        fullWidthRoutes.some((route) => $page.url.pathname.startsWith(route))
+    );
 
-	// Audio for notification
-	const NOTIF_SOUND =
-		'data:audio/mpeg;base64,SUQzBAAAAAABAFRYWFgAAAASAAADbWFqb3JfYnJhbmQAZGFzaABUWFhYAAAAEAAAA21pbm9yX3ZlcnNpb24AMABUWFhYAAAAHAAAA2NvbXBhdGlibGVfYnJhbmRzAGlzbzZtcDQxAFRTU0UAAAAPAAADTGF2ZjYwLjMuMTAwAAAAAAAAAAAAAAD/80MUAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAMAAAbWAAfHx8fHx8fPz8/Pz8/Pz9PT09PT09PT19fX19fX19fX39/f39/f39/f////////////////wAAAABMYXZmAAAAAAAAAAAAAAAAAAAAAAAkAAAAAAAAAAAbWAAAAAAAAAAAAP/zQxQkAAAAtYABZDAAAAlIADzSDAAAAAYAAAAIAAAAMAAAAAAAAA/8EAcB/8EAcB//zQxREAAAAtYABZDAAAAlIADzSDAAAAAAYAAAAIAAAAMAAAAAAAAA/8EAcB/8EAcB//zQxRkAAAAtYABZDAAAAlIADzSDAAAAAAYAAAAIAAAAMAAAAAAAAA/8EAcB/8EAcB';
+    const NOTIF_SOUND = 'data:audio/mpeg;base64,SUQzBAAAAA...'; // (dipersingkat)
 
-	let deferredPrompt = $state<any>(null);
-	let showInstallBanner = $state(false);
-	let showIOSInstallBanner = $state(false);
+    // ── State ──────────────────────────────────────────
+    let deferredPrompt = $state<any>(null);
+    let showInstallBanner = $state(false);
+    let showIOSInstallBanner = $state(false);
+    let audio: HTMLAudioElement;
 
-	onMount(() => {
-		let audio: HTMLAudioElement;
+    // ── Effects (Realtime & PWA) ───────────────────────
+    $effect(() => {
+        let unsubscribeRealtime = () => {};
 
-		// Deteksi iOS untuk panduan instalasi manual
-		const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-		const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+        if (user) {
+            // Ambil hitungan unread awal
+            fetchUnreadCount(user.id);
 
-		if (isIOS && !isStandalone) {
-			showIOSInstallBanner = true;
-		}
+            // Subscribe channel melalui service
+            unsubscribeRealtime = notificationService.subscribeRealtime(user.id, (newNotif) => {
+                if (!audio) audio = new Audio(NOTIF_SOUND);
+                audio.currentTime = 0;
+                audio.play().catch(() => {});
+                
+                if (newNotif && newNotif.title) {
+                    toast.success(`${newNotif.title}\n${newNotif.message}`, { duration: 5000, position: 'top-center' });
+                    incrementUnread();
+                }
+            });
 
-		// PWA Install Prompt (Android/Chrome)
-		window.addEventListener('beforeinstallprompt', (e) => {
-			e.preventDefault();
-			deferredPrompt = e;
-			showInstallBanner = true;
-		});
+            // Delay request izin FCM (memberi ruang loading UI)
+            setTimeout(() => {
+                notificationService.requestPermissionAndGetToken(user.id);
+            }, 3000);
+        }
 
-		window.addEventListener('appinstalled', () => {
-			deferredPrompt = null;
-			showInstallBanner = false;
-			showIOSInstallBanner = false;
-			console.log('PWA: Installed');
-		});
+        return () => {
+            unsubscribeRealtime();
+        };
+    });
 
-		let cleanup: (() => void) | undefined;
+    onMount(() => {
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
 
-		const setupRealtime = async () => {
-			const {
-				data: { user }
-			} = await supabase.auth.getUser();
-			if (!user) return;
+        if (isIOS && !isStandalone) showIOSInstallBanner = true;
 
-			await fetchUnreadCount(user.id);
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            showInstallBanner = true;
+        });
 
-			const channel = supabase
-				.channel(`public:notifications:user_id=eq.${user.id}`)
-				.on(
-					'postgres_changes',
-					{
-						event: 'INSERT',
-						schema: 'public',
-						table: 'notifications',
-						filter: `user_id=eq.${user.id}`
-					},
-					(payload) => {
-						if (!audio) audio = new Audio(NOTIF_SOUND);
-						audio.currentTime = 0;
-						audio.play().catch(() => {});
-						
-						const n = payload.new;
-						if (n && n.title) {
-							toast.success(`${n.title}\n${n.message}`, { duration: 5000, position: 'top-center' });
-							incrementUnread();
-						}
-					}
-				)
-				.subscribe((status) => {
-					if (status === 'SUBSCRIBED') {
-						console.log('[Realtime] Notifications channel subscribed for', user.id);
-					}
-				});
+        window.addEventListener('appinstalled', () => {
+            deferredPrompt = null;
+            showInstallBanner = false;
+            showIOSInstallBanner = false;
+        });
+    });
 
-			cleanup = () => supabase.removeChannel(channel);
-
-			// Request FCM permission after 3 seconds
-			setTimeout(() => {
-				notificationService.requestPermissionAndGetToken(user.id);
-			}, 3000);
-		};
-
-		setupRealtime();
-
-		return () => {
-			if (cleanup) cleanup();
-		};
-	});
-	async function installApp() {
-		if (!deferredPrompt) return;
-		deferredPrompt.prompt();
-		const { outcome } = await deferredPrompt.userChoice;
-		if (outcome === 'accepted') {
-			deferredPrompt = null;
-			showInstallBanner = false;
-		}
-	}
+    // ── Actions ────────────────────────────────────────
+    async function installApp() {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+            deferredPrompt = null;
+            showInstallBanner = false;
+        }
+    }
 </script>
 
 <svelte:head>
-	<link rel="icon" type="image/png" href="/logo-khwarizmi.png" />
-	<link rel="apple-touch-icon" href="/logo-khwarizmi.png" />
+    <link rel="icon" type="image/png" href="/logo-khwarizmi.png" />
+    <link rel="apple-touch-icon" href="/logo-khwarizmi.png" />
 </svelte:head>
 
 <div

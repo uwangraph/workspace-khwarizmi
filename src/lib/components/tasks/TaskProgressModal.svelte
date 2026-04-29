@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { X } from 'lucide-svelte'
   interface Props {
     taskTitle: string
     progressValue: number
@@ -39,7 +40,9 @@
           </svg>
         </div>
         <p class="text-base font-bold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">Update Progress</p>
-        <button onclick={onClose} class="ml-auto w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">✕</button>
+        <button onclick={onClose} class="ml-auto w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors cursor-pointer">
+          <X size={16} />
+        </button>
       </div>
       <p class="text-xs text-slate-500 pl-10 line-clamp-1">{taskTitle}</p>
     </div>

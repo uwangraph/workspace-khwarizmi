@@ -2,7 +2,7 @@
   import { onMount } from 'svelte'
   import toast from 'svelte-french-toast'
   import type { User } from '@supabase/supabase-js'
-  import { Smartphone, MapPin, Mail, Briefcase, CalendarDays, UserRound, ClipboardList, Bell, Clock, LogOut } from 'lucide-svelte'
+  import { Smartphone, MapPin, Mail, Briefcase, CalendarDays, UserRound, ClipboardList, Bell, Clock, LogOut, Check, Camera, X } from 'lucide-svelte'
   
   import { authService } from '$lib/services/authService'
   import { taskService } from '$lib/services/taskService'
@@ -251,7 +251,9 @@
       <div class="flex justify-center pt-3 pb-1 sticky top-0 bg-white z-10"><div class="w-10 h-1 rounded-full bg-slate-200"></div></div>
       <div class="flex items-center justify-between px-6 py-3 border-b border-slate-100 sticky top-4 bg-white z-10">
         <span class="font-bold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">Edit Profil</span>
-        <button onclick={() => showEditModal = false} class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 text-sm cursor-pointer">✕</button>
+        <button onclick={() => showEditModal = false} class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
+          <X size={16} />
+        </button>
       </div>
       <div class="px-6 py-5 flex flex-col gap-5">
         <div class="flex flex-col items-center gap-3">
@@ -259,10 +261,14 @@
             {#if avatarPreview}<img src={avatarPreview} alt="Preview" class="w-full h-full object-cover" />{:else}<span class="text-3xl font-black text-white">{getInitials(editName||'')}</span>{/if}
           </div>
           <label class="cursor-pointer px-4 py-2 rounded-xl text-xs font-bold bg-orange-50 text-orange-600 border border-orange-100 hover:bg-orange-100 transition-colors flex items-center gap-2">
-            📷 {croppedBlob ? 'Ganti Foto' : avatarPreview ? 'Ubah Foto' : 'Pilih Foto'}
+            <Camera size={14} /> {croppedBlob ? 'Ganti Foto' : avatarPreview ? 'Ubah Foto' : 'Pilih Foto'}
             <input type="file" accept="image/*" class="hidden" onchange={handleFileChange} />
           </label>
-          {#if croppedBlob}<span class="text-[10px] text-green-600 font-semibold">✓ Foto siap disimpan</span>{/if}
+          {#if croppedBlob}
+            <span class="text-[10px] text-green-600 font-semibold flex items-center gap-1">
+              <Check size={10} /> Foto siap disimpan
+            </span>
+          {/if}
         </div>
         <div class="h-px bg-slate-100"></div>
         {#each [
@@ -309,7 +315,9 @@
       <button onclick={() => setScale(cropScale/1.15)} class="px-4 py-2 rounded-xl bg-white/20 text-white text-xs font-bold">🔍−</button>
       <button onclick={() => { cropScale=cropMinScale; cropOffsetX=0; cropOffsetY=0 }} class="px-4 py-2 rounded-xl bg-white/20 text-white text-xs font-bold">↩ Reset</button>
       <button onclick={() => setScale(cropScale*1.15)} class="px-4 py-2 rounded-xl bg-white/20 text-white text-xs font-bold">🔍+</button>
-      <button onclick={applyCrop} class="px-5 py-2 rounded-xl text-white text-sm font-bold" style="background:linear-gradient(135deg,#F97316,#EA580C);">✓ Gunakan</button>
+      <button onclick={applyCrop} class="px-5 py-2 rounded-xl text-white text-sm font-bold flex items-center gap-2 shadow-lg shadow-orange-500/20" style="background:linear-gradient(135deg,#F97316,#EA580C);">
+        <Check size={16} /> Gunakan
+      </button>
     </div>
   </div>
 {/if}

@@ -12,6 +12,7 @@
   import { authService } from '$lib/services/authService'
   import { notificationService } from '$lib/services/notificationService'
   import type { AppNotification } from '$lib/type'
+  import { Check, Bell, Search, RefreshCw, Trash2, X, Send } from 'lucide-svelte'
 
   type NotifType = 'task_collaboration_invite'|'task_deadline_today'|'collaboration_accepted'|'collaboration_rejected'|'task_completed'|'task_ready_review'|'task_deleted'|'task_assigned'|'task_revision'|(string & {})
   // Use AppNotification from type.ts to avoid shadowing the browser's Notification API
@@ -317,7 +318,9 @@
     {#if isLoading}
       <LoadingSpinner message="Memuat notifikasi..." />
     {:else if notifications.length === 0 && !loadError}
-      <EmptyState emoji="🔔" title="Kotak masuk kosong" subtitle="Semua info tugas akan muncul di sini" />
+      <EmptyState title="Kotak masuk kosong" subtitle="Semua info tugas akan muncul di sini">
+        <Bell size={40} class="text-slate-200" />
+      </EmptyState>
     {:else}
       <div class="relative mb-4">
         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -328,15 +331,17 @@
       </div>
 
       {#if filteredNotifs.length === 0}
-        <EmptyState emoji="🔍" title="Tidak ditemukan" subtitle="Coba kata kunci lain" />
+        <EmptyState title="Tidak ditemukan" subtitle="Coba kata kunci lain">
+          <Search size={40} class="text-slate-200" />
+        </EmptyState>
       {:else}
         <div class="flex items-center justify-between mb-2 px-1">
           <p class="text-[10px] font-bold uppercase tracking-widest text-orange-500">
             {filteredNotifs.length} Notifikasi {unreadCount > 0 ? `· ${unreadCount} Belum Dibaca` : ''}
           </p>
           {#if unreadCount > 1}
-            <button onclick={markAllAsRead} disabled={isUpdating} class="text-[10px] font-bold text-orange-600 uppercase tracking-wider disabled:opacity-50 cursor-pointer">
-              Tandai Semua ✓
+            <button onclick={markAllAsRead} disabled={isUpdating} class="text-[10px] font-bold text-orange-600 uppercase tracking-wider disabled:opacity-50 cursor-pointer flex items-center gap-1">
+              Tandai Semua <Check size={10} />
             </button>
           {/if}
         </div>

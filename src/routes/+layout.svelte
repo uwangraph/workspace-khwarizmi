@@ -14,6 +14,7 @@
 
     import { supabase } from '$lib/supabase';
     import { adminService } from '$lib/services/adminService';
+    import { X, AlertTriangle, RefreshCw } from 'lucide-svelte';
 
     // ── Constants & Layout ──────────────────────────────
     const hiddenNavRoutes = ['/auth', '/login', '/register', '/admin'];
@@ -167,14 +168,12 @@
         <div class="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-sm transition-all duration-300">
             <div class="w-full max-w-sm bg-white rounded-3xl p-8 text-center shadow-2xl border-2 border-red-100 relative">
                 <!-- Close Button -->
-                <button onclick={() => showDeletionWarning = false} class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                <button onclick={() => showDeletionWarning = false} class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer">
+                    <X size={16} />
                 </button>
 
                 <div class="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-5 animate-pulse">
-                    <svg class="w-10 h-10 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                    </svg>
+                    <AlertTriangle size={40} class="text-red-600" />
                 </div>
                 <h2 class="text-xl font-black text-slate-900 mb-2" style="font-family:'Plus Jakarta Sans',sans-serif;">Pembersihan Dijadwalkan</h2>
                 <p class="text-[13px] text-slate-600 mb-6 leading-relaxed">Seluruh data transaksi disembunyikan dan akan dihapus permanen dalam:</p>
@@ -187,7 +186,7 @@
                             class="w-full py-3.5 rounded-2xl text-sm font-bold text-white shadow-xl transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
                             style="background: linear-gradient(135deg, #EF4444, #B91C1C);">
                         {#if isCancelingDeletion}
-                            <svg class="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+                            <RefreshCw size={16} class="animate-spin text-white" />
                             Membatalkan...
                         {:else}
                             BATALKAN PENGHAPUSAN

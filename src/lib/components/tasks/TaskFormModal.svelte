@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { X } from 'lucide-svelte'
 	interface ProfileUser {
 		id: string;
 		full_name: string;
@@ -162,7 +163,9 @@
 										{#if user.avatar_url}<img src={user.avatar_url} alt="" class="h-full w-full object-cover" />{:else}{getInitials(user.full_name)}{/if}
 									</div>
 									<span class="text-[10px] font-bold text-slate-700">{user.full_name}</span>
-									<button onclick={() => onAssignChange(uid, false)} class="ml-1 text-slate-400 hover:text-red-500 transition-colors">✕</button>
+									<button onclick={() => onAssignChange(uid, false)} class="ml-1 text-slate-400 hover:text-red-500 transition-colors cursor-pointer">
+										<X size={12} />
+									</button>
 								</div>
 							{/if}
 						{/each}

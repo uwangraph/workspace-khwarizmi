@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { X } from 'lucide-svelte'
   import { getInitials } from '$lib/components/admin/_utils'
   import type { Profile } from '$lib/components/admin/_types'
 
@@ -34,7 +35,9 @@
     <div class="flex justify-center pt-3 pb-1"><div class="w-10 h-1 rounded-full bg-slate-200"></div></div>
     <div class="flex items-center justify-between px-6 py-3 border-b border-slate-100">
       <p class="font-bold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">Edit Pengguna</p>
-      <button onclick={onClose} class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 cursor-pointer">✕</button>
+      <button onclick={onClose} class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors cursor-pointer">
+        <X size={16} />
+      </button>
     </div>
     <div class="px-6 py-5 flex flex-col gap-4">
       <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">

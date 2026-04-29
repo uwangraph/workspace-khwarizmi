@@ -1,5 +1,6 @@
 <script lang="ts">
   import toast from 'svelte-french-toast'
+  import { X, Calendar, Clock, MapPin, CheckCircle2, ChevronRight, Plus, Trash2, Edit, Pin, PinOff, Send, MessageCircle } from 'lucide-svelte'
   interface Subtask { id: string; title: string; completed: boolean }
   interface Task { id: string; title: string; description: string|null; status: string; priority: string; progress: number; due_date: string|null; start_date: string|null; created_by: string; subtasks?: Subtask[] }
   interface Contributor { id: string; name: string; avatar: string|null; status: string }
@@ -96,7 +97,9 @@
         <button onclick={onTogglePin} class="w-10 h-10 rounded-2xl {isPinned ? 'bg-orange-100 text-orange-600' : 'bg-slate-50 text-slate-300'} flex items-center justify-center transition-all active:scale-90 shadow-sm">
           <svg class="w-5 h-5" fill={isPinned ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16 12V4H17V2H7V4H8V12L6 14V16H11V22H13V16H18V14L16 12Z"/></svg>
         </button>
-        <button onclick={onClose} class="w-10 h-10 rounded-2xl bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 transition-all active:scale-90 shadow-sm">✕</button>
+        <button onclick={onClose} class="w-10 h-10 rounded-2xl bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 transition-all active:scale-90 shadow-sm cursor-pointer">
+          <X size={18} />
+        </button>
       </div>
     </div>
 
@@ -149,7 +152,9 @@
               </button>
               <span class="text-sm font-bold flex-1 {st.completed ? 'text-slate-400 line-through' : 'text-slate-700'}">{st.title}</span>
               {#if canEdit || myA?.status === 'accepted'}
-                <button onclick={() => deleteSubtask(i)} class="opacity-0 group-hover:opacity-100 w-8 h-8 rounded-xl bg-red-50 text-red-500 flex items-center justify-center transition-all hover:bg-red-100">✕</button>
+                <button onclick={() => deleteSubtask(i)} class="opacity-0 group-hover:opacity-100 w-8 h-8 rounded-xl bg-red-50 text-red-500 flex items-center justify-center transition-all hover:bg-red-100 cursor-pointer">
+                  <X size={14} />
+                </button>
               {/if}
             </div>
           {/each}

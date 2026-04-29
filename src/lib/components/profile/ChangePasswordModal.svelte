@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { X } from 'lucide-svelte'
   import { Eye, EyeOff, KeyRound, CheckCircle2, AlertCircle } from 'lucide-svelte'
   import toast from 'svelte-french-toast'
   import { authService } from '$lib/services/authService'
@@ -50,7 +51,9 @@
     <div class="sm:hidden flex justify-center pt-3 pb-1"><div class="w-10 h-1 rounded-full bg-slate-200"></div></div>
     <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
       <span class="font-bold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">Ganti Password</span>
-      <button onclick={onClose} class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 text-sm cursor-pointer">✕</button>
+      <button onclick={onClose} class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
+        <X size={16} />
+      </button>
     </div>
     <div class="px-6 py-5 flex flex-col gap-4">
       {#each [['Password Lama', currentPassword, (v: string) => currentPassword = v, showCurrentPw, () => showCurrentPw = !showCurrentPw],

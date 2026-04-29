@@ -2,7 +2,7 @@
   import type { Profile, Task, TaskAssignment, AttendanceRecord, Holiday } from '$lib/components/admin/_types'
   import { STATUS_LABEL, STATUS_STYLE, PRIORITY_DOT, PRIORITY_LABEL, getInitials, formatDate, getMonthlyAttendanceStat, getUserPerformanceStats } from '$lib/components/admin/_utils'
   import type { RekapSubTab } from '$lib/components/admin/_types'
-  import { AlertTriangle, CheckCircle2, Target, Users, ClipboardList, Calendar, Download } from 'lucide-svelte'
+  import { AlertTriangle, CheckCircle2, Target, Users, ClipboardList, Calendar, Download, Trophy, Clock } from 'lucide-svelte'
 
   interface Props {
     allUsers: Profile[]
@@ -150,14 +150,15 @@
   <!-- Sub-tab pills -->
   <div class="flex gap-2 bg-slate-100 rounded-xl p-1">
     {#each [
-      { id: 'tasks', label: '✅ Rekap Tugas' },
-      { id: 'attendance', label: '🕐 Rekap Kehadiran' },
-      { id: 'users', label: '👥 Rekap Pengguna' },
+      { id: 'tasks', label: 'Rekap Tugas', Icon: CheckCircle2 },
+      { id: 'attendance', label: 'Rekap Kehadiran', Icon: Clock },
+      { id: 'users', label: 'Rekap Pengguna', Icon: Users },
     ] as s}
       <button onclick={() => sub = s.id as RekapSubTab}
-              class="flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer"
+              class="flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
               class:text-white={sub === s.id} class:bg-slate-100={sub !== s.id} class:text-slate-500={sub !== s.id}
               style={sub === s.id ? 'background:linear-gradient(135deg,#F97316,#EA580C)' : 'background:transparent'}>
+        <s.Icon size={13} />
         {s.label}
       </button>
     {/each}
@@ -203,7 +204,10 @@
     <!-- Top Performers -->
     {#if topPerformers.length > 0}
       <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">🏆 Top Performer</p>
+        <div class="flex items-center gap-2 mb-3">
+          <Trophy size={14} class="text-orange-500" />
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Top Performer</p>
+        </div>
         <div class="flex flex-col gap-2">
           {#each topPerformers as p, i}
             <div class="flex items-center gap-3">

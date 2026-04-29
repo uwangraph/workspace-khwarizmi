@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { X, Settings, Calendar, Clock, Home, Check } from 'lucide-svelte'
   import type { ThursdayRule } from '$lib/components/admin/_types'
   import { getUpcomingThursdays } from '$lib/components/admin/_utils'
 
@@ -37,7 +38,7 @@
     const today = new Date().toISOString().split('T')[0]
     const suffix = dateStr === today ? ' (Hari Ini)' : ''
     const existing = thursdayRules.find(r => r.date === dateStr)
-    const tag = existing ? ` ✓ ${existing.type === 'wfa' ? 'WFA' : existing.type === 'custom_time' ? 'Custom' : 'Normal'}` : ''
+    const tag = existing ? ` (${existing.type === 'wfa' ? 'WFA' : existing.type === 'custom_time' ? 'Custom' : 'Normal'})` : ''
     return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long' }) + suffix + tag
   }
 
@@ -46,19 +47,19 @@
       val: 'normal',
       label: 'Normal',
       desc: 'Masuk seperti biasa — hanya sesi Pagi (08:00), siang & sore libur',
-      emoji: '📅',
+      Icon: Calendar,
     },
     {
       val: 'custom_time',
       label: 'Custom Waktu',
       desc: 'Masuk lebih siang — tentukan jam masuk khusus hari Kamis ini',
-      emoji: '⏰',
+      Icon: Clock,
     },
     {
       val: 'wfa',
       label: 'WFA',
       desc: 'Work From Anywhere — tidak perlu hadir di kantor, GPS diabaikan',
-      emoji: '🏠',
+      Icon: Home,
     },
   ] as const
 
@@ -82,15 +83,17 @@
     <!-- Header -->
     <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
       <div class="flex items-center gap-2">
-        <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:linear-gradient(135deg,#F97316,#EA580C)">
-          <span class="text-sm">⚙️</span>
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white" style="background:linear-gradient(135deg,#F97316,#EA580C)">
+          <Settings size={16} />
         </div>
         <div>
           <p class="font-bold text-slate-800 text-sm" style="font-family:'Plus Jakarta Sans',sans-serif;">Aturan Kamis</p>
           <p class="text-[10px] text-slate-400">Atur jadwal masuk Kamis ini</p>
         </div>
       </div>
-      <button onclick={onClose} class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 cursor-pointer">✕</button>
+      <button onclick={onClose} class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors cursor-pointer">
+        <X size={16} />
+      </button>
     </div>
 
     <div class="px-6 py-5 flex flex-col gap-5">
@@ -116,7 +119,11 @@
                     class:bg-orange-50={ruleType === opt.val}
                     class:border-slate-200={ruleType !== opt.val}
                     class:bg-white={ruleType !== opt.val}>
-              <span class="text-xl flex-shrink-0">{opt.emoji}</span>
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                   class:bg-orange-500={ruleType === opt.val} class:text-white={ruleType === opt.val}
+                   class:bg-slate-100={ruleType !== opt.val} class:text-slate-400={ruleType !== opt.val}>
+                <opt.Icon size={20} />
+              </div>
               <div class="flex-1">
                 <p class="text-sm font-bold text-slate-700">{opt.label}</p>
                 <p class="text-[11px] text-slate-400 mt-0.5">{opt.desc}</p>
@@ -136,7 +143,9 @@
       <!-- Custom time input -->
       {#if ruleType === 'custom_time'}
         <div class="bg-amber-50 border border-amber-100 rounded-xl p-4">
-          <label class="text-xs font-bold text-amber-700 block mb-2 uppercase tracking-wider">⏰ Jam Masuk Kamis Ini</label>
+        <label class="text-xs font-bold text-amber-700 flex items-center gap-2 mb-2 uppercase tracking-wider">
+          <Clock size={12} /> Jam Masuk Kamis Ini
+        </label>
           <input type="time" bind:value={startTime}
                  class="w-full px-4 py-3 rounded-xl border border-amber-200 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400" />
           <p class="text-[10px] text-amber-600 mt-2">Jam masuk normal sesi Pagi adalah 08:00. Atur jam yang berbeda untuk Kamis ini.</p>
@@ -146,7 +155,10 @@
       <!-- WFA info -->
       {#if ruleType === 'wfa'}
         <div class="bg-blue-50 border border-blue-100 rounded-xl p-4">
-          <p class="text-xs font-semibold text-blue-700">🏠 Mode WFA Aktif</p>
+        <div class="flex items-center gap-2 mb-1">
+          <Home size={14} class="text-blue-700" />
+          <p class="text-xs font-semibold text-blue-700">Mode WFA Aktif</p>
+        </div>
           <p class="text-[11px] text-blue-600 mt-1">Karyawan tidak perlu hadir di kantor. Validasi GPS akan dinonaktifkan untuk hari Kamis ini. Jam masuk tetap mengacu pada sesi Pagi normal (08:00).</p>
         </div>
       {/if}

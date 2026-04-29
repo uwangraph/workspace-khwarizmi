@@ -5,13 +5,18 @@
     subtitle?: string
     actionLabel?: string
     onAction?: () => void
+    children?: import('svelte').Snippet
   }
-  let { emoji = '📭', title, subtitle, actionLabel, onAction }: Props = $props()
+  let { emoji = '📭', title, subtitle, actionLabel, onAction, children }: Props = $props()
 </script>
 
 <div class="flex flex-col items-center justify-center py-16 text-center px-4">
   <div class="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mb-5 border-2 border-orange-100">
-    <span class="text-3xl">{emoji}</span>
+    {#if children}
+      {@render children()}
+    {:else}
+      <span class="text-3xl">{emoji}</span>
+    {/if}
   </div>
   <p class="text-sm font-bold text-slate-500" style="font-family:'Plus Jakarta Sans',sans-serif;">{title}</p>
   {#if subtitle}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { X } from 'lucide-svelte'
   interface Props {
     isSubmitting?: boolean
     onSave: (data: { date: string; name: string }) => Promise<void>
@@ -32,7 +33,9 @@
         </div>
         <p class="font-bold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">Tambah Hari Libur</p>
       </div>
-      <button onclick={onClose} class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 cursor-pointer">✕</button>
+      <button onclick={onClose} class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors cursor-pointer">
+        <X size={16} />
+      </button>
     </div>
     <div class="px-6 py-5 flex flex-col gap-4">
       <div>

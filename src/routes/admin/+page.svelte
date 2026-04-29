@@ -1,9 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { supabase } from '$lib/supabase'
   import type { User } from '@supabase/supabase-js'
   import { Shield } from 'lucide-svelte'
   import toast from 'svelte-french-toast'
+  
+  import { authService } from '$lib/services/authService'
+  import { adminService } from '$lib/services/adminService'
+  import { notificationService } from '$lib/services/notificationService'
+  import { taskService } from '$lib/services/taskService'
 
   import type { Profile, Task, AttendanceRecord, TaskAssignment, Holiday, AdminTab, ThursdayRule, AppSetting, AttendanceLeave } from '$lib/components/admin/_types'
 
@@ -25,6 +29,7 @@
   import PerformanceModal   from '$lib/components/admin/modals/PerformanceModal.svelte'
   import HolidayFormModal   from '$lib/components/admin/modals/HolidayFormModal.svelte'
   import ThursdayRuleModal  from '$lib/components/admin/modals/ThursdayRuleModal.svelte'
+  import ReminderModal      from '$lib/components/admin/modals/ReminderModal.svelte'
 
   // ── State ──────────────────────────────────────────────────────────────────
   let user    = $state<User | null>(null)
@@ -53,9 +58,11 @@
   let showDeleteHolidayModal    = $state(false)
   let showThursdayRuleModal     = $state(false)
   let showDeleteThursdayModal   = $state(false)
+  let showReminderModal         = $state(false)
 
   // Modal targets
   let selectedUser     = $state<Profile | null>(null)
+  let reminderTarget   = $state<Profile | null>(null)
   let selectedTask     = $state<Task | null>(null)
   let detailTask       = $state<Task | null>(null)
   let performanceUser  = $state<Profile | null>(null)
@@ -91,34 +98,23 @@
   // ── Load Data ──────────────────────────────────────────────────────────────
   async function loadData() {
     isLoading = true
-    const { data: { user: u } } = await supabase.auth.getUser()
+    const u = await authService.getUser()
     if (!u) { location.assign('/auth'); return }
     user = u
 
-    const { data: p } = await supabase.from('profiles').select('*').eq('id', u.id).single()
+    const { data: p } = await authService.getProfile(u.id)
     if (!p || p.role !== 'admin') { location.assign('/'); return }
     profile = p
 
-    const [usersRes, tasksRes, attendRes, assignRes, holidaysRes, settingsRes, leavesRes] = await Promise.all([
-      supabase.from('profiles').select('*').order('full_name'),
-      supabase.from('tasks').select('*').order('created_at', { ascending: false }),
-      supabase.from('attendance').select('*').order('date', { ascending: false }),
-      supabase.from('task_assignments').select('*'),
-      supabase.from('holidays').select('*').order('date'),
-      supabase.from('app_settings').select('*').eq('id', 1).single(),
-      supabase.from('attendance_leaves').select('*').order('date', { ascending: false })
-    ])
-
-    if (usersRes.data)    allUsers       = usersRes.data as Profile[]
-    if (tasksRes.data)    allTasks       = tasksRes.data as Task[]
-    if (attendRes.data)   allAttendance  = attendRes.data as AttendanceRecord[]
-    if (assignRes.data)   allAssignments = assignRes.data as TaskAssignment[]
-    if (holidaysRes.data) holidays       = holidaysRes.data as Holiday[]
-    if (settingsRes.data) appSettings    = settingsRes.data as AppSetting
-    if (leavesRes.data)   allLeaves      = leavesRes.data as AttendanceLeave[]
-
-    const { data: thursdayRes } = await supabase.from('thursday_rules').select('*').order('date')
-    if (thursdayRes) thursdayRules = thursdayRes as ThursdayRule[]
+    const data = await adminService.fetchAllData()
+    allUsers = data.users as Profile[]
+    allTasks = data.tasks as Task[]
+    allAttendance = data.attendance as AttendanceRecord[]
+    allAssignments = data.assignments as TaskAssignment[]
+    holidays = data.holidays as Holiday[]
+    appSettings = data.settings as AppSetting
+    allLeaves = data.leaves as AttendanceLeave[]
+    thursdayRules = data.thursdayRules as ThursdayRule[]
 
     isLoading = false
   }
@@ -131,7 +127,7 @@
   async function saveUser(data: { full_name: string; phone: string | null; position: string | null; role: 'admin' | 'user'; joined_at: string | null }) {
     if (!selectedUser) return
     isSubmittingUser = true
-    const { error } = await supabase.from('profiles').update(data).eq('id', selectedUser.id)
+    const { error } = await adminService.updateUser(selectedUser.id, data)
     isSubmittingUser = false
     if (error) { showToast('Gagal menyimpan perubahan', 'error'); return }
     allUsers = allUsers.map(u => u.id === selectedUser!.id ? { ...u, ...data } : u)
@@ -142,7 +138,7 @@
   async function deleteUser() {
     if (!selectedUser) return
     isDeletingUser = true
-    const { error } = await supabase.from('profiles').delete().eq('id', selectedUser.id)
+    const { error } = await adminService.deleteUser(selectedUser.id)
     isDeletingUser = false
     if (error) { showToast('Gagal menghapus pengguna', 'error'); return }
     allUsers = allUsers.filter(u => u.id !== selectedUser!.id)
@@ -157,23 +153,41 @@
     if (data.password.length < 8) { showToast('Password minimal 8 karakter', 'error'); return }
     isCreatingUser = true
     
-    try {
-      const res = await fetch('/api/admin/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
-      const result = await res.json()
-      
-      if (!res.ok) throw new Error(result.error || 'Gagal membuat akun')
-      
+    const { error } = await adminService.createUser(data)
+    if (error) { showToast(error, 'error') }
+    else {
       showNewUserModal = false
       showToast('Pengguna baru berhasil dibuat', 'success')
       await loadData()
-    } catch (err: any) {
-      showToast(err.message, 'error')
-    } finally {
-      isCreatingUser = false
+    }
+    isCreatingUser = false
+  }
+
+  // ── Reminder Action ────────────────────────────────────────────────────────
+  function handleSendReminder(u: Profile) {
+    reminderTarget = u
+    showReminderModal = true
+  }
+
+  async function submitReminder(message: string) {
+    if (!reminderTarget) return
+    const success = await notificationService.send(
+      reminderTarget.id,
+      'task_revision',
+      detailTask ? `Pengingat: ${detailTask.title}` : 'Pengingat dari Admin',
+      message,
+      { 
+        is_admin_reminder: true,
+        task_id: detailTask?.id,
+        task_title: detailTask?.title
+      }
+    )
+
+    if (success) {
+      showToast('Pengingat berhasil dikirim', 'success')
+      showReminderModal = false
+    } else {
+      showToast('Gagal mengirim pengingat', 'error')
     }
   }
 
@@ -184,7 +198,7 @@
   async function deleteTask() {
     if (!selectedTask) return
     isDeletingTask = true
-    const { error } = await supabase.from('tasks').delete().eq('id', selectedTask.id)
+    const { error } = await taskService.deleteTask(selectedTask.id)
     isDeletingTask = false
     if (error) { showToast('Gagal menghapus tugas', 'error'); return }
     allTasks = allTasks.filter(t => t.id !== selectedTask!.id)
@@ -193,7 +207,7 @@
   }
 
   async function updateTaskStatus(task: Task, newStatus: Task['status']) {
-    const { error } = await supabase.from('tasks').update({ status: newStatus }).eq('id', task.id)
+    const { error } = await taskService.updateProgress(task.id, task.progress, newStatus)
     if (error) { showToast('Gagal update status', 'error'); return }
     allTasks = allTasks.map(t => t.id === task.id ? { ...t, status: newStatus } : t)
     if (detailTask?.id === task.id) detailTask = { ...detailTask, status: newStatus }
@@ -203,12 +217,10 @@
   // ── Holiday Actions ────────────────────────────────────────────────────────
   async function addHoliday(data: { date: string; name: string }) {
     isSavingHoliday = true
-    const { data: h, error } = await supabase.from('holidays').insert({
-      date: data.date, name: data.name, created_by: profile?.id
-    }).select().single()
+    const { data: h, error } = await adminService.saveHoliday({ ...data, created_by: profile?.id })
     isSavingHoliday = false
-    if (error) { showToast(error.message.includes('unique') ? 'Tanggal ini sudah ditandai libur' : 'Gagal menyimpan hari libur', 'error'); return }
-    holidays = [...holidays, h as Holiday].sort((a, b) => a.date.localeCompare(b.date))
+    if (error) { showToast(error.message?.includes('unique') ? 'Tanggal ini sudah ditandai libur' : 'Gagal menyimpan hari libur', 'error'); return }
+    holidays = [...holidays, h as any as Holiday].sort((a, b) => a.date.localeCompare(b.date))
     showHolidayFormModal = false
     showToast('Hari libur berhasil ditambahkan', 'success')
   }
@@ -218,7 +230,7 @@
   async function deleteHoliday() {
     if (!selectedHoliday) return
     isDeletingHoliday = true
-    const { error } = await supabase.from('holidays').delete().eq('id', selectedHoliday.id)
+    const { error } = await adminService.deleteHoliday(selectedHoliday.id)
     isDeletingHoliday = false
     if (error) { showToast('Gagal menghapus hari libur', 'error'); return }
     holidays = holidays.filter(h => h.id !== selectedHoliday!.id)
@@ -229,16 +241,21 @@
   // ── Thursday Rule Actions ──────────────────────────────────────────────────
   async function saveThursdayRule(data: { date: string; type: ThursdayRule['type']; start_time: string | null; note: string | null }) {
     isSavingThursday = true
-    // Upsert: update jika sudah ada, insert jika belum
-    const { data: r, error } = await supabase.from('thursday_rules')
-      .upsert({ date: data.date, type: data.type, start_time: data.start_time, note: data.note, created_by: profile?.id }, { onConflict: 'date' })
-      .select().single()
+    const { data: r, error } = await adminService.saveThursdayRule({ 
+      date: data.date, 
+      type: data.type, 
+      start_time: data.start_time, 
+      note: data.note, 
+      created_by: profile?.id 
+    })
     isSavingThursday = false
     if (error) { showToast('Gagal menyimpan aturan Kamis', 'error'); return }
-    // Update local state
+    
+    const rule = r as any as ThursdayRule
     const existing = thursdayRules.findIndex(x => x.date === data.date)
-    if (existing >= 0) thursdayRules = thursdayRules.map((x, i) => i === existing ? r as ThursdayRule : x)
-    else thursdayRules = [...thursdayRules, r as ThursdayRule].sort((a, b) => a.date.localeCompare(b.date))
+    if (existing >= 0) thursdayRules = thursdayRules.map((x, i) => i === existing ? rule : x)
+    else thursdayRules = [...thursdayRules, rule].sort((a, b) => a.date.localeCompare(b.date))
+    
     showThursdayRuleModal = false
     showToast('Aturan Kamis berhasil disimpan', 'success')
   }
@@ -248,7 +265,7 @@
   async function deleteThursdayRule() {
     if (!selectedThursday) return
     isDeletingThursday = true
-    const { error } = await supabase.from('thursday_rules').delete().eq('id', selectedThursday.id)
+    const { error } = await adminService.deleteThursdayRule(selectedThursday.id)
     isDeletingThursday = false
     if (error) { showToast('Gagal menghapus aturan Kamis', 'error'); return }
     thursdayRules = thursdayRules.filter(r => r.id !== selectedThursday!.id)
@@ -259,23 +276,17 @@
   // ── Settings Actions ───────────────────────────────────────────────────────
   async function saveSettings(data: { office_lat: number; office_lng: number; office_radius: number }) {
     isSavingSettings = true
-    const { data: updated, error } = await supabase.from('app_settings')
-      .update(data)
-      .eq('id', 1)
-      .select().single()
-    
+    const { error } = await adminService.updateSettings(data)
     isSavingSettings = false
     if (error) { showToast('Gagal menyimpan pengaturan', 'error'); return }
-    appSettings = updated as AppSetting
+    appSettings = { ...appSettings, ...data } as AppSetting
     showToast('Pengaturan sistem berhasil disimpan', 'success')
   }
 
   // ── Leave Actions ──────────────────────────────────────────────────────────
   async function updateLeaveStatus(leave: AttendanceLeave, status: 'approved' | 'rejected') {
     if (!profile) return
-    const { error } = await supabase.from('attendance_leaves')
-      .update({ status, approved_by: profile.id })
-      .eq('id', leave.id)
+    const { error } = await adminService.updateLeaveStatus(leave.id, status, profile.id)
     if (error) { showToast('Gagal mengupdate status izin', 'error'); return }
     allLeaves = allLeaves.map(l => l.id === leave.id ? { ...l, status, approved_by: profile!.id } : l)
     showToast(`Izin berhasil di-${status === 'approved' ? 'setujui' : 'tolak'}`, 'success')
@@ -331,7 +342,8 @@
                   onEditUser={handleEditUser}
                   onDeleteUser={handleDeleteUser}
                   onViewPerformance={handleViewPerformance}
-                  onAddUser={() => showNewUserModal = true} />
+                  onAddUser={() => showNewUserModal = true}
+                  onSendReminder={handleSendReminder} />
 
       {:else if activeTab === 'tasks'}
         <TasksTab {allTasks} {allUsers} {allAssignments}
@@ -396,7 +408,8 @@
   <TaskDetailModal task={detailTask} {allUsers} {allAssignments}
                    onUpdateStatus={updateTaskStatus}
                    onDelete={handleDeleteTaskPrompt}
-                   onClose={() => showTaskDetailModal = false} />
+                   onClose={() => showTaskDetailModal = false}
+                   onRemindMember={handleSendReminder} />
 {/if}
 
 {#if showPerformanceModal && performanceUser}
@@ -431,4 +444,10 @@
     isDeleting={isDeletingThursday}
     onConfirm={deleteThursdayRule}
     onClose={() => showDeleteThursdayModal = false} />
+{/if}
+
+{#if showReminderModal && reminderTarget}
+  <ReminderModal user={reminderTarget}
+                 onClose={() => showReminderModal = false}
+                 onSubmit={submitReminder} />
 {/if}

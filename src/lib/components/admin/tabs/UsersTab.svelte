@@ -11,8 +11,9 @@
     onDeleteUser: (u: Profile) => void
     onViewPerformance: (u: Profile) => void
     onAddUser: () => void
+    onSendReminder: (u: Profile) => void
   }
-  let { allUsers, allTasks, allAssignments, onEditUser, onDeleteUser, onViewPerformance, onAddUser } = $props<Props>()
+  let { allUsers, allTasks, allAssignments, onEditUser, onDeleteUser, onViewPerformance, onAddUser, onSendReminder } = $props<Props>()
 
   const ITEMS_PER_PAGE = 10
   let userSearch = $state('')
@@ -81,6 +82,10 @@
                   <MessageCircle size={13} />
                 </a>
               {/if}
+              <button onclick={() => onSendReminder(u)}
+                      class="w-8 h-8 rounded-lg bg-orange-50 hover:bg-orange-100 flex items-center justify-center text-orange-500 hover:text-orange-600 transition-colors cursor-pointer" title="Kirim Pengingat">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+              </button>
               <button onclick={() => onViewPerformance(u)}
                       class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-blue-50 flex items-center justify-center text-slate-500 hover:text-blue-600 transition-colors cursor-pointer" title="Lihat Performa">
                 <Activity size={13} />

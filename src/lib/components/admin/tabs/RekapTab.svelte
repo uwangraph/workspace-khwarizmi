@@ -57,27 +57,60 @@
   )
 
   function exportCsv() {
-    const header = ['Nama Pengguna', 'Posisi', 'Hadir', 'Hari Kerja', 'Telat', 'Persentase Kehadiran']
-    const rows = attendStats.map(s => [
+    const headers = [
+      'Nama Pengguna', 
+      'Posisi', 
+      'Total Tugas', 
+      'Tugas Selesai', 
+      'Tugas Pending', 
+      'Rate Penyelesaian',
+      'Hari Hadir', 
+      'Terlambat', 
+      'Tanpa Keterangan', 
+      'Rate Kehadiran'
+    ]
+    
+    const rows = userStats.map(s => [
       s.user.full_name,
-      s.user.position || 'Karyawan',
-      s.totalPresentDays.toString(),
-      s.totalWorkingDays.toString(),
-      s.totalLate.toString(),
-      s.presentRate + '%'
+      s.user.position || '-',
+      s.task.total,
+      s.task.done,
+      s.task.total - s.task.done,
+      s.task.completionRate + '%',
+      s.att.totalPresentDays,
+      s.att.totalLate,
+      Math.max(0, s.att.totalWorkingDays - s.att.totalPresentDays),
+      s.att.presentRate + '%'
     ])
-    const csvContent = [header, ...rows].map(e => e.map(i => `"${i}"`).join(',')).join('\n')
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n')
+
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
-    link.download = `rekap_kehadiran_${currentMonth}.csv`
+    link.href = url
+    link.setAttribute('download', `Rekap_Khwarizmi_${currentMonth}.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+    setTimeout(() => URL.revokeObjectURL(url), 100)
   }
 </script>
 
 <div class="flex flex-col gap-4">
+  <div class="flex items-center justify-between px-1">
+    <div class="flex items-center gap-2">
+      <Target size={18} class="text-orange-500" />
+      <h2 class="text-sm font-bold text-slate-800">Analitik & Performa</h2>
+    </div>
+    <button onclick={exportCsv} class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-orange-50 text-orange-600 text-[10px] font-bold hover:bg-orange-100 transition-all shadow-sm cursor-pointer">
+      <Download size={14} /> Export CSV
+    </button>
+  </div>
+  
   <!-- Sub-tab pills -->
   <div class="flex gap-2 bg-slate-100 rounded-xl p-1">
     {#each [

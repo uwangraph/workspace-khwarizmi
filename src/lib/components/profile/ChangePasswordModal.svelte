@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Eye, EyeOff, KeyRound, CheckCircle2, AlertCircle } from 'lucide-svelte'
   import toast from 'svelte-french-toast'
-  import { supabase } from '$lib/supabase'
+  import { authService } from '$lib/services/authService'
 
   interface Props { userEmail: string; onClose: () => void }
   let { userEmail, onClose }: Props = $props()
@@ -32,9 +32,9 @@
     if (newPassword !== confirmPassword) { passwordError = 'Konfirmasi password tidak cocok'; return }
     if (currentPassword === newPassword) { passwordError = 'Password baru harus berbeda'; return }
     isLoading = true
-    const { error: authError } = await supabase.auth.signInWithPassword({ email: userEmail, password: currentPassword })
+    const { error: authError } = await authService.verifyPassword(userEmail, currentPassword)
     if (authError) { passwordError = 'Password lama tidak benar'; isLoading = false; return }
-    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    const { error } = await authService.changePassword(newPassword)
     isLoading = false
     if (error) { passwordError = error.message; return }
     toast.success('Password berhasil diubah')

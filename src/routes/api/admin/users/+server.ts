@@ -11,7 +11,6 @@ export async function POST({ request }: RequestEvent) {
     }
 
     // Buat user baru menggunakan admin API agar email tidak perlu dikonfirmasi
-    // email_confirm: true artinya kita menandai emailnya "sudah dikonfirmasi" secara paksa
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
@@ -38,6 +37,30 @@ export async function POST({ request }: RequestEvent) {
     }
 
     return json({ user: authData.user })
+  } catch (err: any) {
+    return json({ error: err.message || 'Terjadi kesalahan server' }, { status: 500 })
+  }
+}
+
+export async function DELETE({ url }: RequestEvent) {
+  try {
+    const userId = url.searchParams.get('id')
+    if (!userId) return json({ error: 'User ID wajib diisi' }, { status: 400 })
+
+    // Hapus auth user dulu (cascade akan hapus profile jika ada FK constraint)
+    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId)
+    if (authError) {
+      // Jika auth user tidak ditemukan, tetap coba hapus profile
+      console.warn('[Admin] Auth user not found, deleting profile only:', authError.message)
+    }
+
+    // Hapus profile secara eksplisit (untuk keamanan)
+    const { error: profileError } = await supabaseAdmin.from('profiles').delete().eq('id', userId)
+    if (profileError) {
+      return json({ error: 'Gagal menghapus profil pengguna' }, { status: 400 })
+    }
+
+    return json({ success: true })
   } catch (err: any) {
     return json({ error: err.message || 'Terjadi kesalahan server' }, { status: 500 })
   }

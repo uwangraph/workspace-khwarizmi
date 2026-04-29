@@ -10,8 +10,9 @@
     onUpdateStatus: (task: Task, status: Task['status']) => Promise<void>
     onDelete: (task: Task) => void
     onClose: () => void
+    onRemindMember?: (p: Profile) => void
   }
-  let { task, allUsers, allAssignments, onUpdateStatus, onDelete, onClose } = $props<Props>()
+  let { task, allUsers, allAssignments, onUpdateStatus, onDelete, onClose, onRemindMember } = $props<Props>()
 
   let ss        = $derived(STATUS_STYLE[task.status])
   let assignees = $derived(
@@ -89,10 +90,20 @@
         </div>
         <div>
           <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2">Kolaborator ({assignees.length})</p>
-          <div class="flex -space-x-2 overflow-hidden">
+          <div class="flex flex-col gap-2 max-h-32 overflow-y-auto pr-1">
             {#each assignees as p}
-              <div class="w-7 h-7 rounded-lg border-2 border-white bg-slate-200 flex items-center justify-center text-[8px] font-bold text-slate-600 overflow-hidden" title={p.full_name}>
-                {#if p.avatar_url}<img src={p.avatar_url} alt="" class="w-full h-full object-cover" />{:else}{getInitials(p.full_name)}{/if}
+              <div class="flex items-center justify-between bg-slate-50 border border-slate-100 p-1.5 rounded-xl">
+                <div class="flex items-center gap-2">
+                  <div class="w-6 h-6 rounded-md bg-slate-200 flex items-center justify-center text-[8px] font-bold text-slate-600 overflow-hidden">
+                    {#if p.avatar_url}<img src={p.avatar_url} alt="" class="w-full h-full object-cover" />{:else}{getInitials(p.full_name)}{/if}
+                  </div>
+                  <span class="text-[10px] font-semibold text-slate-700 truncate max-w-[80px]" title={p.full_name}>{p.full_name}</span>
+                </div>
+                {#if onRemindMember}
+                  <button onclick={() => onRemindMember(p)} class="w-5 h-5 rounded-md bg-orange-50 text-orange-500 hover:bg-orange-100 hover:text-orange-600 flex items-center justify-center transition-colors shadow-sm" title="Kirim Pengingat">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                  </button>
+                {/if}
               </div>
             {:else}
               <span class="text-xs text-slate-400 italic">Tidak ada</span>

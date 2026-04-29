@@ -3,7 +3,9 @@
 	import { supabase } from '$lib/supabase';
 	import './layout.css';
 	import { page } from '$app/stores';
-	import { Toaster } from 'svelte-french-toast';
+	import { Toaster, toast } from 'svelte-french-toast';
+	import { notificationService } from '$lib/services/notificationService';
+	import { unreadCount, fetchUnreadCount, incrementUnread } from '$lib/stores/notificationStore';
 	import { fade } from 'svelte/transition';
 	import BottomNav from '$lib/components/BottomNav.svelte';
 
@@ -52,11 +54,15 @@
 			console.log('PWA: Installed');
 		});
 
+		let cleanup: (() => void) | undefined;
+
 		const setupRealtime = async () => {
 			const {
 				data: { user }
 			} = await supabase.auth.getUser();
 			if (!user) return;
+
+			await fetchUnreadCount(user.id);
 
 			const channel = supabase
 				.channel(`public:notifications:user_id=eq.${user.id}`)
@@ -68,20 +74,37 @@
 						table: 'notifications',
 						filter: `user_id=eq.${user.id}`
 					},
-					() => {
+					(payload) => {
 						if (!audio) audio = new Audio(NOTIF_SOUND);
 						audio.currentTime = 0;
 						audio.play().catch(() => {});
+						
+						const n = payload.new;
+						if (n && n.title) {
+							toast.success(`${n.title}\n${n.message}`, { duration: 5000, position: 'top-center' });
+							incrementUnread();
+						}
 					}
 				)
-				.subscribe();
+				.subscribe((status) => {
+					if (status === 'SUBSCRIBED') {
+						console.log('[Realtime] Notifications channel subscribed for', user.id);
+					}
+				});
 
-			return () => {
-				supabase.removeChannel(channel);
-			};
+			cleanup = () => supabase.removeChannel(channel);
+
+			// Request FCM permission after 3 seconds
+			setTimeout(() => {
+				notificationService.requestPermissionAndGetToken(user.id);
+			}, 3000);
 		};
 
 		setupRealtime();
+
+		return () => {
+			if (cleanup) cleanup();
+		};
 	});
 	async function installApp() {
 		if (!deferredPrompt) return;

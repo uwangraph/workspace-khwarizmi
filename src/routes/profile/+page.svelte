@@ -1,9 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { supabase } from '$lib/supabase'
   import toast from 'svelte-french-toast'
   import type { User } from '@supabase/supabase-js'
   import { Smartphone, MapPin, Mail, Briefcase, CalendarDays, UserRound, ClipboardList, Bell, Clock, LogOut } from 'lucide-svelte'
+  
+  import { authService } from '$lib/services/authService'
+  import { taskService } from '$lib/services/taskService'
+  import { attendanceService } from '$lib/services/attendanceService'
+  import type { Profile as UserProfileType, Task } from '$lib/type'
   import LoadingSpinner from '$lib/components/shared/LoadingSpinner.svelte'
   import ProfileHero from '$lib/components/profile/ProfileHero.svelte'
   import ProfileStats from '$lib/components/profile/ProfileStats.svelte'
@@ -11,11 +15,10 @@
   import InfoSection from '$lib/components/profile/InfoSection.svelte'
   import ChangePasswordModal from '$lib/components/profile/ChangePasswordModal.svelte'
   import ChangeEmailModal from '$lib/components/profile/ChangeEmailModal.svelte'
-
-  interface Profile { id: string; full_name: string; role: 'admin'|'user'; avatar_url?: string|null; phone?: string|null; address?: string|null; joined_at?: string|null; birth_date?: string|null; position?: string|null }
+  import { unreadCount } from '$lib/stores/notificationStore'
 
   let user = $state<User | null>(null)
-  let profile = $state<Profile | null>(null)
+  let profile = $state<UserProfileType | null>(null)
   let isLoading = $state(true)
   let showPasswordModal = $state(false)
   let showEmailModal = $state(false)
@@ -44,20 +47,29 @@
 
   async function loadData() {
     isLoading = true
-    const { data: { user: u } } = await supabase.auth.getUser()
+    const u = await authService.getUser()
     if (!u) { location.assign('/auth'); return }
     user = u
-    const [profileRes, attendRes] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', u.id).single(),
-      supabase.from('attendance').select('date').eq('user_id', u.id),
-    ])
-    if (profileRes.data) { profile = profileRes.data; avatarPreview = profile?.avatar_url || null }
-    if (attendRes.data) attendanceDays = new Set(attendRes.data.map((a: any) => a.date)).size
-    const { data: myAssign } = await supabase.from('task_assignments').select('task_id').eq('user_id', u.id)
-    const ids = (myAssign||[]).map(a => a.task_id)
-    const { data: t } = await supabase.from('tasks').select('id,status,created_by')
-      .or(`id.in.(${ids.length ? ids.join(',') : '""'}),created_by.eq.${u.id}`)
-    if (t) taskSummary = { total:t.length, done:t.filter((x:any)=>x.status==='done').length, in_progress:t.filter((x:any)=>x.status==='in_progress').length, review:t.filter((x:any)=>x.status==='review'||x.status==='revision').length, todo:t.filter((x:any)=>x.status==='not_started').length }
+
+    const { data: p } = await authService.getProfile(u.id)
+    if (p) { 
+      profile = p as UserProfileType
+      avatarPreview = p.avatar_url || null 
+    }
+
+    // Only fetch total attendance days, no need for full today data if unused
+    attendanceDays = await attendanceService.getTotalAttendanceDays(u.id)
+
+    const t = await taskService.getTasks(u.id, profile?.role || 'user')
+    if (t) {
+      taskSummary = { 
+        total: t.length, 
+        done: t.filter((x:any)=>x.status==='done').length, 
+        in_progress: t.filter((x:any)=>x.status==='in_progress').length, 
+        review: t.filter((x:any)=>x.status==='review'||x.status==='revision').length, 
+        todo: t.filter((x:any)=>x.status==='not_started').length 
+      }
+    }
     isLoading = false
   }
 
@@ -94,27 +106,35 @@
 
   async function uploadAvatar() {
     if (!croppedBlob||!user) return profile?.avatar_url||null
-    uploadingAvatar=true; const fp=`${user.id}/${Date.now()}.jpg`
-    const { error } = await supabase.storage.from('avatars').upload(fp,croppedBlob,{upsert:true,contentType:'image/jpeg'})
-    if (error) { uploadingAvatar=false; return null }
-    const { data } = supabase.storage.from('avatars').getPublicUrl(fp)
-    uploadingAvatar=false; return data.publicUrl
+    uploadingAvatar=true
+    try {
+      const url = await authService.uploadAvatar(user.id, croppedBlob)
+      uploadingAvatar=false
+      return url
+    } catch {
+      uploadingAvatar=false
+      return null
+    }
   }
 
   function openEdit() { editName=profile?.full_name||''; editPhone=profile?.phone||''; editAddress=profile?.address||''; editJoinedAt=profile?.joined_at||''; editBirthDate=profile?.birth_date||''; editPosition=profile?.position||''; avatarPreview=profile?.avatar_url||null; croppedBlob=null; showEditModal=true }
 
   async function saveProfile() {
-    if (!user||!editName.trim()) { toast.error('Nama tidak boleh kosong'); return }
-    isSaving=true; const finalAvatar=await uploadAvatar()
-    const { error } = await supabase.from('profiles').update({ full_name:editName.trim(), phone:editPhone.trim()||null, address:editAddress.trim()||null, avatar_url:finalAvatar, joined_at:editJoinedAt||null, birth_date:editBirthDate||null, position:editPosition.trim()||null }).eq('id',user.id)
-    isSaving=false
-    if (error) { toast.error('Gagal menyimpan perubahan'); return }
-    profile={...profile!,full_name:editName.trim(),avatar_url:finalAvatar,phone:editPhone.trim()||null,address:editAddress.trim()||null,joined_at:editJoinedAt||null,birth_date:editBirthDate||null,position:editPosition.trim()||null}
-    croppedBlob=null; showEditModal=false; toast.success('Profil berhasil diperbarui')
+    if (!profile || !user) return
+    isSaving = true
+    try {
+      const avatar_url = await uploadAvatar()
+      const updateData = { full_name: editName, phone: editPhone, address: editAddress, joined_at: editJoinedAt, birth_date: editBirthDate, position: editPosition, avatar_url }
+      const { error } = await authService.updateProfile(user.id, updateData)
+      if (error) throw error
+      profile = { ...profile, ...updateData }
+      toast.success('Profil diperbarui'); showEditModal = false
+    } catch { toast.error('Gagal memperbarui profil') } finally { isSaving = false }
   }
 
-  async function signOut() {
-    await supabase.auth.signOut(); location.assign('/auth')
+  async function logout() {
+    const { error } = await authService.signOut()
+    if (error) toast.error('Gagal keluar'); else location.assign('/auth')
   }
 
   onMount(loadData)
@@ -164,7 +184,7 @@
 
       <InfoSection title="Navigasi" actions={[
         { Icon: ClipboardList, label: 'Daftar Tugas', href: '/tasks',         bg: 'bg-orange-50', iconColor: 'text-orange-600', onClick: () => location.assign('/tasks') },
-        { Icon: Bell,          label: 'Notifikasi',   href: '/notifications', bg: 'bg-amber-50',  iconColor: 'text-amber-600',  onClick: () => location.assign('/notifications') },
+        { Icon: Bell,          label: 'Notifikasi',   href: '/notifications', bg: 'bg-amber-50',  iconColor: 'text-amber-600',  badge: $unreadCount, onClick: () => location.assign('/notifications') },
         { Icon: Clock,         label: 'Kehadiran',    href: '/absensi',       bg: 'bg-green-50',  iconColor: 'text-green-600',  onClick: () => location.assign('/absensi') },
       ]} />
 

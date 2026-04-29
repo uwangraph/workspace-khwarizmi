@@ -37,6 +37,24 @@ src/routes/
 
 ---
 
+## 🧱 Arsitektur Aplikasi
+
+Aplikasi ini menggunakan pola **Service-Oriented Architecture (SOA)** untuk memastikan decoupling (pemisahan logika bisnis dari UI) dan stabilitas pemeliharaan jangka panjang.
+
+### 1. Service Layer (`src/lib/services/`)
+Semua operasi akses data ke Supabase (CRUD, autentikasi, storage) **dilarang keras** dipanggil langsung dari komponen UI `.svelte`. Operasi data harus dialihkan ke layer *service*.
+Contoh service yang ada:
+- `authService.ts`: Register, login, update profil, avatar.
+- `taskService.ts`: CRUD tugas, bulk delete, assignment, update status.
+- `attendanceService.ts`: Check-in, check-out, izin, auto-checkout.
+- `adminService.ts`: Fetch semua data, manage user, setting kantor, kalender libur.
+- `notificationService.ts`: Mengirim dan mengelola notifikasi realtime / push.
+
+### 2. Payload Sanitization
+Karena Supabase akan mengembalikan error `400 Bad Request` jika menerima JSON payload dengan *key* yang valuenya `undefined`, seluruh payload dari service harus disanitasi sebelum di-insert atau di-update. Contoh: membuang properti bernilai `undefined` dari object.
+
+---
+
 ## 🧱 Struktur Komponen (`src/lib/components/`)
 
 Agar halaman-halaman utama tidak membengkak (monolith), proyek ini menggunakan arsitektur modular dengan memisahkan UI ke dalam folder per-fitur:
@@ -338,3 +356,5 @@ BottomNav disembunyikan di route:
 4. **`ssr = false`:** Semua auth check dan data fetch terjadi di client, tidak ada server-side rendering
 5. **Toast Notification:** Seluruh proyek menggunakan `svelte-french-toast`, jangan menggunakan state manual untuk toast.
 6. **Auto Checkout:** Dijalankan di `loadData()`, bukan background worker — hanya aktif saat user buka halaman absensi
+7. **Service Layer Only:** Panggilan `supabase.from()` di UI `.svelte` dianggap pelanggaran arsitektur.
+8. **Realtime Channels:** Filter `user_id=eq.{id}` dalam `postgres_changes` harus diinisialisasi setelah `user` tidak null (contoh: di dalam `loadData`).

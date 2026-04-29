@@ -14,20 +14,9 @@ async function run() {
   const { data: users } = await supabase.from('profiles').select('id').limit(1);
   const uid = users[0].id;
 
-  const res = await fetch('http://localhost:5174/api/notifications', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      user_id: uid,
-      type: 'task_collaboration_invite',
-      title: 'test title',
-      message: 'test message'
-    })
+  const { error } = await supabase.from('notifications').insert({
+    user_id: uid, type: 'admin_reminder', title: 'test', message: 'test'
   });
-  
-  console.log('API Status:', res.status);
-  const text = await res.text();
-  console.log('API Response:', text);
+  console.log("Error inserting admin_reminder:", error ? error.message : "Success");
 }
-
 run();

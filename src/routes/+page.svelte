@@ -3,16 +3,20 @@
   import { supabase } from '$lib/supabase'
   import type { User } from '@supabase/supabase-js'
   import { Bell, ArrowRight, Zap, ShieldCheck } from 'lucide-svelte'
+  
+  import { authService } from '$lib/services/authService'
+  import { taskService } from '$lib/services/taskService'
+  import { attendanceService } from '$lib/services/attendanceService'
+  import { notificationService } from '$lib/services/notificationService'
+  import type { Profile, Task, AttendanceRecord, AppNotification } from '$lib/type'
 
   import HeroCard from '$lib/components/dashboard/HeroCard.svelte'
   import AttendanceSummary from '$lib/components/dashboard/AttendanceSummary.svelte'
   import TaskSummary from '$lib/components/dashboard/TaskSummary.svelte'
   import NotifPreview from '$lib/components/dashboard/NotifPreview.svelte'
 
-  interface Profile { id: string; full_name: string; role: 'admin' | 'user' }
-  interface AttendanceRecord { session_id: number; check_in: string | null; check_out: string | null }
-  interface Task { id: string; title: string; status: string; priority: string; due_date: string | null; progress: number; created_by: string }
-  interface Notification { id: string; type: string; title: string; message: string; is_read: boolean; created_at: string; data?: Record<string, unknown> | null }
+  // AppNotification extends our own type (not window.Notification)
+  type DashboardNotification = AppNotification
 
   const DAYS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
   const MONTHS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
@@ -33,7 +37,7 @@
   const DEFAULT_ICON = { bg: 'bg-slate-50', color: 'text-slate-500', path: 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' }
   const getIcon = (type: string) => ICON_MAP[type] ?? DEFAULT_ICON
 
-  function getNavigationUrl(n: Notification): string {
+  function getNavigationUrl(n: AppNotification): string {
     switch (n.type) {
       case 'task_collaboration_invite': case 'task_assigned': case 'task_deadline_today': case 'task_ready_review': case 'task_revision': case 'task_completed': case 'task_deleted': return '/tasks'
       case 'collaboration_accepted': case 'collaboration_rejected': return '/absensi'
@@ -41,7 +45,7 @@
     }
   }
 
-  let user = $state<User | null>(null), profile = $state<Profile | null>(null), attendance = $state<AttendanceRecord[]>([]), tasks = $state<Task[]>([]), notifications = $state<Notification[]>([])
+  let user = $state<User | null>(null), profile = $state<Profile | null>(null), attendance = $state<AttendanceRecord[]>([]), tasks = $state<Task[]>([]), notifications = $state<DashboardNotification[]>([])
   let isLoading = $state(true), gpsActive = $state(false), isNavigating = $state(false), now = $state(new Date())
   let clockInterval: ReturnType<typeof setInterval>
   let notifSubscription: any;
@@ -51,14 +55,6 @@
     loadData(); 
     initGps(); 
     
-    // Subscribe to real-time notifications
-    notifSubscription = supabase.channel('public:notifications')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, payload => {
-        if (user && payload.new.user_id === user.id) {
-          notifications = [payload.new as Notification, ...notifications];
-        }
-      })
-      .subscribe()
 
     return () => { 
       clearInterval(clockInterval); 
@@ -90,27 +86,46 @@
   }
 
   async function loadData() {
-    isLoading = true; const { data: { user: u } } = await supabase.auth.getUser(); if (!u) { window.location.assign('/auth'); return }; user = u
-    const today = new Date().toISOString().split('T')[0]
-    const { data: assignmentData } = await supabase.from('task_assignments').select('task_id').eq('user_id', u.id).in('status', ['pending', 'accepted', 'completed'])
-    const assignedTaskIds = (assignmentData ?? []).map((a: { task_id: string }) => a.task_id)
-    const [profileRes, attendRes, taskRes, notifRes] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', u.id).single(),
-      supabase.from('attendance').select('session_id,check_in,check_out').eq('user_id', u.id).eq('date', today),
-      assignedTaskIds.length > 0 ? supabase.from('tasks').select('*').or(`created_by.eq.${u.id},id.in.(${assignedTaskIds.join(',')})`).order('created_at', { ascending: false }) : supabase.from('tasks').select('*').eq('created_by', u.id).order('created_at', { ascending: false }),
-      supabase.from('notifications').select('*').eq('user_id', u.id).order('created_at', { ascending: false }).limit(100)
-    ])
-    if (profileRes.data) profile = profileRes.data; if (attendRes.data) attendance = attendRes.data; if (taskRes.data) tasks = taskRes.data; if (notifRes.data) notifications = notifRes.data; isLoading = false
+    isLoading = true
+    const u = await authService.getUser()
+    if (!u) { window.location.assign('/auth'); return }
+    user = u
+    
+    const { data: p } = await authService.getProfile(u.id)
+    if (p) profile = p as Profile
+    
+    const { attendance: attend, appSettings } = await attendanceService.getTodayData(u.id)
+    attendance = (attend as any[]) || []
+    
+    tasks = await taskService.getTasks(u.id, profile?.role || 'user')
+    
+    const { data: notifs } = await notificationService.getNotifications(u.id, 10)
+    notifications = (notifs || []) as DashboardNotification[]
+    
+    // Subscribe to real-time notifications for this specific user
+    if (!notifSubscription) {
+      notifSubscription = supabase.channel(`dashboard:notifications:${u.id}`)
+        .on('postgres_changes', { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'notifications',
+          filter: `user_id=eq.${u.id}`
+        }, payload => {
+          notifications = [payload.new as DashboardNotification, ...notifications]
+        })
+        .subscribe()
+    }
+
+    isLoading = false
   }
 
   function initGps() { if (!navigator.geolocation) return; navigator.geolocation.watchPosition(() => { gpsActive = true }, () => { gpsActive = false }) }
 
-  async function handleNotifClick(n: Notification) {
+  async function handleNotifClick(n: DashboardNotification) {
     if (isNavigating) return; isNavigating = true
     if (!n.is_read) {
       notifications = notifications.map(x => x.id === n.id ? { ...x, is_read: true } : x)
-      const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', n.id)
-      if (error) { notifications = notifications.map(x => x.id === n.id ? { ...x, is_read: false } : x); isNavigating = false; return }
+      await notificationService.markAsRead(n.id)
     }
     location.href = getNavigationUrl(n)
   }

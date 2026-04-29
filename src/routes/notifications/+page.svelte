@@ -1,17 +1,22 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte'
-  import { supabase } from '$lib/supabase'
+  import { supabase } from '$lib/supabase'  // kept for realtime channel
   import toast from 'svelte-french-toast'
   import LoadingSpinner from '$lib/components/shared/LoadingSpinner.svelte'
   import EmptyState from '$lib/components/shared/EmptyState.svelte'
   import PaginationBar from '$lib/components/shared/PaginationBar.svelte'
   import type { User } from '@supabase/supabase-js'
+  import { unreadCount as unreadStore, fetchUnreadCount, decrementUnread } from '$lib/stores/notificationStore'
+  import { authService } from '$lib/services/authService'
+  import { notificationService } from '$lib/services/notificationService'
+  import type { AppNotification } from '$lib/type'
 
   type NotifType = 'task_collaboration_invite'|'task_deadline_today'|'collaboration_accepted'|'collaboration_rejected'|'task_completed'|'task_ready_review'|'task_deleted'|'task_assigned'|'task_revision'|(string & {})
-  interface Notification { id: string; user_id: string; type: NotifType; title: string; message: string; data: Record<string, unknown> | null; is_read: boolean; created_at: string }
+  // Use AppNotification from type.ts to avoid shadowing the browser's Notification API
+  type PageNotification = AppNotification & { type: NotifType }
 
   let user = $state<User | null>(null)
-  let notifications = $state<Notification[]>([])
+  let notifications = $state<PageNotification[]>([])
   let isLoading = $state(true)
   let isUpdating = $state(false)
   let loadError = $state<string | null>(null)
@@ -94,47 +99,86 @@
 
   async function fetchNotifications() {
     if (!user) return; isLoading = true; loadError = null
-    const { data, error } = await supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at',{ascending:false}).limit(100)
+    const { data, error } = await notificationService.getNotifications(user.id)
     if (error) loadError = error.message
-    else notifications = (data ?? []) as Notification[]
+    else notifications = (data ?? []) as PageNotification[]
+    
+    // Subscribe to real-time notifications for this specific user
+    if (!notifSubscription) {
+      notifSubscription = supabase.channel(`notifications_page:${user.id}`)
+        .on('postgres_changes', { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`
+        }, payload => {
+          notifications = [payload.new as PageNotification, ...notifications]
+        })
+        .subscribe()
+    }
+    
     isLoading = false
   }
 
-  async function handleCardClick(n: Notification) {
+  async function handleCardClick(n: PageNotification) {
     if (isNavigating) return; isNavigating = true
     if (!n.is_read) {
-      notifications = notifications.map(x => x.id===n.id ? {...x,is_read:true} : x)
-      const { error } = await supabase.from('notifications').update({is_read:true}).eq('id',n.id)
-      if (error) { notifications = notifications.map(x => x.id===n.id ? {...x,is_read:false} : x); toast.error('Gagal memperbarui notifikasi'); isNavigating = false; return }
+      await markAsRead(n.id)
     }
     location.href = getNavUrl(n)
   }
 
-  async function toggleRead(n: Notification, e: Event) {
-    e.stopPropagation(); const v = !n.is_read
-    notifications = notifications.map(x => x.id===n.id ? {...x,is_read:v} : x)
-    const { error } = await supabase.from('notifications').update({is_read:v}).eq('id',n.id)
-    if (error) notifications = notifications.map(x => x.id===n.id ? {...x,is_read:!v} : x)
+  async function markAsRead(id: string) {
+    if (!user) return
+    const n = notifications.find(x => x.id === id)
+    if (!n || n.is_read) return
+    
+    try {
+      const { error } = await notificationService.markAsRead(id)
+      if (error) throw error
+      n.is_read = true; notifications = [...notifications]
+      decrementUnread()
+    } catch { toast.error('Gagal memperbarui') }
+  }
+
+  async function toggleRead(n: PageNotification, e: Event) {
+    e.stopPropagation()
+    const newVal = !n.is_read
+    notifications = notifications.map(x => x.id === n.id ? { ...x, is_read: newVal } : x)
+    const { error } = newVal
+      ? await notificationService.markAsRead(n.id)
+      : await notificationService.markAsUnread(n.id)
+    if (error) {
+      notifications = notifications.map(x => x.id === n.id ? { ...x, is_read: !newVal } : x)
+    } else {
+      if (newVal) decrementUnread(); else unreadStore.update(c => c + 1)
+    }
   }
 
   async function markAllAsRead() {
-    if (!user || unreadCount===0 || isUpdating) return; isUpdating = true
-    const prev = notifications; notifications = notifications.map(n => ({...n,is_read:true}))
-    const { error } = await supabase.from('notifications').update({is_read:true}).eq('user_id',user.id).eq('is_read',false)
-    if (error) { notifications = prev; toast.error('Gagal menandai') } else toast.success('Semua ditandai dibaca')
+    if (!user || unreadCount === 0 || isUpdating) return; isUpdating = true
+    const prev = notifications
+    notifications = notifications.map(n => ({ ...n, is_read: true }))
+    const { error } = await notificationService.markAllAsRead(user.id)
+    if (error) { notifications = prev; toast.error('Gagal menandai') }
+    else { toast.success('Semua ditandai dibaca'); unreadStore.set(0) }
     isUpdating = false
   }
 
   async function deleteOne(id: string, e: Event) {
-    e.stopPropagation(); notifications = notifications.filter(n => n.id!==id)
-    const { error } = await supabase.from('notifications').delete().eq('id',id)
-    if (error) { toast.error('Gagal menghapus'); await fetchNotifications() }
+    e.stopPropagation()
+    const prev = notifications
+    notifications = notifications.filter(n => n.id !== id)
+    const { error } = await notificationService.deleteNotification(id)
+    if (error) { toast.error('Gagal menghapus'); notifications = prev }
   }
 
   async function clearAll() {
-    if (!user) return; isClearingAll = true; notifications = []
-    const { error } = await supabase.from('notifications').delete().eq('user_id',user.id)
-    if (error) { toast.error('Gagal'); await fetchNotifications() } else toast.success('Riwayat dibersihkan')
+    if (!user) return; isClearingAll = true
+    const prev = notifications; notifications = []
+    const { error } = await notificationService.deleteAll(user.id)
+    if (error) { notifications = prev; toast.error('Gagal menghapus') }
+    else { toast.success('Riwayat dibersihkan'); fetchUnreadCount(user.id) }
     isClearingAll = false; showClearAllModal = false
   }
 
@@ -143,18 +187,10 @@
   let notifSubscription: any;
 
   onMount(async () => {
-    const { data: { user: u }, error } = await supabase.auth.getUser()
-    if (error || !u) { location.assign('/auth'); return }
+    const u = await authService.getUser()
+    if (!u) { location.assign('/auth'); return }
     user = u; await fetchNotifications()
     document.addEventListener('visibilitychange', onVisible)
-
-    notifSubscription = supabase.channel('public:notifications_page')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, payload => {
-        if (user && payload.new.user_id === user.id) {
-          notifications = [payload.new as Notification, ...notifications];
-        }
-      })
-      .subscribe()
   })
 
   onDestroy(() => {

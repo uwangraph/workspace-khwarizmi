@@ -90,6 +90,7 @@
         </div>
       </div>
 
+
       {#if progressValue !== initialProgress}
         <div class="bg-orange-50 border border-orange-100 rounded-xl px-3 py-2.5 mb-5 flex items-start gap-2">
           <svg class="w-4 h-4 text-orange-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

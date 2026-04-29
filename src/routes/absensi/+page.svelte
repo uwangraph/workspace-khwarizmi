@@ -1,9 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { supabase } from '$lib/supabase'
   import type { User } from '@supabase/supabase-js'
   import toast from 'svelte-french-toast'
   import { Eye, Clock, Shield, FileText } from 'lucide-svelte'
+  
+  import { authService } from '$lib/services/authService'
+  import { attendanceService } from '$lib/services/attendanceService'
+  import { locationService } from '$lib/services/locationService'
+  import type { Profile, AttendanceRecord, Holiday } from '$lib/type'
   
   import AppHeader from '$lib/components/shared/AppHeader.svelte'
   import LoadingSpinner from '$lib/components/shared/LoadingSpinner.svelte'
@@ -16,8 +20,6 @@
   import LateReasonModal from '$lib/components/absensi/LateReasonModal.svelte'
   import LeaveModal from '$lib/components/absensi/LeaveModal.svelte'
 
-  interface Profile { id: string; full_name: string; role: 'admin' | 'user' }
-  interface AttendanceRecord { id: string; session_id: number; date: string; check_in: string | null; check_out: string | null; photo_in_url: string | null; photo_out_url: string | null; forgot_checkout: boolean; late: boolean; late_reason: string | null }
   interface Session { id: number; name: string; start: string; end: string; unlockAt: string; autoCheckoutAt: string; hasLateCheck?: boolean; requireLocation?: boolean }
   interface LeaveRecord { id: string; date: string; type: 'izin' | 'sakit'; reason: string; session_id: number | null; status: 'pending' | 'approved' | 'rejected' }
   interface PenaltyRecord { id: string; date: string; session_id: number; minutes: number; reason: string }
@@ -37,6 +39,7 @@
   let showLateModal = $state(false), lateSessionId = $state(0), lateReason = $state(''), lateMinutes = $state(0)
   let showLeaveModal = $state(false), isSubmittingLeave = $state(false), leaveStatus = $state('')
   let photoViewUrl = $state(''), showPhotoView = $state(false)
+  let todayHoliday = $state<{id: string, name: string, date: string} | null>(null)
   let now = $state(new Date())
 
   $effect(() => { const t = setInterval(() => (now = new Date()), 30_000); return () => clearInterval(t) })
@@ -50,25 +53,11 @@
   function isSessionOnLeave(sessionId: number) { return leaves.find(l => (l.session_id === null || l.session_id === sessionId) && l.status !== 'rejected') || null }
   function formatDateIndonesian(date: Date) { return date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) }
 
-  function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number) {
-    const R = 6371000, dLat = ((lat2 - lat1) * Math.PI) / 180, dLng = ((lng2 - lng1) * Math.PI) / 180
-    const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  }
   async function checkLocation(): Promise<{ ok: boolean; distance?: number; error?: string }> {
-    return new Promise(resolve => {
-      if (!navigator.geolocation) return resolve({ ok: false, error: 'Perangkat tidak mendukung GPS' })
-      navigator.geolocation.getCurrentPosition(
-        pos => {
-          if (!appSettings) return resolve({ ok: false, error: 'Pengaturan lokasi belum dikonfigurasi' })
-          const dist = haversineMeters(pos.coords.latitude, pos.coords.longitude, appSettings.office_lat, appSettings.office_lng)
-          if (dist <= appSettings.office_radius) resolve({ ok: true, distance: dist })
-          else resolve({ ok: false, distance: dist, error: `Anda ${Math.round(dist)}m dari kantor (maks ${appSettings.office_radius}m)` })
-        },
-        err => resolve({ ok: false, error: err.code === 1 ? 'Akses lokasi ditolak. Aktifkan GPS.' : err.code === 2 ? 'Lokasi tidak tersedia. Pastikan GPS aktif.' : 'Gagal mendapatkan lokasi' }),
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      )
-    })
+    if (!appSettings) return { ok: false, error: 'Pengaturan lokasi belum dikonfigurasi' }
+    const pos = await locationService.getCurrentPosition()
+    if (!pos.ok) return { ok: false, error: pos.error }
+    return locationService.isWithinRadius(pos.coords!, appSettings.office_lat, appSettings.office_lng, appSettings.office_radius)
   }
 
   function checkIsLate(session: Session) {
@@ -82,40 +71,49 @@
   }
 
   async function runAutoCheckout(u: User) {
-    const curMin = new Date().getHours() * 60 + new Date().getMinutes(), today = new Date().toISOString().split('T')[0]
+    const curMin = new Date().getHours() * 60 + new Date().getMinutes()
     for (const s of SESSIONS) {
       if (curMin < toMin(s.autoCheckoutAt)) continue
       const rec = attendance.find(a => a.session_id === s.id)
       if (rec && rec.check_in && !rec.check_out) {
         const [h, m] = s.autoCheckoutAt.split(':').map(Number); const checkoutTime = new Date(); checkoutTime.setHours(h, m, 0, 0)
-        const { error } = await supabase.from('attendance').update({ check_out: checkoutTime.toISOString(), forgot_checkout: true }).eq('id', rec.id)
-        if (!error) await supabase.from('attendance_penalties').insert({ user_id: u.id, date: today, session_id: s.id, minutes: 10, reason: `Lupa checkout ${s.name}` })
+        await attendanceService.autoCheckout(u.id, rec.id, s.id, checkoutTime.toISOString())
       }
     }
   }
 
   async function loadData() {
     isLoading = true
-    const { data: { user: u } } = await supabase.auth.getUser()
+    const u = await authService.getUser()
     if (!u) { location.assign('/auth'); return }
     user = u
-    const today = new Date().toISOString().split('T')[0]
-    const [profileRes, attendRes, leavesRes, penaltiesRes, settingsRes] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', u.id).single(),
-      supabase.from('attendance').select('*').eq('user_id', u.id).eq('date', today),
-      supabase.from('attendance_leaves').select('*').eq('user_id', u.id).eq('date', today),
-      supabase.from('attendance_penalties').select('*').eq('user_id', u.id).eq('date', today),
-      supabase.from('app_settings').select('*').eq('id', 1).single()
-    ])
-    if (profileRes.data) profile = profileRes.data; if (attendRes.data) attendance = attendRes.data; if (leavesRes.data) leaves = leavesRes.data; if (penaltiesRes.data) penalties = penaltiesRes.data; if (settingsRes.data) appSettings = settingsRes.data
-    if (new Date().getDay() === 4) { const { data } = await supabase.from('thursday_rules').select('*').eq('date', today).single(); thursdayRule = data || null }
+    
+    const { data: p } = await authService.getProfile(u.id)
+    if (p) profile = p as Profile
+    
+    const data = await attendanceService.getTodayData(u.id)
+    attendance = data.attendance as AttendanceRecord[]
+    leaves = data.leaves as LeaveRecord[]
+    penalties = data.penalties as PenaltyRecord[]
+    appSettings = data.appSettings
+    todayHoliday = data.todayHoliday as any
+    thursdayRule = data.thursdayRule as any
+
     await runAutoCheckout(u)
-    const freshA = await supabase.from('attendance').select('*').eq('user_id', u.id).eq('date', today), freshP = await supabase.from('attendance_penalties').select('*').eq('user_id', u.id).eq('date', today)
-    if (freshA.data) attendance = freshA.data; if (freshP.data) penalties = freshP.data
+    
+    // Refresh attendance after auto checkout
+    const fresh = await attendanceService.getTodayData(u.id)
+    attendance = fresh.attendance as AttendanceRecord[]
+    penalties = fresh.penalties as PenaltyRecord[]
+    
     isLoading = false
   }
 
   async function openCamera(sid: number, type: 'in' | 'out') {
+    if (todayHoliday) {
+      toast.error(`Tidak dapat absen. Hari ini libur: ${todayHoliday.name}`)
+      return
+    }
     const session = SESSIONS.find(s => s.id === sid)!
     if (session.requireLocation !== false && !(isTodayThursday && sid === 1 && thursdayRule?.type === 'wfa')) {
       cameraStatus = 'Memverifikasi lokasi...'; showCamera = true
@@ -148,16 +146,14 @@
     if (!capturedBlob || !user) return
     isSubmitting = true; cameraStatus = ''
     try {
-      const path = `${user.id}/${Date.now()}_${cameraType}.jpg`
-      await supabase.storage.from('selfies').upload(path, capturedBlob, { contentType: 'image/jpeg' })
-      const { data: { publicUrl } } = supabase.storage.from('selfies').getPublicUrl(path)
-      const today = new Date().toISOString().split('T')[0]
+      const publicUrl = await attendanceService.uploadSelfie(user.id, capturedBlob, cameraType)
+      
       if (cameraType === 'in') {
         const lateInfo = checkIsLate(SESSIONS.find(s => s.id === cameraSessionId)!)
-        await supabase.from('attendance').insert({ user_id: user.id, session_id: cameraSessionId, date: today, check_in: new Date().toISOString(), photo_in_url: publicUrl, late: lateInfo.late, late_reason: lateReason || null })
+        await attendanceService.submitCheckIn(user.id, cameraSessionId, publicUrl, lateInfo.late, lateReason)
         toast.success('Check-in berhasil')
       } else {
-        await supabase.from('attendance').update({ check_out: new Date().toISOString(), photo_out_url: publicUrl }).eq('user_id', user.id).eq('session_id', cameraSessionId).eq('date', today)
+        await attendanceService.submitCheckOut(user.id, cameraSessionId, publicUrl)
         toast.success('Check-out berhasil')
       }
       lateReason = ''; closeCamera(); await loadData()
@@ -170,7 +166,7 @@
     if (data.sessionId !== null && leaves.find(l => l.session_id === data.sessionId)) { leaveStatus = `Sudah ada izin/sakit untuk sesi tersebut`; return }
     isSubmittingLeave = true; leaveStatus = ''
     try {
-      await supabase.from('attendance_leaves').insert({ user_id: user.id, date: new Date().toISOString().split('T')[0], type: data.type, reason: data.reason.trim(), session_id: data.sessionId })
+      await attendanceService.submitLeave(user.id, data.type, data.reason, data.sessionId)
       showLeaveModal = false; toast.success(data.type === 'izin' ? 'Izin berhasil dicatat' : 'Sakit berhasil dicatat'); await loadData()
     } catch (e: any) { leaveStatus = e.message || 'Gagal menyimpan' } finally { isSubmittingLeave = false }
   }
@@ -191,6 +187,17 @@
     {#if isLoading}
       <LoadingSpinner message="Memuat jadwal absensi..." />
     {:else}
+      {#if todayHoliday}
+        <div class="bg-indigo-50 border-2 border-indigo-100 rounded-2xl p-4 flex items-start gap-3 mb-2 shadow-sm">
+          <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-500 shrink-0">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-indigo-900">Hari Libur</h3>
+            <p class="text-xs text-indigo-700 leading-relaxed mt-0.5">Hari ini adalah hari libur <strong>"{todayHoliday.name}"</strong>. Semua presensi dinonaktifkan.</p>
+          </div>
+        </div>
+      {/if}
       <div class="flex items-center justify-between mb-2">
         <div>
           <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Hari ini</p>

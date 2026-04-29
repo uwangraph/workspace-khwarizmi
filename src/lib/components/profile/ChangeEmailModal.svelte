@@ -1,7 +1,7 @@
 <script lang="ts">
   import { AlertCircle, CheckCircle2 } from 'lucide-svelte'
   import toast from 'svelte-french-toast'
-  import { supabase } from '$lib/supabase'
+  import { authService } from '$lib/services/authService'
 
   interface Props { userEmail: string; onClose: () => void }
   let { userEmail, onClose }: Props = $props()
@@ -18,9 +18,9 @@
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail.trim())) { emailError = 'Format email tidak valid'; return }
     if (newEmail.trim() === userEmail) { emailError = 'Email baru sama dengan email saat ini'; return }
     isLoading = true
-    const { error: authError } = await supabase.auth.signInWithPassword({ email: userEmail, password: emailPassword })
+    const { error: authError } = await authService.verifyPassword(userEmail, emailPassword)
     if (authError) { emailError = 'Password tidak benar'; isLoading = false; return }
-    const { error } = await supabase.auth.updateUser({ email: newEmail.trim() })
+    const { error } = await authService.changeEmail(newEmail.trim())
     isLoading = false
     if (error) { emailError = error.message; return }
     emailSuccess = true

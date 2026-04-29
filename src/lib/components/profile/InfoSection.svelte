@@ -1,7 +1,7 @@
 <script lang="ts">
   import { ChevronRight } from 'lucide-svelte'
   interface Row { Icon: any; label: string; val: string | null | undefined; multiline?: boolean }
-  interface Action { Icon: any; label: string; sublabel?: string; bg: string; iconColor: string; onClick: () => void }
+  interface Action { Icon: any; label: string; sublabel?: string; bg: string; iconColor: string; badge?: number; onClick: () => void }
   interface Props {
     title: string
     rows?: Row[]
@@ -34,9 +34,16 @@
         <div class="w-9 h-9 rounded-lg {act.bg} flex items-center justify-center flex-shrink-0">
           <svelte:component this={act.Icon} size={16} class={act.iconColor} />
         </div>
-        <div class="flex-1 min-w-0">
-          <p class="text-sm font-semibold text-slate-800">{act.label}</p>
-          {#if act.sublabel}<p class="text-[11px] text-slate-500 mt-0.5 truncate">{act.sublabel}</p>{/if}
+        <div class="flex-1 min-w-0 flex items-center justify-between gap-2">
+          <div>
+            <p class="text-sm font-semibold text-slate-800">{act.label}</p>
+            {#if act.sublabel}<p class="text-[11px] text-slate-500 mt-0.5 truncate">{act.sublabel}</p>{/if}
+          </div>
+          {#if act.badge && act.badge > 0}
+            <span class="flex-shrink-0 bg-red-500 text-white text-[10px] font-black min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center shadow-lg shadow-red-500/30 animate-bounce-short">
+              {act.badge > 99 ? '99+' : act.badge}
+            </span>
+          {/if}
         </div>
         <ChevronRight size={16} class="text-slate-300 flex-shrink-0" />
       </button>

@@ -17,6 +17,7 @@
     onUpdateSubtasks?: (subtasks: Subtask[]) => void
     onClose: () => void; onProgress: () => void; onEdit: () => void; onDelete: () => void
     onAccept: () => void; onReject: () => void
+    onRemindMember?: (c: Contributor) => void
   }
   const STATUS_STYLE: Record<string,{bg:string;text:string;dot:string}> = {
     not_started:{bg:'bg-slate-100',text:'text-slate-600',dot:'#94A3B8'},
@@ -29,7 +30,7 @@
   const PRIORITY_LABEL: Record<string,string> = { low:'Rendah', medium:'Sedang', high:'Tinggi' }
   const PRIORITY_DOT: Record<string,string> = { low:'#94A3B8', medium:'#F59E0B', high:'#EF4444' }
 
-  let { task: t, userId, contributors, myAssignment: myA, canEdit, canDelete, isPinned, onTogglePin, onUpdateSubtasks, due, formatDateShort, getUserName, getInitials, getAvatarGradient, onClose, onProgress, onEdit, onDelete, onAccept, onReject }: Props = $props()
+  let { task: t, userId, contributors, myAssignment: myA, canEdit, canDelete, isPinned, onTogglePin, onUpdateSubtasks, due, formatDateShort, getUserName, getInitials, getAvatarGradient, onClose, onProgress, onEdit, onDelete, onAccept, onReject, onRemindMember }: Props = $props()
   let statusStyle = $derived(STATUS_STYLE[t.status])
 
   let newSubtaskTitle = $state('')
@@ -111,6 +112,7 @@
         </div>
       {/if}
 
+
       <div class="grid grid-cols-2 gap-4">
         <div class="bg-gradient-to-br from-slate-50 to-white border-2 border-slate-100 rounded-[1.5rem] p-4 shadow-sm">
           <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Tanggal Mulai</p>
@@ -176,6 +178,11 @@
                   {c.status==='accepted'?'Aktif':c.status==='pending'?'Menunggu':'Selesai'}
                 </span>
               </div>
+              {#if canEdit && c.id !== userId && c.status !== 'completed' && onRemindMember}
+                <button onclick={(e) => { e.stopPropagation(); onRemindMember(c); }} class="ml-1 w-7 h-7 rounded-full bg-orange-50 text-orange-500 hover:bg-orange-100 hover:text-orange-600 flex items-center justify-center transition-colors shadow-sm" title="Kirim Pengingat">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                </button>
+              {/if}
             </div>
           {/each}
         </div>

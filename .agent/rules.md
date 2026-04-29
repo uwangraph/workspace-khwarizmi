@@ -49,9 +49,25 @@ $effect(async () => { ... })
 
 ## 2. Supabase Patterns
 
-### ✅ Parallel Data Fetching
+### ✅ Service Layer Architecture (Wajib)
+Semua akses database dan autentikasi tidak boleh dipanggil langsung dari komponen UI (`.svelte`). 
+Semua interaksi dengan Supabase HARUS dialihkan ke file `service` yang sesuai (di dalam folder `src/lib/services/`).
+Komponen UI hanya bertugas menangani tampilan, event, dan state.
+
 ```typescript
-// ✅ BENAR — fetch paralel dengan Promise.all
+// ✅ BENAR — Menggunakan Service Layer dari file .svelte
+const { data: p } = await authService.getProfile(user.id)
+const tasks = await taskService.getTasks(user.id, profile.role)
+const result = await adminService.deleteUser(id)
+
+// ❌ SALAH — Memanggil Supabase langsung dari komponen UI
+const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+const { error } = await supabase.auth.signOut()
+```
+
+### ✅ Parallel Data Fetching di Service
+```typescript
+// ✅ BENAR — fetch paralel dengan Promise.all di dalam method service
 const [profileRes, attendRes, taskRes] = await Promise.all([
   supabase.from('profiles').select('*').eq('id', u.id).single(),
   supabase.from('attendance').select('*').eq('user_id', u.id),

@@ -16,6 +16,8 @@
   import ChangePasswordModal from '$lib/components/profile/ChangePasswordModal.svelte'
   import ChangeEmailModal from '$lib/components/profile/ChangeEmailModal.svelte'
   import { unreadCount } from '$lib/stores/notificationStore'
+  import { getContext } from 'svelte'
+  import type { Writable } from 'svelte/store'
 
   let user = $state<User | null>(null)
   let profile = $state<UserProfileType | null>(null)
@@ -45,6 +47,23 @@
   function formatMonthYear(iso: string|null|undefined) { return iso ? new Date(iso).toLocaleDateString('id-ID',{month:'long',year:'numeric'}) : null }
   let completionRate = $derived(taskSummary.total > 0 ? Math.round((taskSummary.done / taskSummary.total) * 100) : 0)
 
+  const deletionStore = getContext<Writable<boolean>>('deletionStore')
+  let isDataHidden = $state(false)
+
+  $effect(() => {
+    const unsubscribe = deletionStore?.subscribe(value => {
+      isDataHidden = value
+      if (value) {
+        attendanceDays = 0
+        taskSummary = { total: 0, done: 0, in_progress: 0, todo: 0, review: 0 }
+      } else if (!isLoading && user) {
+        // If data was hidden but now it's not, we might need to reload stats
+        // But loadData handles the initial load anyway
+      }
+    })
+    return unsubscribe
+  })
+
   async function loadData() {
     isLoading = true
     const u = await authService.getUser()
@@ -55,6 +74,11 @@
     if (p) { 
       profile = p as UserProfileType
       avatarPreview = p.avatar_url || null 
+    }
+
+    if (isDataHidden) {
+      isLoading = false
+      return
     }
 
     // Only fetch total attendance days, no need for full today data if unused
@@ -184,7 +208,7 @@
 
       <InfoSection title="Navigasi" actions={[
         { Icon: ClipboardList, label: 'Daftar Tugas', href: '/tasks',         bg: 'bg-orange-50', iconColor: 'text-orange-600', onClick: () => location.assign('/tasks') },
-        { Icon: Bell,          label: 'Notifikasi',   href: '/notifications', bg: 'bg-amber-50',  iconColor: 'text-amber-600',  badge: $unreadCount, onClick: () => location.assign('/notifications') },
+        { Icon: Bell,          label: 'Notifikasi',   href: '/notifications', bg: 'bg-amber-50',  iconColor: 'text-amber-600',  badge: isDataHidden ? 0 : $unreadCount, onClick: () => location.assign('/notifications') },
         { Icon: Clock,         label: 'Kehadiran',    href: '/absensi',       bg: 'bg-green-50',  iconColor: 'text-green-600',  onClick: () => location.assign('/absensi') },
       ]} />
 
@@ -213,7 +237,7 @@
         <p class="text-sm text-slate-500 mb-5">Anda perlu login ulang setelah keluar.</p>
         <div class="flex gap-3">
           <button onclick={() => showLogoutModal = false} class="flex-1 py-3 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 cursor-pointer">Batal</button>
-          <button onclick={signOut} class="flex-1 py-3 rounded-xl text-sm font-semibold text-white cursor-pointer" style="background:#DC2626;">Ya, Keluar</button>
+          <button onclick={logout} class="flex-1 py-3 rounded-xl text-sm font-semibold text-white cursor-pointer" style="background:#DC2626;">Ya, Keluar</button>
         </div>
       </div>
     </div>

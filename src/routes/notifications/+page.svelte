@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { getContext } from 'svelte'
+  import type { Writable } from 'svelte/store'
   import { onMount, onDestroy } from 'svelte'
   import { supabase } from '$lib/supabase'  // kept for realtime channel
   import toast from 'svelte-french-toast'
@@ -22,6 +24,32 @@
   let loadError = $state<string | null>(null)
   let showClearAllModal = $state(false)
   let isClearingAll = $state(false)
+  let notifSubscription: any = null
+
+  const deletionStore = getContext<Writable<boolean>>('deletionStore')
+  let isDataHidden = $state(false)
+
+  $effect(() => {
+    const unsubscribe = deletionStore?.subscribe(value => {
+      isDataHidden = value
+      if (value) {
+        notifications = []
+        if (notifSubscription) {
+            notifSubscription.unsubscribe()
+            notifSubscription = null
+        }
+      } else if (!isLoading && user) {
+        fetchNotifications()
+      }
+    })
+    return unsubscribe
+  })
+  
+  let showReplyModal = $state(false)
+  let replyMessage = $state('')
+  let replyTarget = $state<{ id: string, name: string, taskTitle?: string, taskId?: string } | null>(null)
+  let isSendingReply = $state(false)
+
   let isNavigating = $state(false)
   let notifSearch = $state('')
   let currentPage = $state(1)
@@ -98,7 +126,7 @@
   }
 
   async function fetchNotifications() {
-    if (!user) return; isLoading = true; loadError = null
+    if (!user || isDataHidden) return; isLoading = true; loadError = null
     const { data, error } = await notificationService.getNotifications(user.id)
     if (error) loadError = error.message
     else notifications = (data ?? []) as PageNotification[]
@@ -182,9 +210,54 @@
     isClearingAll = false; showClearAllModal = false
   }
 
-  function onVisible() { if (document.visibilityState==='visible' && user) fetchNotifications() }
+  function handleReply(n: PageNotification, e: Event) {
+    e.stopPropagation()
+    const d = n.data as any
+    if (!d || !d.sender_id) return
+    
+    replyTarget = {
+      id: d.sender_id,
+      name: d.sender_name || 'Admin',
+      taskTitle: d.task_title,
+      taskId: d.task_id
+    }
+    replyMessage = ''
+    showReplyModal = true
+    
+    if (!n.is_read) markAsRead(n.id)
+  }
 
-  let notifSubscription: any;
+  async function submitReply() {
+    if (!user || !replyTarget || !replyMessage.trim() || isSendingReply) return
+    isSendingReply = true
+    
+    const title = `Balasan: ${replyTarget.taskTitle || 'Tugas'}`
+    const message = replyMessage.trim()
+    
+    const success = await notificationService.send(
+      replyTarget.id,
+      'task_revision',
+      title,
+      message,
+      {
+        is_reply: true,
+        replied_to_task_id: replyTarget.taskId,
+        replied_to_task_title: replyTarget.taskTitle,
+        sender_name: user.user_metadata?.full_name || user.email
+      }
+    )
+
+    if (success) {
+      toast.success('Balasan terkirim')
+      showReplyModal = false
+    } else {
+      toast.error('Gagal mengirim balasan')
+    }
+    
+    isSendingReply = false
+  }
+
+  function onVisible() { if (document.visibilityState==='visible' && user) fetchNotifications() }
 
   onMount(async () => {
     const u = await authService.getUser()
@@ -293,6 +366,11 @@
                         <div class="flex items-center justify-between gap-2">
                           <span class="text-[10px] {n.is_read ? 'text-slate-300' : 'text-slate-400'}">{formatDetail(n.created_at)}</span>
                           <div class="flex gap-2">
+                            {#if n.data && (n.data as any).is_admin_reminder && (n.data as any).sender_id}
+                              <button onclick={(e) => handleReply(n, e)} class="text-[10px] font-bold text-white px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 shadow-sm transition-all active:scale-95 cursor-pointer">
+                                BALAS
+                              </button>
+                            {/if}
                             <button onclick={(e) => toggleRead(n, e)} class="text-[10px] font-bold {n.is_read ? 'text-slate-300 hover:text-orange-600' : 'text-orange-600 px-2 py-1 rounded-md bg-orange-50 hover:bg-orange-100'} transition-colors cursor-pointer sm:opacity-0 sm:group-hover:opacity-100">
                               {n.is_read ? 'BELUM DIBACA' : 'TANDAI'}
                             </button>
@@ -333,6 +411,57 @@
   </div>
 {/if}
 
+{#if showReplyModal && replyTarget}
+  <div class="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4" style="background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);" onclick={() => !isSendingReply && (showReplyModal = false)}>
+    <div class="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col" style="animation:slideUp .3s ease-out;" onclick={(e) => e.stopPropagation()}>
+      <div class="px-8 pt-8 pb-6">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h3 class="text-xl font-black text-slate-900" style="font-family:'Plus Jakarta Sans',sans-serif;">Balas Pengingat</h3>
+            <p class="text-xs font-medium text-slate-500 mt-1">Kepada: <span class="font-bold text-orange-600">{replyTarget.name}</span></p>
+          </div>
+          <button onclick={() => showReplyModal = false} class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 transition-all">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <div class="mb-6 bg-orange-50/50 border border-orange-100 rounded-2xl p-4">
+          <p class="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-1">Tugas Terkait</p>
+          <p class="text-sm font-bold text-slate-800">{replyTarget.taskTitle || 'Tugas Tanpa Judul'}</p>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Pesan Balasan</label>
+            <textarea 
+              bind:value={replyMessage}
+              placeholder="Contoh: Baik bos, segera saya selesaikan..."
+              rows="4"
+              class="w-full rounded-2xl border-2 border-slate-100 bg-slate-50/50 px-5 py-4 text-sm font-medium text-slate-800 outline-none focus:border-orange-400 focus:bg-white transition-all resize-none shadow-inner"
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="flex gap-3 mt-8 mb-4">
+          <button onclick={() => showReplyModal = false} disabled={isSendingReply} class="flex-1 py-4 rounded-2xl text-sm font-bold text-slate-400 hover:bg-slate-100 transition-all">Batal</button>
+          <button onclick={submitReply} disabled={isSendingReply || !replyMessage.trim()} 
+                  class="flex-[2] py-4 rounded-2xl text-sm font-black text-white shadow-xl shadow-orange-500/20 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                  style="background: linear-gradient(135deg, #F97316, #EA580C);">
+            {#if isSendingReply}
+              <svg class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
+              <span>Mengirim...</span>
+            {:else}
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+              <span>Kirim Balasan</span>
+            {/if}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <style>
   @keyframes zoomIn { from { transform:scale(.9); opacity:0 } to { transform:scale(1); opacity:1 } }
+  @keyframes slideUp { from { transform:translateY(100%); opacity:0 } to { transform:translateY(0); opacity:1 } }
 </style>

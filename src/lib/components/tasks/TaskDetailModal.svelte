@@ -179,8 +179,12 @@
                 </span>
               </div>
               {#if canEdit && c.id !== userId && c.status !== 'completed' && onRemindMember}
-                <button onclick={(e) => { e.stopPropagation(); onRemindMember(c); }} class="ml-1 w-7 h-7 rounded-full bg-orange-50 text-orange-500 hover:bg-orange-100 hover:text-orange-600 flex items-center justify-center transition-colors shadow-sm" title="Kirim Pengingat">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                <button 
+                  onclick={(e) => { e.stopPropagation(); onRemindMember(c); }} 
+                  class="ml-2 w-8 h-8 rounded-xl bg-orange-50 text-orange-500 hover:bg-orange-500 hover:text-white flex items-center justify-center transition-all duration-200 shadow-sm group/bell" 
+                  title={c.status === 'pending' ? 'Ingatkan untuk bergabung' : 'Ingatkan progress tugas'}
+                >
+                  <svg class="w-4 h-4 transition-transform group-hover/bell:rotate-12" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
                 </button>
               {/if}
             </div>

@@ -9,6 +9,18 @@ function getLocalDate(): string {
   return wib.toISOString().split('T')[0];
 }
 
+async function checkDeletionStatus() {
+  const { data: settings } = await supabase.from('app_settings').select('deletion_scheduled_at').eq('id', 1).single();
+  if (settings?.deletion_scheduled_at) {
+    const scheduledAt = new Date(settings.deletion_scheduled_at).getTime();
+    const now = Date.now();
+    // Jika masih dalam jendela 24 jam
+    if (now - scheduledAt < 24 * 60 * 60 * 1000) {
+      throw new Error('Sistem sedang dikunci karena pembersihan data dijadwalkan. Silakan hubungi Admin.');
+    }
+  }
+}
+
 export const attendanceService = {
   async getTodayData(userId: string) {
     const today = getLocalDate();
@@ -22,7 +34,7 @@ export const attendanceService = {
 
     let thursdayRule = null;
     if (new Date().getDay() === 4) {
-      const { data } = await supabase.from('thursday_rules').select('*').eq('date', today).single();
+      const { data } = await supabase.from('thursday_rules').select('*').eq('date', today).maybeSingle();
       thursdayRule = data;
     }
 
@@ -46,6 +58,7 @@ export const attendanceService = {
   },
 
   async submitCheckIn(userId: string, sessionId: number, publicUrl: string, isLate: boolean, lateReason?: string | null) {
+    await checkDeletionStatus();
     const today = getLocalDate();
     return await supabase.from('attendance').insert({ 
       user_id: userId, 
@@ -59,6 +72,7 @@ export const attendanceService = {
   },
 
   async submitCheckOut(userId: string, sessionId: number, publicUrl: string) {
+    await checkDeletionStatus();
     const today = getLocalDate();
     return await supabase.from('attendance')
       .update({ check_out: new Date().toISOString(), photo_out_url: publicUrl })
@@ -84,6 +98,7 @@ export const attendanceService = {
   },
 
   async submitLeave(userId: string, type: 'izin' | 'sakit', reason: string, sessionId: number | null) {
+    await checkDeletionStatus();
     return await supabase.from('attendance_leaves').insert({ 
       user_id: userId, 
       date: getLocalDate(), 

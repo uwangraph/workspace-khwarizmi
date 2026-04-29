@@ -79,6 +79,9 @@
   let isSavingThursday     = $state(false)
   let isDeletingThursday   = $state(false)
   let isSavingSettings     = $state(false)
+  let isClearingData       = $state(false)
+  let showClearDataModal   = $state(false)
+  let showImmediateDeleteModal = $state(false)
 
   // Toast
   let toastMsg     = $state('')
@@ -86,7 +89,8 @@
   let toastVisible = $state(false)
   let toastTimer   = 0
 
-  const attendanceMonth = $derived(new Date().toISOString().slice(0, 7))
+  let selectedMonth = $state(new Date().toISOString().slice(0, 7))
+  let rekapMode     = $state<'monthly' | 'yearly'>('monthly')
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   function showToast(msg: string, type: 'success' | 'error' | 'info' = 'success') {
@@ -96,7 +100,7 @@
   }
 
   // ── Load Data ──────────────────────────────────────────────────────────────
-  async function loadData() {
+  async function loadData(month?: string) {
     isLoading = true
     const u = await authService.getUser()
     if (!u) { location.assign('/auth'); return }
@@ -106,15 +110,24 @@
     if (!p || p.role !== 'admin') { location.assign('/'); return }
     profile = p
 
-    const data = await adminService.fetchAllData()
+    const data = await adminService.fetchAllData(month || selectedMonth)
     allUsers = data.users as Profile[]
-    allTasks = data.tasks as Task[]
-    allAttendance = data.attendance as AttendanceRecord[]
-    allAssignments = data.assignments as TaskAssignment[]
     holidays = data.holidays as Holiday[]
     appSettings = data.settings as AppSetting
-    allLeaves = data.leaves as AttendanceLeave[]
     thursdayRules = data.thursdayRules as ThursdayRule[]
+
+    // Jika sedang dalam masa "Pembuangan Data" (24 jam), kosongkan data transaksinya dari UI
+    if (appSettings?.deletion_scheduled_at) {
+      allTasks = []
+      allAttendance = []
+      allAssignments = []
+      allLeaves = []
+    } else {
+      allTasks = data.tasks as Task[]
+      allAttendance = data.attendance as AttendanceRecord[]
+      allAssignments = data.assignments as TaskAssignment[]
+      allLeaves = data.leaves as AttendanceLeave[]
+    }
 
     isLoading = false
   }
@@ -283,6 +296,52 @@
     showToast('Pengaturan sistem berhasil disimpan', 'success')
   }
 
+  async function clearAllData() {
+    isClearingData = true
+    try {
+      await adminService.scheduleDeletion()
+      showToast('Pembersihan dijadwalkan! Aplikasi dibekukan selama 24 jam.', 'success')
+      showClearDataModal = false
+      // Reload untuk memicu overlay global dari layout
+      setTimeout(() => location.reload(), 1000);
+    } catch (err: any) {
+      showToast(err.message || 'Gagal menjadwalkan pembersihan', 'error')
+    } finally {
+      isClearingData = false
+    }
+  }
+
+  async function cancelClearData() {
+    isClearingData = true
+    try {
+      await adminService.cancelDeletion()
+      showToast('Penghapusan data berhasil dibatalkan!', 'success')
+      setTimeout(() => location.reload(), 1000);
+    } catch (err: any) {
+      showToast('Gagal membatalkan penghapusan', 'error')
+    } finally {
+      isClearingData = false
+    }
+  }
+  async function executeImmediateDeletion() {
+    showImmediateDeleteModal = true
+  }
+
+  async function confirmImmediateDelete() {
+    showImmediateDeleteModal = false
+    isClearingData = true
+    try {
+      await adminService.clearAllTransactionData()
+      await adminService.cancelDeletion()
+      showToast('Data berhasil dihapus permanen!', 'success')
+      setTimeout(() => location.reload(), 1000)
+    } catch (err: any) {
+      showToast('Gagal menghapus data secara instan', 'error')
+    } finally {
+      isClearingData = false
+    }
+  }
+
   // ── Leave Actions ──────────────────────────────────────────────────────────
   async function updateLeaveStatus(leave: AttendanceLeave, status: 'approved' | 'rejected') {
     if (!profile) return
@@ -355,7 +414,14 @@
                        onUpdateLeave={updateLeaveStatus} />
 
       {:else if activeTab === 'rekap'}
-        <RekapTab {allUsers} {allTasks} {allAssignments} {allAttendance} {holidays} />
+        <RekapTab {allUsers} {allTasks} {allAssignments} {allAttendance} {holidays}
+                  {selectedMonth} {rekapMode}
+                  onMonthChange={m => { selectedMonth = m; loadData(m) }}
+                  onModeChange={mode => { 
+                    rekapMode = mode; 
+                    selectedMonth = mode === 'yearly' ? new Date().getFullYear().toString() : new Date().toISOString().slice(0, 7);
+                    loadData(selectedMonth);
+                  }} />
 
       {:else if activeTab === 'holidays'}
         <HolidaysTab {holidays} {thursdayRules}
@@ -367,7 +433,11 @@
       {:else if activeTab === 'settings'}
         <SettingsTab settings={appSettings}
                      onSave={saveSettings}
-                     isSaving={isSavingSettings} />
+                     onClearData={() => showClearDataModal = true}
+                     onCancelClearData={cancelClearData}
+                     onExecuteImmediateDeletion={executeImmediateDeletion}
+                     isSaving={isSavingSettings}
+                     isClearing={isClearingData} />
       {/if}
     </main>
 
@@ -402,6 +472,15 @@
     isDeleting={isDeletingTask}
     onConfirm={deleteTask}
     onClose={() => showDeleteTaskModal = false} />
+{/if}
+
+{#if showImmediateDeleteModal}
+  <DeleteConfirmModal
+    title="Konfirmasi Penghapusan Instan"
+    message="<div class='bg-red-50 p-3 rounded-xl border border-red-100 mb-2'><p class='text-red-600 font-bold text-xs'>PERINGATAN KERAS!</p><p class='text-[10px] text-red-500'>Tindakan ini akan menghapus seluruh data tugas, absensi, dan notifikasi <strong>SAAT INI JUGA</strong> tanpa menunggu masa 24 jam.</p></div><p class='text-xs text-slate-500'>Apakah Anda yakin ingin melanjutkan penghapusan permanen?</p>"
+    isDeleting={isClearingData}
+    onConfirm={confirmImmediateDelete}
+    onClose={() => showImmediateDeleteModal = false} />
 {/if}
 
 {#if showTaskDetailModal && detailTask}
@@ -450,4 +529,13 @@
   <ReminderModal user={reminderTarget}
                  onClose={() => showReminderModal = false}
                  onSubmit={submitReminder} />
+{/if}
+
+{#if showClearDataModal}
+  <DeleteConfirmModal
+    title="Jadwalkan Pembersihan?"
+    message="Seluruh data <strong>Tugas, Absensi, Notifikasi, dan Token</strong> akan dihapus secara permanen.<br/><br/>Aplikasi akan dibekukan selama 24 jam. Dalam masa itu, Anda masih bisa membatalkannya."
+    isDeleting={isClearingData}
+    onConfirm={clearAllData}
+    onClose={() => showClearDataModal = false} />
 {/if}

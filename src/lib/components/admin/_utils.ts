@@ -71,11 +71,20 @@ export function getHolidayName(date: string, holidays: Holiday[]): string | null
  * Mengecualikan: Sabtu, Minggu, JUMAT (libur mingguan), dan hari libur terdaftar.
  * Kamis tetap 1 hari kerja (meski hanya sesi pagi).
  */
-export function getWorkingDays(month: string, holidays: Holiday[]): number {
-  const [year, m] = month.split('-').map(Number)
+export function getWorkingDays(period: string, holidays: Holiday[]): number {
+  // Jika formatnya YYYY (Tahunan)
+  if (period.length === 4) {
+    let total = 0
+    for (let m = 1; m <= 12; m++) {
+      total += getWorkingDays(`${period}-${String(m).padStart(2, '0')}`, holidays)
+    }
+    return total
+  }
+
+  const [year, m] = period.split('-').map(Number)
   const daysInMonth = new Date(year, m, 0).getDate()
   const holidaySet = new Set(
-    holidays.filter(h => h.date.startsWith(month)).map(h => h.date)
+    holidays.filter(h => h.date.startsWith(period)).map(h => h.date)
   )
   let count = 0
   for (let d = 1; d <= daysInMonth; d++) {
@@ -125,11 +134,11 @@ export function getUpcomingThursdays(count = 10): string[] {
  */
 export function getMonthlyAttendanceStat(
   userId: string,
-  month: string,
+  period: string,
   attendance: AttendanceRecord[],
   holidays: Holiday[]
 ) {
-  const records = attendance.filter(a => a.user_id === userId && a.date.startsWith(month))
+  const records = attendance.filter(a => a.user_id === userId && a.date.startsWith(period))
   const dateSet = new Set(records.map(r => r.date))
   let totalPresentDays = 0
   let totalLate = 0
@@ -141,7 +150,7 @@ export function getMonthlyAttendanceStat(
     if (dayRecords.some(r => r.late)) totalLate++
   })
 
-  const totalWorkingDays = getWorkingDays(month, holidays)
+  const totalWorkingDays = getWorkingDays(period, holidays)
   const presentRate = totalWorkingDays > 0
     ? Math.round((totalPresentDays / totalWorkingDays) * 100)
     : 0

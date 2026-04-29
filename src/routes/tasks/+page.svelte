@@ -70,7 +70,7 @@
   let formAssignedUsers = $state<string[]>([])
 
   let detailTask = $state<Task | null>(null)
-  let reminderTarget = $state<UserProfile | null>(null)
+  let reminderTarget = $state<{ id: string, full_name: string, status?: string } | null>(null)
 
   let isEditing = $state(false)
   let editingTaskId = $state<string | null>(null)
@@ -224,22 +224,28 @@
     toast(`⏰ ${dueTasks.length === 1 ? 'Deadline hari ini: "'+dueTasks[0].title+'"' : dueTasks.length+' tugas deadline hari ini'}`, { icon: '⏰' })
   }
 
-  function handleRemindMember(c: { id: string, name: string }) {
-    reminderTarget = { id: c.id, full_name: c.name }
+  function handleRemindMember(c: any) {
+    reminderTarget = { id: c.id, full_name: c.name, status: c.status }
     showReminderModal = true
   }
 
   async function submitReminder(message: string) {
     if (!reminderTarget) return
+    const isPending = reminderTarget.status === 'pending'
+    const title = isPending ? 'Konfirmasi Undangan' : `Pengingat: ${detailTask?.title || 'Tugas'}`
+    
     const success = await notificationService.send(
       reminderTarget.id,
       'task_revision',
-      `Pengingat: ${detailTask?.title || 'Tugas'}`,
+      title,
       message,
       { 
         is_admin_reminder: true,
+        sender_id: user?.id,
+        sender_name: profile?.full_name || user?.email,
         task_id: detailTask?.id,
-        task_title: detailTask?.title
+        task_title: detailTask?.title,
+        status_at_reminder: reminderTarget.status
       }
     )
 
@@ -250,6 +256,9 @@
       toast.error('Gagal mengirim pengingat')
     }
   }
+
+  import { getContext } from 'svelte'
+  import type { Writable } from 'svelte/store'
 
   async function loadData() {
     isLoading = true
@@ -266,18 +275,36 @@
     isLoading = false
   }
 
+  const deletionStore = getContext<Writable<boolean>>('deletionStore')
+  let isDataHidden = $state(false)
+  
+  $effect(() => {
+    const unsubscribe = deletionStore.subscribe(value => {
+      isDataHidden = value
+      if (value) {
+        tasks = []
+        assignments = []
+        allAssignments = []
+      } else if (!isLoading && user) {
+        // Reload data if deletion is cancelled
+        loadTasks().then(() => Promise.all([loadAssignments(), loadAllAssignments()]))
+      }
+    })
+    return unsubscribe
+  })
+
   async function loadTasks() {
-    if (!user || !profile) return
+    if (!user || !profile || isDataHidden) return
     tasks = await taskService.getTasks(user.id, profile.role)
   }
 
   async function loadAssignments() {
-    if (!user) return
+    if (!user || isDataHidden) return
     assignments = await taskService.getAssignments(user.id)
   }
 
   async function loadAllAssignments() {
-    if (tasks.length === 0) { allAssignments = []; return }
+    if (tasks.length === 0 || isDataHidden) { allAssignments = []; return }
     allAssignments = await taskService.getAllAssignments(tasks.map(t => t.id))
   }
 

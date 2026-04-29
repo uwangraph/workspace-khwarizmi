@@ -9,6 +9,8 @@
   import { attendanceService } from '$lib/services/attendanceService'
   import { notificationService } from '$lib/services/notificationService'
   import type { Profile, Task, AttendanceRecord, AppNotification } from '$lib/type'
+  import { getContext } from 'svelte'
+  import type { Writable } from 'svelte/store'
 
   import HeroCard from '$lib/components/dashboard/HeroCard.svelte'
   import AttendanceSummary from '$lib/components/dashboard/AttendanceSummary.svelte'
@@ -49,6 +51,28 @@
   let isLoading = $state(true), gpsActive = $state(false), isNavigating = $state(false), now = $state(new Date())
   let clockInterval: ReturnType<typeof setInterval>
   let notifSubscription: any;
+
+  const deletionStore = getContext<Writable<boolean>>('deletionStore')
+  let isDataHidden = $state(false)
+
+  $effect(() => {
+    const unsubscribe = deletionStore?.subscribe(value => {
+      isDataHidden = value
+      if (value) {
+        attendance = []
+        tasks = []
+        notifications = []
+        if (notifSubscription) {
+            supabase.removeChannel(notifSubscription)
+            notifSubscription = null
+        }
+      } else if (!isLoading && user) {
+        // Data di-load kembali di loadData(), jadi tidak perlu di sini kecuali jika batal on-the-fly.
+        // Berhubung kita panggil location.reload() di layout saat batal, aman untuk dibiarkan.
+      }
+    })
+    return unsubscribe
+  })
 
   onMount(() => { 
     clockInterval = setInterval(() => { now = new Date() }, 60000); 
@@ -94,6 +118,11 @@
     const { data: p } = await authService.getProfile(u.id)
     if (p) profile = p as Profile
     
+    if (isDataHidden) {
+      isLoading = false
+      return
+    }
+
     const { attendance: attend, appSettings } = await attendanceService.getTodayData(u.id)
     attendance = (attend as any[]) || []
     

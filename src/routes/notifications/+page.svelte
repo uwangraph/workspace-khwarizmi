@@ -1,7 +1,7 @@
 <script lang="ts">
   import { getContext } from 'svelte'
   import type { Writable } from 'svelte/store'
-  import { onMount, onDestroy } from 'svelte'
+  import { onMount, onDestroy, untrack } from 'svelte'
   import { supabase } from '$lib/supabase'  // kept for realtime channel
   import toast from 'svelte-french-toast'
   import LoadingSpinner from '$lib/components/shared/LoadingSpinner.svelte'
@@ -39,8 +39,13 @@
             notifSubscription.unsubscribe()
             notifSubscription = null
         }
-      } else if (!isLoading && user) {
-        fetchNotifications()
+      } else {
+        // Use untrack to prevent this effect from re-running when isLoading or user changes
+        const currentLoading = untrack(() => isLoading);
+        const currentUser = untrack(() => user);
+        if (!currentLoading && currentUser) {
+          fetchNotifications()
+        }
       }
     })
     return unsubscribe

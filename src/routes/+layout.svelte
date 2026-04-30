@@ -71,7 +71,7 @@
                             body: newNotif.message,
                             icon: '/logo-khwarizmi-192.png',
                             badge: '/logo-khwarizmi-192.png',
-                            tag: 'khwarizmi-notif'
+                            tag: 'notif-' + Date.now()
                         });
                         systemNotif.onclick = () => {
                             window.focus();

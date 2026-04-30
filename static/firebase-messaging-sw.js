@@ -20,7 +20,7 @@ messaging.onBackgroundMessage((payload) => {
     body: payload.notification?.body || payload.data?.message || 'Anda mendapatkan notifikasi baru dari Workspace Khwarizmi',
     icon: '/logo-khwarizmi-192.png',
     badge: '/logo-khwarizmi-192.png',
-    tag: 'khwarizmi-notif',
+    tag: 'notif-' + Date.now(),
     data: payload.data
   };
 

@@ -46,6 +46,20 @@
                 if (newNotif && newNotif.title) {
                     toast.success(`${newNotif.title}\n${newNotif.message}`, { duration: 5000, position: 'top-center' });
                     incrementUnread();
+                    
+                    // Munculkan notifikasi sistem (push) jika tab sedang tidak aktif/tersembunyi
+                    if (document.visibilityState === 'hidden' && 'Notification' in window && Notification.permission === 'granted') {
+                        const systemNotif = new Notification(newNotif.title, {
+                            body: newNotif.message,
+                            icon: '/logo-khwarizmi-192.png',
+                            badge: '/logo-khwarizmi-192.png',
+                            tag: 'khwarizmi-notif'
+                        });
+                        systemNotif.onclick = () => {
+                            window.focus();
+                            systemNotif.close();
+                        };
+                    }
                 }
             });
 

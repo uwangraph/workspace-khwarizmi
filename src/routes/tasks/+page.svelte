@@ -6,6 +6,7 @@
   import { flip } from 'svelte/animate'
   import { fade, fly } from 'svelte/transition'
   import toast from 'svelte-french-toast'
+  import { ClipboardList, X, Clock } from 'lucide-svelte'
   
   import { authService } from '$lib/services/authService'
   import { taskService } from '$lib/services/taskService'
@@ -70,7 +71,7 @@
   let formAssignedUsers = $state<string[]>([])
 
   let detailTask = $state<Task | null>(null)
-  let reminderTarget = $state<UserProfile | null>(null)
+  let reminderTarget = $state<{ id: string, full_name: string, status?: string } | null>(null)
 
   let isEditing = $state(false)
   let editingTaskId = $state<string | null>(null)
@@ -221,25 +222,33 @@
     if (!dueTasks.length) return
     for (const t of dueTasks) await insertNotification(user.id, 'task_deadline_today', 'Deadline Hari Ini', `Tugas "${t.title}" harus diselesaikan hari ini.`, { task_id: t.id, task_title: t.title })
     localStorage.setItem(storageKey, JSON.stringify([...alreadyNotified, ...dueTasks.map(t => t.id)]))
-    toast(`⏰ ${dueTasks.length === 1 ? 'Deadline hari ini: "'+dueTasks[0].title+'"' : dueTasks.length+' tugas deadline hari ini'}`, { icon: '⏰' })
+    toast(`${dueTasks.length === 1 ? 'Deadline hari ini: "'+dueTasks[0].title+'"' : dueTasks.length+' tugas deadline hari ini'}`, { 
+      icon: 'Clock' // French toast accepts component name or string, but better to use a string or simple icon
+    })
   }
 
-  function handleRemindMember(c: { id: string, name: string }) {
-    reminderTarget = { id: c.id, full_name: c.name }
+  function handleRemindMember(c: any) {
+    reminderTarget = { id: c.id, full_name: c.name, status: c.status }
     showReminderModal = true
   }
 
   async function submitReminder(message: string) {
     if (!reminderTarget) return
+    const isPending = reminderTarget.status === 'pending'
+    const title = isPending ? 'Konfirmasi Undangan' : `Pengingat: ${detailTask?.title || 'Tugas'}`
+    
     const success = await notificationService.send(
       reminderTarget.id,
       'task_revision',
-      `Pengingat: ${detailTask?.title || 'Tugas'}`,
+      title,
       message,
       { 
         is_admin_reminder: true,
+        sender_id: user?.id,
+        sender_name: profile?.full_name || user?.email,
         task_id: detailTask?.id,
-        task_title: detailTask?.title
+        task_title: detailTask?.title,
+        status_at_reminder: reminderTarget.status
       }
     )
 
@@ -250,6 +259,9 @@
       toast.error('Gagal mengirim pengingat')
     }
   }
+
+  import { getContext } from 'svelte'
+  import type { Writable } from 'svelte/store'
 
   async function loadData() {
     isLoading = true
@@ -266,18 +278,36 @@
     isLoading = false
   }
 
+  const deletionStore = getContext<Writable<boolean>>('deletionStore')
+  let isDataHidden = $state(false)
+  
+  $effect(() => {
+    const unsubscribe = deletionStore.subscribe(value => {
+      isDataHidden = value
+      if (value) {
+        tasks = []
+        assignments = []
+        allAssignments = []
+      } else if (!isLoading && user) {
+        // Reload data if deletion is cancelled
+        loadTasks().then(() => Promise.all([loadAssignments(), loadAllAssignments()]))
+      }
+    })
+    return unsubscribe
+  })
+
   async function loadTasks() {
-    if (!user || !profile) return
+    if (!user || !profile || isDataHidden) return
     tasks = await taskService.getTasks(user.id, profile.role)
   }
 
   async function loadAssignments() {
-    if (!user) return
+    if (!user || isDataHidden) return
     assignments = await taskService.getAssignments(user.id)
   }
 
   async function loadAllAssignments() {
-    if (tasks.length === 0) { allAssignments = []; return }
+    if (tasks.length === 0 || isDataHidden) { allAssignments = []; return }
     allAssignments = await taskService.getAllAssignments(tasks.map(t => t.id))
   }
 
@@ -543,7 +573,9 @@
             </div>
             
             {#if filteredTasks.length === 0}
-              <EmptyState title="Tidak Ada Tugas" subtitle="Belum ada tugas yang sesuai." emoji="📋" />
+              <EmptyState title="Tidak Ada Tugas" subtitle="Belum ada tugas yang sesuai.">
+                <ClipboardList size={40} class="text-slate-200" />
+              </EmptyState>
             {:else}
               <div class="flex flex-col gap-3.5">
                 {#each paginatedTasks as t (t.id)}
@@ -580,7 +612,9 @@
   {#if isSelectionMode}
     <div class="fixed bottom-24 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-slate-900 text-white rounded-2xl p-3 shadow-2xl flex items-center justify-between z-40" transition:fly={{ y: 50, duration: 250 }}>
       <div class="flex items-center gap-3">
-        <button onclick={() => { isSelectionMode = false; selectedTaskIds = [] }} class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-700 transition-colors">✕</button>
+        <button onclick={() => { isSelectionMode = false; selectedTaskIds = [] }} class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-700 transition-colors">
+          <X size={16} />
+        </button>
         <div class="flex flex-col">
           <span class="text-sm font-bold leading-tight">{selectedTaskIds.length} tugas dipilih</span>
           {#if selectedTaskIds.length !== filteredTasks.length}

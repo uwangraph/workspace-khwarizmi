@@ -1,17 +1,30 @@
 import { supabase } from '$lib/supabase';
 
 export const adminService = {
-  async fetchAllData(attendanceMonth?: string) {
-    const month = attendanceMonth || new Date().toISOString().slice(0, 7);
+  async fetchAllData(period?: string) {
+    // period can be 'YYYY-MM' or 'YYYY'
+    const isYearly = period && period.length === 4;
+    const month = period || new Date().toISOString().slice(0, 7);
+    
+    let startDate, endDate;
+    if (isYearly) {
+      startDate = `${period}-01-01`;
+      endDate = `${period}-12-31`;
+    } else {
+      const [year, m] = month.split('-').map(Number);
+      const lastDay = new Date(year, m, 0).getDate();
+      startDate = `${month}-01`;
+      endDate = `${month}-${lastDay}`;
+    }
+
     const [usersRes, tasksRes, attendRes, assignRes, holidaysRes, settingsRes, leavesRes, thursdayRes] = await Promise.all([
       supabase.from('profiles').select('*').order('full_name'),
       supabase.from('tasks').select('*').order('created_at', { ascending: false }),
-      // Filter attendance to current month to avoid fetching all historical data
-      supabase.from('attendance').select('*').gte('date', `${month}-01`).lte('date', `${month}-31`).order('date', { ascending: false }),
+      supabase.from('attendance').select('*').gte('date', startDate).lte('date', endDate).order('date', { ascending: false }),
       supabase.from('task_assignments').select('*'),
       supabase.from('holidays').select('*').order('date'),
       supabase.from('app_settings').select('*').eq('id', 1).single(),
-      supabase.from('attendance_leaves').select('*').gte('date', `${month}-01`).order('date', { ascending: false }),
+      supabase.from('attendance_leaves').select('*').gte('date', startDate).lte('date', endDate).order('date', { ascending: false }),
       supabase.from('thursday_rules').select('*').order('date')
     ]);
 
@@ -86,5 +99,47 @@ export const adminService = {
 
   async updateLeaveStatus(leaveId: string, status: 'approved' | 'rejected', adminId: string) {
     return await supabase.from('attendance_leaves').update({ status, approved_by: adminId }).eq('id', leaveId);
+  },
+
+  async scheduleDeletion() {
+    const now = new Date().toISOString();
+    return await supabase.from('app_settings').update({ deletion_scheduled_at: now }).eq('id', 1);
+  },
+
+  async cancelDeletion() {
+    return await supabase.from('app_settings').update({ deletion_scheduled_at: null }).eq('id', 1);
+  },
+
+  async checkScheduledDeletion(settings: any) {
+    if (!settings?.deletion_scheduled_at) return false;
+    const scheduledAt = new Date(settings.deletion_scheduled_at).getTime();
+    const now = Date.now();
+    const hours24 = 24 * 60 * 60 * 1000;
+    
+    // Jika sudah lewat 24 jam, eksekusi hapus permanen!
+    if (now - scheduledAt >= hours24) {
+      await this.clearAllTransactionData();
+      await this.cancelDeletion(); // Reset setelah berhasil dihapus
+      return false; // Karena sudah dihapus, status 'menunggu' hilang
+    }
+    return true; // Sedang dalam masa tunggu 24 jam
+  },
+  
+  async clearAllTransactionData() {
+    // Menghapus semua data transaksi/operasional untuk pembersihan sistem
+    const results = await Promise.all([
+      supabase.from('task_assignments').delete().neq('task_id', '00000000-0000-0000-0000-000000000000'), // Delete assignments first to avoid FK constraint errors
+      supabase.from('tasks').delete().neq('id', '00000000-0000-0000-0000-000000000000'), // Delete all tasks
+      supabase.from('attendance').delete().neq('id', '00000000-0000-0000-0000-000000000000'), // Delete all attendance
+      supabase.from('attendance_leaves').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+      supabase.from('attendance_penalties').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+      supabase.from('notifications').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+      supabase.from('fcm_tokens').delete().neq('user_id', '00000000-0000-0000-0000-000000000000')
+    ]);
+
+    const error = results.find(r => r.error);
+    if (error) throw error.error;
+    return { success: true };
   }
 };
+

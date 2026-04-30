@@ -80,5 +80,7 @@ export interface AppSetting {
   office_lat: number
   office_lng: number
   office_radius: number
+  admin_contact: string | null
+  deletion_scheduled_at: string | null
   updated_at: string
 }

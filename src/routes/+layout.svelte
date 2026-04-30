@@ -12,6 +12,10 @@
     let { data, children } = $props();
     let user = $derived(data?.session?.user);
 
+    import { supabase } from '$lib/supabase';
+    import { adminService } from '$lib/services/adminService';
+    import { X, AlertTriangle, RefreshCw } from 'lucide-svelte';
+
     // ── Constants & Layout ──────────────────────────────
     const hiddenNavRoutes = ['/auth', '/login', '/register', '/admin'];
     const showNav = $derived(!hiddenNavRoutes.some((route) => $page.url.pathname.startsWith(route)));
@@ -28,6 +32,20 @@
     let showInstallBanner = $state(false);
     let showIOSInstallBanner = $state(false);
     let audio: HTMLAudioElement;
+
+    // ── Deletion State ─────────────────────────────────
+    import { setContext } from 'svelte';
+    import { writable } from 'svelte/store';
+    
+    let isDeletionScheduled = $state(false);
+    let showDeletionWarning = $state(false);
+    let deletionTimeLeft = $state('');
+    let userRole = $state('user');
+    let isCancelingDeletion = $state(false);
+
+    // Provide deletion state to all pages
+    const deletionStore = writable(false);
+    setContext('deletionStore', deletionStore);
 
     // ── Effects (Realtime & PWA) ───────────────────────
     $effect(() => {
@@ -74,6 +92,14 @@
         };
     });
 
+    // Check session on route change
+    $effect(() => {
+        const path = $page.url.pathname;
+        if (user && !['/auth', '/login', '/register'].some(p => path.startsWith(p))) {
+            validateUserSession();
+        }
+    });
+
     onMount(() => {
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
@@ -91,7 +117,81 @@
             showInstallBanner = false;
             showIOSInstallBanner = false;
         });
+
+        checkDeletionStatus();
+        validateUserSession();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_OUT') {
+                window.location.href = '/auth';
+            }
+            if (event === 'TOKEN_REFRESHED' && !session) {
+                window.location.href = '/auth';
+            }
+        });
+
+        return () => {
+            subscription.unsubscribe();
+        };
     });
+
+    async function validateUserSession() {
+        if (user) {
+            const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('id')
+                .eq('id', user.id)
+                .single();
+            
+            if (error || !profile) {
+                await supabase.auth.signOut();
+                window.location.href = '/auth';
+            }
+        }
+    }
+
+    async function checkDeletionStatus() {
+        if (user) {
+            const { data: p } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+            if (p) userRole = p.role;
+        }
+
+        const { data: settings } = await supabase.from('app_settings').select('deletion_scheduled_at').eq('id', 1).single();
+        if (settings?.deletion_scheduled_at) {
+            const isStillPending = await adminService.checkScheduledDeletion(settings);
+            if (isStillPending) {
+                isDeletionScheduled = true;
+                showDeletionWarning = true;
+                deletionStore.set(true);
+                import('$lib/stores/notificationStore').then(m => m.unreadCount.set(0));
+                updateTimeLeft(settings.deletion_scheduled_at);
+                setInterval(() => updateTimeLeft(settings.deletion_scheduled_at), 60000);
+            }
+        }
+    }
+
+    function updateTimeLeft(scheduledAtStr: string) {
+        const scheduledAt = new Date(scheduledAtStr).getTime();
+        const diff = (24 * 60 * 60 * 1000) - (Date.now() - scheduledAt);
+        if (diff <= 0) {
+            location.reload(); // Waktu habis, reload agar dieksekusi
+        } else {
+            const h = Math.floor(diff / (1000 * 60 * 60));
+            const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            deletionTimeLeft = `${h} jam ${m} menit`;
+        }
+    }
+
+    async function handleCancelDeletion() {
+        isCancelingDeletion = true;
+        await adminService.cancelDeletion();
+        toast.success('Penghapusan data dibatalkan!');
+        isDeletionScheduled = false;
+        showDeletionWarning = false;
+        deletionStore.set(false);
+        isCancelingDeletion = false;
+        setTimeout(() => location.reload(), 1000); // Reload to fetch data again
+    }
 
     // ── Actions ────────────────────────────────────────
     async function installApp() {
@@ -115,6 +215,40 @@
 		? 'relative min-h-screen bg-slate-50 pt-[env(safe-area-inset-top)]'
 		: 'relative mx-auto min-h-screen max-w-xl overflow-hidden bg-white pt-[env(safe-area-inset-top)] shadow-2xl sm:border-x sm:border-slate-200'}
 >
+    {#if showDeletionWarning && $page.url.pathname !== '/auth'}
+        <div class="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-sm transition-all duration-300">
+            <div class="w-full max-w-sm bg-white rounded-3xl p-8 text-center shadow-2xl border-2 border-red-100 relative">
+                <!-- Close Button -->
+                <button onclick={() => showDeletionWarning = false} class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer">
+                    <X size={16} />
+                </button>
+
+                <div class="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-5 animate-pulse">
+                    <AlertTriangle size={40} class="text-red-600" />
+                </div>
+                <h2 class="text-xl font-black text-slate-900 mb-2" style="font-family:'Plus Jakarta Sans',sans-serif;">Pembersihan Dijadwalkan</h2>
+                <p class="text-[13px] text-slate-600 mb-6 leading-relaxed">Seluruh data transaksi disembunyikan dan akan dihapus permanen dalam:</p>
+                <div class="bg-red-50 text-red-600 font-black text-2xl py-3 rounded-2xl mb-6 border border-red-100 tracking-wider">
+                    {deletionTimeLeft || 'Menghitung...'}
+                </div>
+                
+                {#if userRole === 'admin'}
+                    <button onclick={handleCancelDeletion} disabled={isCancelingDeletion}
+                            class="w-full py-3.5 rounded-2xl text-sm font-bold text-white shadow-xl transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                            style="background: linear-gradient(135deg, #EF4444, #B91C1C);">
+                        {#if isCancelingDeletion}
+                            <RefreshCw size={16} class="animate-spin text-white" />
+                            Membatalkan...
+                        {:else}
+                            BATALKAN PENGHAPUSAN
+                        {/if}
+                    </button>
+                    <p class="text-[10px] text-slate-400 mt-4">Anda dapat membatalkan ini dari Admin Panel.</p>
+                {/if}
+            </div>
+        </div>
+    {/if}
+
 	<Toaster
 		position="bottom-center"
 		toastOptions={{

@@ -1,11 +1,12 @@
 import { messaging } from '$lib/firebase';
-import { getToken } from 'firebase/messaging';
 import { supabase } from '$lib/supabase';
 import { PUBLIC_FIREBASE_VAPID_KEY } from '$env/static/public';
 
 export const notificationService = {
   async requestPermissionAndGetToken(userId: string) {
+    if (typeof window === 'undefined') return null;
     try {
+      const { getToken } = await import('firebase/messaging');
       const msg = await messaging;
       if (!msg) return null;
 
@@ -24,12 +25,17 @@ export const notificationService = {
   },
 
   async saveTokenToSupabase(userId: string, token: string) {
+    if (!token || !userId) return;
     const { error } = await supabase
       .from('fcm_tokens')
       .upsert({ user_id: userId, token }, { onConflict: 'token' });
     
     if (error) {
-      console.error('Error saving FCM token to Supabase:', error);
+      if (error.code === '42501') {
+        console.warn('FCM Token: Policy RLS fcm_tokens belum dikonfigurasi di Supabase Dashboard.');
+      } else {
+        console.error('Error saving FCM token:', error.message);
+      }
     }
   },
 

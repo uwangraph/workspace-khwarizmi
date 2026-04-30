@@ -1,12 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAnalytics, isSupported as isAnalyticsSupported } from "firebase/analytics";
-import { getMessaging, isSupported as isMessagingSupported } from "firebase/messaging";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
 
 // Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 import { 
   PUBLIC_FIREBASE_API_KEY, 
   PUBLIC_FIREBASE_AUTH_DOMAIN, 
@@ -17,7 +12,6 @@ import {
   PUBLIC_FIREBASE_MEASUREMENT_ID 
 } from '$env/static/public';
 
-// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: PUBLIC_FIREBASE_API_KEY,
   authDomain: PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -31,7 +25,30 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-export const analytics = typeof window !== 'undefined' ? isAnalyticsSupported().then(yes => yes ? getAnalytics(app) : null) : null;
-export const messaging = typeof window !== 'undefined' ? isMessagingSupported().then(yes => yes ? getMessaging(app) : null) : null;
+// Matikan Analytics di mode Development agar tidak diblokir AdBlocker dan mengotori konsol
+const isDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+// Dynamic imports to prevent SSR issues and AdBlocker crashes
+export const analytics = typeof window !== 'undefined' && !isDev
+  ? import("firebase/analytics").then(async ({ getAnalytics, isSupported }) => {
+      try {
+        const supported = await isSupported();
+        return supported ? getAnalytics(app) : null;
+      } catch (e) {
+        return null;
+      }
+    }).catch(() => null)
+  : null;
+
+export const messaging = typeof window !== 'undefined'
+  ? import("firebase/messaging").then(async ({ getMessaging, isSupported }) => {
+      try {
+        const supported = await isSupported();
+        return supported ? getMessaging(app) : null;
+      } catch (e) {
+        return null;
+      }
+    }).catch(() => null)
+  : null;
 
 export default app;

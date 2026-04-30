@@ -2,7 +2,7 @@
   import type { Profile, Task, TaskAssignment, AttendanceRecord, Holiday } from '$lib/components/admin/_types'
   import { STATUS_LABEL, STATUS_STYLE, PRIORITY_DOT, PRIORITY_LABEL, getInitials, formatDate, getMonthlyAttendanceStat, getUserPerformanceStats } from '$lib/components/admin/_utils'
   import type { RekapSubTab } from '$lib/components/admin/_types'
-  import { AlertTriangle, CheckCircle2, Target, Users, ClipboardList, Calendar, Download } from 'lucide-svelte'
+  import { AlertTriangle, CheckCircle2, Target, Users, ClipboardList, Calendar, Download, Trophy, Clock } from 'lucide-svelte'
 
   interface Props {
     allUsers: Profile[]
@@ -10,11 +10,14 @@
     allAssignments: TaskAssignment[]
     allAttendance: AttendanceRecord[]
     holidays: Holiday[]
+    selectedMonth: string
+    rekapMode: 'monthly' | 'yearly'
+    onMonthChange: (m: string) => void
+    onModeChange: (mode: 'monthly' | 'yearly') => void
   }
-  let { allUsers, allTasks, allAssignments, allAttendance, holidays } = $props<Props>()
+  let { allUsers, allTasks, allAssignments, allAttendance, holidays, selectedMonth, rekapMode, onMonthChange, onModeChange } = $props<Props>()
 
   let sub = $state<RekapSubTab>('tasks')
-  const currentMonth = new Date().toISOString().slice(0, 7)
 
   // ── Rekap Tugas ──────────────────────────────────────────────────────────
   let totalTasks  = $derived(allTasks.length)
@@ -43,7 +46,7 @@
   let attendStats = $derived(
     allUsers.map(u => ({
       user: u,
-      ...getMonthlyAttendanceStat(u.id, currentMonth, allAttendance, holidays)
+      ...getMonthlyAttendanceStat(u.id, selectedMonth, allAttendance, holidays)
     })).sort((a, b) => b.presentRate - a.presentRate)
   )
 
@@ -52,7 +55,7 @@
     allUsers.map(u => ({
       user: u,
       task: getUserPerformanceStats(u.id, allTasks, allAssignments),
-      att: getMonthlyAttendanceStat(u.id, currentMonth, allAttendance, holidays),
+      att: getMonthlyAttendanceStat(u.id, selectedMonth, allAttendance, holidays),
     }))
   )
 
@@ -92,7 +95,7 @@
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.setAttribute('download', `Rekap_Khwarizmi_${currentMonth}.csv`)
+    link.setAttribute('download', `Rekap_Khwarizmi_${selectedMonth}.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -106,22 +109,56 @@
       <Target size={18} class="text-orange-500" />
       <h2 class="text-sm font-bold text-slate-800">Analitik & Performa</h2>
     </div>
-    <button onclick={exportCsv} class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-orange-50 text-orange-600 text-[10px] font-bold hover:bg-orange-100 transition-all shadow-sm cursor-pointer">
-      <Download size={14} /> Export CSV
-    </button>
+    <div class="flex items-center gap-3">
+      <!-- Mode Toggle -->
+      <div class="flex bg-slate-100 p-1 rounded-lg">
+        <button onclick={() => onModeChange('monthly')}
+                class="px-2 py-1 text-[9px] font-bold rounded-md transition-all {rekapMode === 'monthly' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}">
+          BULANAN
+        </button>
+        <button onclick={() => onModeChange('yearly')}
+                class="px-2 py-1 text-[9px] font-bold rounded-md transition-all {rekapMode === 'yearly' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}">
+          TAHUNAN
+        </button>
+      </div>
+
+      <div class="relative">
+        {#if rekapMode === 'monthly'}
+          <input type="month" 
+                 value={selectedMonth} 
+                 onchange={e => onMonthChange(e.currentTarget.value)}
+                 class="bg-white border border-slate-200 text-slate-700 text-[11px] font-bold px-3 py-1.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all cursor-pointer shadow-sm pr-8" />
+        {:else}
+          <select value={selectedMonth} 
+                  onchange={e => onMonthChange(e.currentTarget.value)}
+                  class="bg-white border border-slate-200 text-slate-700 text-[11px] font-bold px-3 py-1.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all cursor-pointer shadow-sm appearance-none pr-8">
+            {#each [2024, 2025, 2026, 2027] as year}
+              <option value={year.toString()}>{year}</option>
+            {/each}
+          </select>
+        {/if}
+        <div class="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+          <Calendar size={12} />
+        </div>
+      </div>
+      <button onclick={exportCsv} class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-orange-50 text-orange-600 text-[10px] font-bold hover:bg-orange-100 transition-all shadow-sm cursor-pointer border border-orange-100">
+        <Download size={14} /> Export CSV
+      </button>
+    </div>
   </div>
   
   <!-- Sub-tab pills -->
   <div class="flex gap-2 bg-slate-100 rounded-xl p-1">
     {#each [
-      { id: 'tasks', label: '✅ Rekap Tugas' },
-      { id: 'attendance', label: '🕐 Rekap Kehadiran' },
-      { id: 'users', label: '👥 Rekap Pengguna' },
+      { id: 'tasks', label: 'Rekap Tugas', Icon: CheckCircle2 },
+      { id: 'attendance', label: 'Rekap Kehadiran', Icon: Clock },
+      { id: 'users', label: 'Rekap Pengguna', Icon: Users },
     ] as s}
       <button onclick={() => sub = s.id as RekapSubTab}
-              class="flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer"
+              class="flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
               class:text-white={sub === s.id} class:bg-slate-100={sub !== s.id} class:text-slate-500={sub !== s.id}
               style={sub === s.id ? 'background:linear-gradient(135deg,#F97316,#EA580C)' : 'background:transparent'}>
+        <s.Icon size={13} />
         {s.label}
       </button>
     {/each}
@@ -167,7 +204,10 @@
     <!-- Top Performers -->
     {#if topPerformers.length > 0}
       <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">🏆 Top Performer</p>
+        <div class="flex items-center gap-2 mb-3">
+          <Trophy size={14} class="text-orange-500" />
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Top Performer</p>
+        </div>
         <div class="flex flex-col gap-2">
           {#each topPerformers as p, i}
             <div class="flex items-center gap-3">
@@ -217,7 +257,11 @@
       <div>
         <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Bulan</p>
         <p class="text-sm font-bold text-slate-700">
-          {new Date(currentMonth + '-01').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+          {#if rekapMode === 'monthly'}
+            {new Date(selectedMonth + '-01').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+          {:else}
+            Tahun {selectedMonth}
+          {/if}
         </p>
       </div>
       <button onclick={exportCsv} class="px-4 py-2 rounded-xl text-xs font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 transition-colors flex items-center gap-2 border border-orange-100">

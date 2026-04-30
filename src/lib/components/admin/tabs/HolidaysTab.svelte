@@ -1,7 +1,6 @@
 <script lang="ts">
-  import type { Holiday, ThursdayRule } from '$lib/components/admin/_types'
-  import { formatDate, getUpcomingThursdays } from '$lib/components/admin/_utils'
-  import { Plus, Trash2, CalendarOff, CalendarCheck, Settings } from 'lucide-svelte'
+  import type { Holiday, ThursdayRule } from '../_types'
+  import { CalendarDays, Plus, Trash2, Settings, X, CalendarCheck, CalendarOff, Calendar, Home, Clock, FileText, ClipboardList, PartyPopper } from 'lucide-svelte'
 
   interface Props {
     holidays: Holiday[]
@@ -23,10 +22,10 @@
     return diff >= 0 && diff <= 14
   }
 
-  const TYPE_STYLE: Record<ThursdayRule['type'], { label: string; bg: string; text: string; emoji: string }> = {
-    normal:      { label: 'Normal',      bg: 'bg-slate-100',  text: 'text-slate-600', emoji: '📅' },
-    custom_time: { label: 'Custom Jam',  bg: 'bg-amber-100',  text: 'text-amber-700', emoji: '⏰' },
-    wfa:         { label: 'WFA',         bg: 'bg-blue-100',   text: 'text-blue-700',  emoji: '🏠' },
+  const TYPE_STYLE: Record<ThursdayRule['type'], { label: string; bg: string; text: string; Icon: any }> = {
+    normal:      { label: 'Normal',      bg: 'bg-slate-100',  text: 'text-slate-600', Icon: Calendar },
+    custom_time: { label: 'Custom Jam',  bg: 'bg-amber-100',  text: 'text-amber-700', Icon: Clock },
+    wfa:         { label: 'WFA',         bg: 'bg-blue-100',   text: 'text-blue-700',  Icon: Home },
   }
 
   // Section active state
@@ -37,16 +36,16 @@
   <!-- Sub-tab selector -->
   <div class="flex gap-2 bg-slate-100 rounded-xl p-1">
     <button onclick={() => activeSection = 'holidays'}
-            class="flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer"
+            class="flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
             class:text-white={activeSection === 'holidays'}
             style={activeSection === 'holidays' ? 'background:linear-gradient(135deg,#F97316,#EA580C)' : 'background:transparent; color:#64748B'}>
-      🗓️ Hari Libur ({sorted.length})
+      <Calendar size={13} /> Hari Libur ({sorted.length})
     </button>
     <button onclick={() => activeSection = 'thursday'}
-            class="flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer"
+            class="flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
             class:text-white={activeSection === 'thursday'}
             style={activeSection === 'thursday' ? 'background:linear-gradient(135deg,#F97316,#EA580C)' : 'background:transparent; color:#64748B'}>
-      ⚙️ Aturan Kamis ({thursdayRules.length})
+      <Settings size={13} /> Aturan Kamis ({thursdayRules.length})
     </button>
   </div>
 
@@ -99,9 +98,13 @@
           {@const upcoming = isUpcoming(h.date)}
           <div class="flex items-center gap-3 px-4 py-3.5 border-b border-slate-50 last:border-0
                       {isToday ? 'bg-amber-50' : isPast ? 'opacity-60' : ''} hover:bg-slate-50 transition-colors">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                 style="{isToday ? 'background:linear-gradient(135deg,#F59E0B,#D97706)' : isPast ? 'background:#F1F5F9' : 'background:linear-gradient(135deg,#F97316,#EA580C)'}">
-              <span class="text-base">{isToday ? '🎉' : isPast ? '📅' : '🗓️'}</span>
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-white"
+                 style="{isToday ? 'background:linear-gradient(135deg,#F59E0B,#D97706)' : isPast ? 'background:#F1F5F9; color:#94A3B8' : 'background:linear-gradient(135deg,#F97316,#EA580C)'}">
+              {#if isToday}
+                <PartyPopper size={20} />
+              {:else}
+                <CalendarDays size={20} />
+              {/if}
             </div>
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2">
@@ -141,7 +144,10 @@
 
     <!-- Info box -->
     <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col gap-2">
-      <p class="text-xs font-bold text-slate-600">📋 Aturan Kamis Default</p>
+      <div class="flex items-center gap-2 mb-1">
+        <ClipboardList size={14} class="text-slate-500" />
+        <p class="text-xs font-bold text-slate-600">Aturan Kamis Default</p>
+      </div>
       <div class="flex flex-col gap-1.5">
         <div class="flex items-center gap-2">
           <div class="w-1.5 h-1.5 rounded-full bg-green-500"></div>
@@ -181,10 +187,11 @@
           {@const isToday = rule.date === todayISO}
           <div class="flex items-center gap-3 px-4 py-3.5 border-b border-slate-50 last:border-0
                       {isToday ? 'bg-orange-50' : isPast ? 'opacity-60' : ''} hover:bg-slate-50 transition-colors">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl"
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-white"
+                 class:!text-slate-400={isPast && !isToday}
                  class:bg-slate-100={isPast && !isToday}
                  style={!isPast || isToday ? 'background:linear-gradient(135deg,#F97316,#EA580C)' : ''}>
-              {ts.emoji}
+              <ts.Icon size={20} />
             </div>
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
@@ -195,10 +202,14 @@
                 {#if isToday}<span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">HARI INI</span>{/if}
               </div>
               {#if rule.type === 'custom_time' && rule.start_time}
-                <p class="text-[11px] text-amber-600 font-medium mt-0.5">⏰ Masuk jam {rule.start_time}</p>
+                <p class="text-[11px] text-amber-600 font-medium mt-0.5 flex items-center gap-1">
+                  <Clock size={10} /> Masuk jam {rule.start_time}
+                </p>
               {/if}
               {#if rule.note}
-                <p class="text-[11px] text-slate-400 mt-0.5 truncate">📝 {rule.note}</p>
+                <p class="text-[11px] text-slate-400 mt-0.5 truncate flex items-center gap-1">
+                  <FileText size={10} /> {rule.note}
+                </p>
               {/if}
             </div>
             <button onclick={() => onDeleteThursdayRule(rule)}

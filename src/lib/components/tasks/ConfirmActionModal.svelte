@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { CheckCircle2, XCircle, Check } from 'lucide-svelte'
   interface Props {
     action: 'accept' | 'reject'
     taskTitle: string
@@ -15,13 +16,11 @@
     <div class="px-6 py-5">
       <div class="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3
                   {action === 'accept' ? 'bg-green-100' : 'bg-red-100'}">
-        <svg class="w-6 h-6 {action === 'accept' ? 'text-green-600' : 'text-red-600'}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          {#if action === 'accept'}
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          {:else}
-            <path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          {/if}
-        </svg>
+        {#if action === 'accept'}
+          <CheckCircle2 size={24} class="text-green-600" />
+        {:else}
+          <XCircle size={24} class="text-red-600" />
+        {/if}
       </div>
       <p class="text-center font-bold text-slate-800 text-base mb-1" style="font-family:'Plus Jakarta Sans',sans-serif;">
         {action === 'accept' ? 'Bergabung dalam tugas?' : 'Tolak undangan?'}
@@ -41,7 +40,9 @@
           {#if isConfirming}
             Memproses...
           {:else if action === 'accept'}
-            ✓ Bergabung
+            <div class="flex items-center justify-center gap-2">
+              <Check size={16} /> Bergabung
+            </div>
           {:else}
             Tolak
           {/if}

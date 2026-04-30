@@ -9,6 +9,8 @@
   import { attendanceService } from '$lib/services/attendanceService'
   import { notificationService } from '$lib/services/notificationService'
   import type { Profile, Task, AttendanceRecord, AppNotification } from '$lib/type'
+  import { getContext } from 'svelte'
+  import type { Writable } from 'svelte/store'
 
   import HeroCard from '$lib/components/dashboard/HeroCard.svelte'
   import AttendanceSummary from '$lib/components/dashboard/AttendanceSummary.svelte'
@@ -49,6 +51,28 @@
   let isLoading = $state(true), gpsActive = $state(false), isNavigating = $state(false), now = $state(new Date())
   let clockInterval: ReturnType<typeof setInterval>
   let notifSubscription: any;
+
+  const deletionStore = getContext<Writable<boolean>>('deletionStore')
+  let isDataHidden = $state(false)
+
+  $effect(() => {
+    const unsubscribe = deletionStore?.subscribe(value => {
+      isDataHidden = value
+      if (value) {
+        attendance = []
+        tasks = []
+        notifications = []
+        if (notifSubscription) {
+            supabase.removeChannel(notifSubscription)
+            notifSubscription = null
+        }
+      } else if (!isLoading && user) {
+        // Data di-load kembali di loadData(), jadi tidak perlu di sini kecuali jika batal on-the-fly.
+        // Berhubung kita panggil location.reload() di layout saat batal, aman untuk dibiarkan.
+      }
+    })
+    return unsubscribe
+  })
 
   onMount(() => { 
     clockInterval = setInterval(() => { now = new Date() }, 60000); 
@@ -94,6 +118,11 @@
     const { data: p } = await authService.getProfile(u.id)
     if (p) profile = p as Profile
     
+    if (isDataHidden) {
+      isLoading = false
+      return
+    }
+
     const { attendance: attend, appSettings } = await attendanceService.getTodayData(u.id)
     attendance = (attend as any[]) || []
     
@@ -160,21 +189,20 @@
       <HeroCard {heroDate} greeting={getGreeting()} firstName={getFirstName()} {gpsActive} {totalIn} {totalSessions} {taskActive} {completionRate} />
 
       {#if profile?.role === 'admin'}
-        <section class="relative overflow-hidden rounded-3xl p-6 shadow-xl border border-slate-800" style="background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);">
-          <div class="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-orange-500/20 blur-3xl pointer-events-none"></div>
+        <section class="relative overflow-hidden rounded-3xl p-6 border border-slate-200 bg-slate-50">
           <div class="relative z-10 flex items-center justify-between gap-4">
             <div class="flex-1">
               <div class="flex items-center gap-2 mb-1.5">
-                <ShieldCheck size={18} class="text-orange-400" />
-                <h3 class="text-[12px] font-bold text-white tracking-widest uppercase" style="font-family:'Plus Jakarta Sans',sans-serif;">Mode Admin Aktif</h3>
+                <ShieldCheck size={18} class="text-slate-600" />
+                <h3 class="text-xs font-bold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">Mode Admin Aktif</h3>
               </div>
-              <p class="text-[11px] text-slate-300/90 leading-relaxed mb-4 pr-2">Kelola pengguna, pantau tugas seluruh tim, dan kendalikan sistem secara penuh melalui panel khusus.</p>
-              <a href="/admin" class="inline-flex items-center gap-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 transition-all text-white text-[11px] font-extrabold py-2.5 px-4 rounded-xl shadow-lg shadow-orange-500/30 border border-orange-400/50">
-                Masuk Panel Admin <ArrowRight size={14} strokeWidth={3} />
+              <p class="text-[11px] text-slate-500 leading-relaxed mb-4 pr-2">Kelola pengguna, pantau tugas, dan kendalikan sistem melalui panel khusus.</p>
+              <a href="/admin" class="inline-flex items-center gap-2 bg-white hover:bg-slate-50 transition-colors text-slate-700 text-[11px] font-bold py-2.5 px-4 rounded-xl border border-slate-200 shadow-sm">
+                Masuk Panel Admin <ArrowRight size={14} strokeWidth={2.5} />
               </a>
             </div>
-            <div class="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0 shadow-inner backdrop-blur-md">
-              <Zap size={24} class="text-orange-400/80" />
+            <div class="w-14 h-14 rounded-2xl bg-white border border-slate-100 flex items-center justify-center flex-shrink-0 shadow-sm">
+              <Zap size={24} class="text-orange-500" />
             </div>
           </div>
         </section>

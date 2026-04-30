@@ -35,7 +35,18 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
+        navigateFallbackDenylist: [/^\/api/],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/www\.googletagmanager\.com\/.*/i,
+            handler: 'NetworkOnly'
+          },
+          {
+            urlPattern: /firebase_analytics/,
+            handler: 'NetworkOnly'
+          }
+        ]
       },
       devOptions: {
         enabled: true,

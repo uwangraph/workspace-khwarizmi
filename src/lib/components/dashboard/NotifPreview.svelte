@@ -1,13 +1,13 @@
 <script lang="ts">
   import { ArrowRight } from 'lucide-svelte'
-  interface Notification {
+  interface PreviewNotification {
     id: string; type: string; title: string; message: string; is_read: boolean; created_at: string
   }
   interface Props {
-    recentNotifs: Notification[]
+    recentNotifs: PreviewNotification[]
     getIcon: (type: string) => { bg: string; color: string; path: string }
     formatTimeAgo: (iso: string) => string
-    onClick: (n: Notification) => void
+    onClick: (n: PreviewNotification) => void
   }
   let { recentNotifs, getIcon, formatTimeAgo, onClick }: Props = $props()
 </script>

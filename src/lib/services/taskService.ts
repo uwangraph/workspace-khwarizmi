@@ -1,14 +1,20 @@
 import { supabase } from '$lib/supabase';
 import type { Task, TaskAssignment } from '$lib/type';
 
-export const taskService = {
-  async getTasks(userId: string, role: string): Promise<Task[]> {
-    if (role === 'admin') {
-      const { data } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
-      return (data as Task[]) || [];
+async function checkDeletionStatus() {
+  const { data: settings } = await supabase.from('app_settings').select('deletion_scheduled_at').eq('id', 1).single();
+  if (settings?.deletion_scheduled_at) {
+    const scheduledAt = new Date(settings.deletion_scheduled_at).getTime();
+    const now = Date.now();
+    if (now - scheduledAt < 24 * 60 * 60 * 1000) {
+      throw new Error('Sistem sedang dikunci karena pembersihan data dijadwalkan.');
     }
-    
-    // For regular users, get tasks they created or are assigned to
+  }
+}
+
+export const taskService = {
+  async getTasks(userId: string, _role: string): Promise<Task[]> {
+    // For all users (including admins), get tasks they created or are assigned to
     const { data: myA } = await supabase
       .from('task_assignments')
       .select('task_id')
@@ -40,6 +46,7 @@ export const taskService = {
   },
 
   async saveTask(taskData: Partial<Task>, assignedUserIds: string[], userId: string, isEditing: boolean, editingTaskId?: string | null) {
+    await checkDeletionStatus();
     let taskId: string;
     
     if (isEditing && editingTaskId) {
@@ -84,6 +91,7 @@ export const taskService = {
   },
 
   async updateProgress(taskId: string, progress: number, status: string, _note?: string | null) {
+    await checkDeletionStatus();
     // Note: progress_note column does not exist in DB schema
     const updateData: any = { progress, status };
     const result = await supabase.from('tasks').update(updateData).eq('id', taskId);
@@ -92,12 +100,14 @@ export const taskService = {
   },
 
   async updateAssignmentStatus(assignmentId: string, status: string, completedAt?: string | null) {
+    await checkDeletionStatus();
     const updateData: any = { status };
     if (completedAt) updateData.completed_at = completedAt;
     return await supabase.from('task_assignments').update(updateData).eq('id', assignmentId);
   },
 
   async deleteTask(taskId: string) {
+    await checkDeletionStatus();
     return await supabase.from('tasks').delete().eq('id', taskId);
   },
 

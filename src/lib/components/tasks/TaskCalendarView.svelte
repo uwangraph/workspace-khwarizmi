@@ -1,5 +1,6 @@
 <script lang="ts">
   import { fade } from 'svelte/transition'
+  import { X, ChevronLeft, ChevronRight } from 'lucide-svelte'
 
   interface Task { 
     id: string; 
@@ -128,13 +129,13 @@
     </div>
     <div class="flex items-center gap-1">
       <button onclick={() => changeMonth(-1)} class="p-2 hover:bg-white rounded-lg transition-colors text-slate-600">
-        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+        <ChevronLeft size={20} />
       </button>
       <button onclick={() => currentDate = new Date()} class="px-3 py-1.5 text-xs font-bold text-orange-600 hover:bg-white rounded-lg transition-colors">
         Hari Ini
       </button>
       <button onclick={() => changeMonth(1)} class="p-2 hover:bg-white rounded-lg transition-colors text-slate-600">
-        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+        <ChevronRight size={20} />
       </button>
     </div>
   </div>
@@ -205,8 +206,8 @@
           </h4>
           <p class="text-xs text-slate-500 font-medium mt-0.5">{formatDateLong(selectedDate)}</p>
         </div>
-        <button onclick={closeDayFocus} class="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">
-          ✕
+        <button onclick={closeDayFocus} class="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
+          <X size={16} />
         </button>
       </div>
       
@@ -229,7 +230,7 @@
                 {/if}
               </div>
             </div>
-            <svg class="w-4 h-4 text-slate-300 group-hover:text-orange-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            <ChevronRight size={16} class="text-slate-300 group-hover:text-orange-400 transition-colors" />
           </button>
         {/each}
       </div>

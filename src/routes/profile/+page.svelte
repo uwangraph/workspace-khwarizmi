@@ -472,7 +472,7 @@
 	<ChangePasswordModal userEmail={user?.email || ''} onClose={() => (showPasswordModal = false)} />
 {/if}
 {#if showEmailModal}
-	<ChangeEmailModal userEmail={user?.email || ''} onClose={() => (showEmailModal = false)} />
+	<ChangeEmailModal userId={user?.id || ''} userEmail={user?.email || ''} onClose={() => (showEmailModal = false)} />
 {/if}
 
 <!-- Logout Confirm -->

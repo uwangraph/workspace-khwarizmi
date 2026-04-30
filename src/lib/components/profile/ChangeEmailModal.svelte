@@ -4,8 +4,8 @@
   import toast from 'svelte-french-toast'
   import { authService } from '$lib/services/authService'
 
-  interface Props { userEmail: string; onClose: () => void }
-  let { userEmail, onClose }: Props = $props()
+  interface Props { userId: string; userEmail: string; onClose: () => void }
+  let { userId, userEmail, onClose }: Props = $props()
 
   let newEmail = $state('')
   let emailPassword = $state('')
@@ -21,11 +21,26 @@
     isLoading = true
     const { error: authError } = await authService.verifyPassword(userEmail, emailPassword)
     if (authError) { emailError = 'Password tidak benar'; isLoading = false; return }
-    const { error } = await authService.changeEmail(newEmail.trim())
+    const res = await fetch('/api/user/email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, newEmail: newEmail.trim() })
+    });
+    
     isLoading = false
-    if (error) { emailError = error.message; return }
+    if (!res.ok) {
+       const errData = await res.json();
+       emailError = errData.error || 'Terjadi kesalahan saat mengganti email';
+       return;
+    }
+    
     emailSuccess = true
-    toast.success('Link konfirmasi dikirim ke email baru', { duration: 4000 })
+    toast.success('Email berhasil diperbarui', { duration: 4000 })
+    
+    // Auto refresh to reflect new email in the app
+    setTimeout(() => {
+        window.location.reload();
+    }, 1500);
   }
 </script>
 
@@ -55,8 +70,8 @@
             <CheckCircle2 size={32} />
           </div>
           <div>
-            <h4 class="text-base font-bold text-slate-800">Link Konfirmasi Terkirim</h4>
-            <p class="text-xs text-slate-400 mt-1 leading-relaxed px-4">Silakan periksa inbox (dan spam) email baru Anda untuk mengaktifkan perubahan ini.</p>
+            <h4 class="text-base font-bold text-slate-800">Email Berhasil Diperbarui</h4>
+            <p class="text-xs text-slate-400 mt-1 leading-relaxed px-4">Email Anda telah berhasil diganti ke {newEmail}. Halaman akan dimuat ulang.</p>
           </div>
           <button onclick={onClose} class="w-full py-3.5 mt-4 rounded-xl text-sm font-bold text-slate-400 bg-slate-50 hover:bg-slate-100 transition-colors">Selesai</button>
         </div>
@@ -90,7 +105,7 @@
           <button onclick={changeEmail} disabled={isLoading}
                   class="flex-[2] py-3.5 rounded-xl text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition-all active:scale-[0.98] disabled:opacity-50"
                   style="background: linear-gradient(to right, #F97316, #EA580C);">
-            {isLoading ? 'Memproses...' : 'Kirim Konfirmasi'}
+            {isLoading ? 'Memproses...' : 'Ubah Email'}
           </button>
         </div>
       {/if}

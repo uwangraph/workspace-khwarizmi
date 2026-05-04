@@ -305,15 +305,19 @@
 			const avatar_url = await uploadAvatar();
 			const updateData = {
 				full_name: editName,
-				phone: editPhone,
-				address: editAddress,
-				joined_at: editJoinedAt,
-				birth_date: editBirthDate,
-				position: editPosition,
+				phone: editPhone || null,
+				address: editAddress || null,
+				joined_at: editJoinedAt || null,
+				birth_date: editBirthDate || null,
+				position: editPosition || null,
 				avatar_url
 			};
 			const { error } = await authService.updateProfile(user.id, updateData);
 			if (error) throw error;
+			
+			// Update auth metadata to sync Display Name in Supabase Dashboard
+			await authService.updateAuthMetadata({ full_name: editName });
+
 			profile = { ...profile, ...updateData };
 			toast.success('Profil diperbarui');
 			showEditModal = false;

@@ -70,6 +70,7 @@
           <div class="relative">
             <input type={show ? 'text' : 'password'} value={value} oninput={(e) => setter((e.target as HTMLInputElement).value)}
                    placeholder="••••••••"
+                   onkeydown={(e) => e.key === 'Enter' && changePassword()}
                    class="w-full px-4 py-2.5 pr-11 rounded-xl border border-slate-200 text-sm text-slate-700 bg-white focus:border-orange-500 focus:outline-none transition-all placeholder:text-slate-200" />
             <button onclick={toggle} type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors">
               {#if show}<Eye size={16} />{:else}<EyeOff size={16} />{/if}
@@ -98,6 +99,7 @@
         <div class="relative">
           <input type="password" bind:value={confirmPassword}
                  placeholder="••••••••"
+                 onkeydown={(e) => e.key === 'Enter' && changePassword()}
                  class="w-full px-4 py-2.5 pr-11 rounded-xl border border-slate-200 text-sm text-slate-700 bg-white focus:border-orange-500 focus:outline-none transition-all placeholder:text-slate-200" />
           {#if confirmPassword}
             <div class="absolute right-3 top-1/2 -translate-y-1/2 animate-in zoom-in-50 duration-200">

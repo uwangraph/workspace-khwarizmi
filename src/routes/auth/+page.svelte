@@ -216,7 +216,8 @@
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Mail size={18} class="text-slate-400 group-focus-within:text-orange-500 transition-colors" />
                 </div>
-                <input type="email" bind:value={loginEmail} placeholder="nama@perusahaan.com"
+                <input type="email" bind:value={loginEmail} placeholder="example@gmail.com"
+                       onkeydown={(e) => e.key === 'Enter' && handleLogin()}
                        class="w-full pl-10 pr-4 py-3.5 text-sm text-slate-800 bg-slate-50/50 border border-slate-200 rounded-xl outline-none transition-all placeholder:text-slate-400 focus:border-orange-400 focus:bg-white focus:ring-2 focus:ring-orange-400/20" />
               </div>
             </div>
@@ -355,8 +356,8 @@
             Kembali ke Login
           </button>
 
-          <div class="w-14 h-14 rounded-2xl flex items-center justify-center mb-5 bg-purple-50 border border-purple-200">
-            <KeyRound size={24} class="text-purple-600" />
+          <div class="w-14 h-14 rounded-2xl flex items-center justify-center mb-5 bg-emerald-50 border border-emerald-100">
+            <KeyRound size={24} class="text-emerald-600" />
           </div>
 
           <h2 class="text-2xl font-bold text-slate-800 mb-2" style="font-family:'Plus Jakarta Sans',sans-serif;">
@@ -371,17 +372,17 @@
               <label class="block text-[11px] font-bold text-slate-600 tracking-widest uppercase mb-2">Email</label>
               <div class="relative">
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail size={18} class="text-slate-400 group-focus-within:text-purple-500 transition-colors" />
+                  <Mail size={18} class="text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
                 </div>
-                <input type="email" bind:value={forgotEmail} placeholder="nama@perusahaan.com"
+                <input type="email" bind:value={forgotEmail} placeholder="example@gmail.com"
                        onkeydown={(e) => e.key === 'Enter' && handleForgotPassword()}
-                       class="w-full pl-10 pr-4 py-3.5 text-sm text-slate-800 bg-slate-50/50 border border-slate-200 rounded-xl outline-none transition-all placeholder:text-slate-400 focus:border-purple-400 focus:bg-white focus:ring-2 focus:ring-purple-400/20" />
+                       class="w-full pl-10 pr-4 py-3.5 text-sm text-slate-800 bg-slate-50/50 border border-slate-200 rounded-xl outline-none transition-all placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-400/20" />
               </div>
             </div>
 
             <button onclick={handleForgotPassword} disabled={isLoading}
                     class="w-full py-3.5 rounded-xl text-sm font-bold tracking-wide uppercase text-white transition-all disabled:opacity-60 hover:shadow-lg active:scale-[0.98] shadow-md flex items-center justify-center gap-2"
-                    style="background: linear-gradient(135deg, #A855F7, #7C3AED);">
+                    style="background: linear-gradient(135deg, #10B981, #059669);">
               {#if isLoading}
                 <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>

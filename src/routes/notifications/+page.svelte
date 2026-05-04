@@ -387,10 +387,24 @@
                           <span class="text-[9px] {n.is_read ? 'text-slate-300' : 'font-medium text-slate-400'} whitespace-nowrap flex-shrink-0">{formatRelative(n.created_at)}</span>
                         </div>
                         <p class="text-xs {n.is_read ? 'text-slate-400' : 'text-slate-600'} leading-relaxed mb-2">{n.message}</p>
+                        
+                        {#if n.data && (n.data as any).sender_name}
+                          <div class="flex items-center gap-2 mb-3">
+                            <span class="text-[9px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-500 uppercase tracking-wider">
+                              Oleh: {(n.data as any).sender_name}
+                            </span>
+                            {#if (n.data as any).is_reply}
+                              <span class="text-[9px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-600 uppercase tracking-wider">
+                                Balasan
+                              </span>
+                            {/if}
+                          </div>
+                        {/if}
+
                         <div class="flex items-center justify-between gap-2">
                           <span class="text-[10px] {n.is_read ? 'text-slate-300' : 'text-slate-400'}">{formatDetail(n.created_at)}</span>
                           <div class="flex gap-2">
-                            {#if n.data && (n.data as any).is_admin_reminder && (n.data as any).sender_id}
+                            {#if n.data && (n.data as any).sender_id && (n.data as any).sender_id !== user?.id}
                               <button onclick={(e) => handleReply(n, e)} class="text-[10px] font-bold text-white px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 shadow-sm transition-all active:scale-95 cursor-pointer">
                                 BALAS
                               </button>

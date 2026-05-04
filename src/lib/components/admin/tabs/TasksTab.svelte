@@ -9,8 +9,9 @@
     allAssignments: TaskAssignment[]
     onDeleteTask: (t: Task) => void
     onViewTask: (t: Task) => void
+    onRemindTask: (t: Task) => void
   }
-  let { allTasks, allUsers, allAssignments, onDeleteTask, onViewTask } = $props<Props>()
+  let { allTasks, allUsers, allAssignments, onDeleteTask, onViewTask, onRemindTask } = $props<Props>()
 
   const ITEMS_PER_PAGE = 10
   let taskSearch     = $state('')
@@ -127,6 +128,10 @@
                 <button onclick={e => { e.stopPropagation(); onViewTask(task) }}
                         class="w-7 h-7 rounded-lg bg-orange-50 hover:bg-orange-100 flex items-center justify-center text-orange-500 cursor-pointer" title="Detail">
                   <Eye size={12} />
+                </button>
+                <button onclick={e => { e.stopPropagation(); onRemindTask(task) }}
+                        class="w-7 h-7 rounded-lg bg-amber-50 hover:bg-amber-100 flex items-center justify-center text-amber-500 cursor-pointer" title="Kirim Pengingat">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
                 </button>
                 <button onclick={e => { e.stopPropagation(); onDeleteTask(task) }}
                         class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-red-50 flex items-center justify-center text-slate-400 hover:text-red-500 cursor-pointer">

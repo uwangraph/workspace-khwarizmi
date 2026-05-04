@@ -17,11 +17,17 @@ export async function POST({ request }: RequestEvent) {
     });
 
     if (error) {
-      return json({ error: error.message }, { status: 400 });
+      console.error('[API/Email] Supabase error:', error);
+      return json({ 
+        error: error.message, 
+        details: error,
+        code: error.status 
+      }, { status: 400 });
     }
 
     return json({ success: true, user: data.user });
   } catch (err: any) {
+    console.error('[API/Email] Server error:', err);
     return json({ error: err.message || 'Terjadi kesalahan server' }, { status: 500 });
   }
 }

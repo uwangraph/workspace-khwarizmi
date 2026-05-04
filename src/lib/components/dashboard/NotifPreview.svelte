@@ -1,7 +1,7 @@
 <script lang="ts">
   import { ArrowRight } from 'lucide-svelte'
   interface PreviewNotification {
-    id: string; type: string; title: string; message: string; is_read: boolean; created_at: string
+    id: string; type: string; title: string; message: string; is_read: boolean; created_at: string; data?: any
   }
   interface Props {
     recentNotifs: PreviewNotification[]
@@ -31,9 +31,16 @@
           </svg>
         </div>
         <div class="flex-1 min-w-0">
-          <p class="text-sm font-semibold text-slate-800 truncate">{notif.title}</p>
-          <p class="text-[11px] text-slate-500 truncate">{notif.message}</p>
-          <p class="text-[9px] text-slate-400 mt-1 font-medium">{formatTimeAgo(notif.created_at)}</p>
+          <div class="flex items-center justify-between gap-2 mb-0.5">
+            <p class="text-sm font-semibold text-slate-800 truncate">{notif.title}</p>
+            <p class="text-[9px] text-slate-400 font-medium whitespace-nowrap">{formatTimeAgo(notif.created_at)}</p>
+          </div>
+          <p class="text-[11px] text-slate-500 truncate mb-1">{notif.message}</p>
+          {#if (notif as any).data?.sender_name}
+            <span class="inline-block text-[8px] font-bold px-1.5 py-0.5 rounded bg-slate-50 text-slate-400 uppercase tracking-wider">
+              Oleh: {(notif as any).data.sender_name}
+            </span>
+          {/if}
         </div>
       </button>
     {/each}

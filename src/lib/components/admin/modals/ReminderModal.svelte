@@ -4,7 +4,7 @@
   import { fade, fly } from 'svelte/transition'
 
   interface Props {
-    user: Profile
+    user: Profile | null
     onClose: () => void
     onSubmit: (message: string) => void
   }
@@ -30,7 +30,7 @@
         </div>
         <div>
           <h3 class="text-sm font-bold text-slate-800">Kirim Pengingat</h3>
-          <p class="text-[10px] text-slate-500">Ke: <span class="font-semibold">{user.full_name}</span></p>
+          <p class="text-[10px] text-slate-500">Ke: <span class="font-semibold">{user ? user.full_name : 'Semua Pengambil Tugas'}</span></p>
         </div>
       </div>
       <button onclick={onClose} class="w-8 h-8 flex items-center justify-center text-slate-400 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer">

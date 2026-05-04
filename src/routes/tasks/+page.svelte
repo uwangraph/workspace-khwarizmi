@@ -232,29 +232,62 @@
     showReminderModal = true
   }
 
-  async function submitReminder(message: string) {
-    if (!reminderTarget) return
-    const isPending = reminderTarget.status === 'pending'
-    const title = isPending ? 'Konfirmasi Undangan' : `Pengingat: ${detailTask?.title || 'Tugas'}`
-    
-    const success = await notificationService.send(
-      reminderTarget.id,
-      'task_revision',
-      title,
-      message,
-      { 
-        is_admin_reminder: true,
-        sender_id: user?.id,
-        sender_name: profile?.full_name || user?.email,
-        task_id: detailTask?.id,
-        task_title: detailTask?.title,
-        status_at_reminder: reminderTarget.status
-      }
-    )
+  function handleRemindAll() {
+    reminderTarget = null
+    showReminderModal = true
+  }
 
-    if (success) {
-      toast.success('Pengingat berhasil dikirim')
+  async function submitReminder(message: string) {
+    if (!reminderTarget && !detailTask) return
+    
+    let targetIds: string[] = []
+    let isBulk = !reminderTarget
+
+    if (reminderTarget) {
+      targetIds = [reminderTarget.id]
+    } else if (detailTask) {
+      const ids = new Set<string>()
+      if (detailTask.created_by) ids.add(detailTask.created_by)
+      allAssignments
+        .filter(a => a.task_id === detailTask?.id && a.status !== 'rejected')
+        .forEach(a => ids.add(a.user_id))
+      
+      // Kecuali diri sendiri
+      if (user?.id) ids.delete(user.id)
+      targetIds = Array.from(ids)
+    }
+
+    if (targetIds.length === 0) {
+      toast.error('Tidak ada orang yang bisa diingatkan')
+      return
+    }
+
+    let successCount = 0
+    for (const tid of targetIds) {
+      const targetUser = tid === reminderTarget?.id ? reminderTarget : { status: 'accepted' } // default status for bulk
+      const title = targetUser.status === 'pending' ? 'Konfirmasi Undangan' : `Pengingat: ${detailTask?.title || 'Tugas'}`
+      
+      const ok = await notificationService.send(
+        tid,
+        'task_revision',
+        title,
+        message,
+        { 
+          is_admin_reminder: true,
+          sender_id: user?.id,
+          sender_name: profile?.full_name || (user?.email ? user.email.split('@')[0] : 'User'),
+          task_id: detailTask?.id,
+          task_title: detailTask?.title,
+          status_at_reminder: targetUser.status
+        }
+      )
+      if (ok) successCount++
+    }
+
+    if (successCount > 0) {
+      toast.success(isBulk ? `Pengingat dikirim ke ${successCount} orang` : 'Pengingat berhasil dikirim')
       showReminderModal = false
+      reminderTarget = null
     } else {
       toast.error('Gagal mengirim pengingat')
     }
@@ -650,7 +683,8 @@
                    onEdit={() => openEditModal(detailTask!)} onDelete={() => confirmDelete(detailTask!)}
                    onAccept={() => openConfirmActionModal('accept', getUserAssignment(detailTask!.id)!, detailTask!.title)}
                    onReject={() => openConfirmActionModal('reject', getUserAssignment(detailTask!.id)!, detailTask!.title)}
-                   onRemindMember={handleRemindMember} />
+                   onRemindMember={handleRemindMember}
+                   onRemindAll={handleRemindAll} />
 {/if}
 
 {#if showTaskModal}
@@ -685,8 +719,8 @@
   <ConfirmActionModal action={confirmAction!} taskTitle={confirmActionTaskTitle} {isConfirmingAction} onConfirm={confirmActionTask} onClose={() => showConfirmActionModal = false} />
 {/if}
 
-{#if showReminderModal && reminderTarget}
-  <ReminderModal user={{ id: reminderTarget.id, full_name: reminderTarget.full_name, role: 'user' }}
+{#if showReminderModal && (reminderTarget || detailTask)}
+  <ReminderModal user={reminderTarget ? { id: reminderTarget.id, full_name: reminderTarget.full_name, role: 'user' } : null}
                  onClose={() => showReminderModal = false}
                  onSubmit={submitReminder} />
 {/if}

@@ -182,23 +182,58 @@
     showReminderModal = true
   }
 
-  async function submitReminder(message: string) {
-    if (!reminderTarget) return
-    const success = await notificationService.send(
-      reminderTarget.id,
-      'task_revision',
-      detailTask ? `Pengingat: ${detailTask.title}` : 'Pengingat dari Admin',
-      message,
-      { 
-        is_admin_reminder: true,
-        task_id: detailTask?.id,
-        task_title: detailTask?.title
-      }
-    )
+  function handleRemindTask(t: Task) {
+    detailTask = t
+    reminderTarget = null // Trigger bulk send in submitReminder
+    showReminderModal = true
+  }
 
-    if (success) {
-      showToast('Pengingat berhasil dikirim', 'success')
+  async function submitReminder(message: string) {
+    if (!reminderTarget && !detailTask) return
+    
+    let targetIds: string[] = []
+    
+    if (reminderTarget) {
+      targetIds = [reminderTarget.id]
+    } else if (detailTask) {
+      // Kirim ke pembuat tugas + semua kolaborator (assignees)
+      const ids = new Set<string>()
+      if (detailTask.created_by) ids.add(detailTask.created_by)
+      
+      allAssignments
+        .filter(a => a.task_id === detailTask?.id && a.status !== 'rejected')
+        .forEach(a => ids.add(a.user_id))
+      
+      targetIds = Array.from(ids)
+    }
+
+    if (targetIds.length === 0) {
+      showToast('Tidak ada orang yang terlibat dalam tugas ini', 'error')
+      return
+    }
+
+    let successCount = 0
+    for (const id of targetIds) {
+      const ok = await notificationService.send(
+        id,
+        'task_revision',
+        detailTask ? `Pengingat: ${detailTask.title}` : 'Pengingat dari Admin',
+        message,
+        { 
+          is_admin_reminder: true,
+          sender_id: user?.id,
+          sender_name: profile?.full_name || (user?.email ? user.email.split('@')[0] : 'ADMIN'),
+          task_id: detailTask?.id,
+          task_title: detailTask?.title
+        }
+      )
+      if (ok) successCount++
+    }
+
+    if (successCount > 0) {
+      showToast(`Pengingat dikirim ke ${successCount} orang terlibat`, 'success')
       showReminderModal = false
+      reminderTarget = null
     } else {
       showToast('Gagal mengirim pengingat', 'error')
     }
@@ -401,13 +436,13 @@
                   onEditUser={handleEditUser}
                   onDeleteUser={handleDeleteUser}
                   onViewPerformance={handleViewPerformance}
-                  onAddUser={() => showNewUserModal = true}
-                  onSendReminder={handleSendReminder} />
+                  onAddUser={() => showNewUserModal = true} />
 
       {:else if activeTab === 'tasks'}
         <TasksTab {allTasks} {allUsers} {allAssignments}
                   onDeleteTask={handleDeleteTaskPrompt}
-                  onViewTask={handleViewTask} />
+                  onViewTask={handleViewTask}
+                  onRemindTask={handleRemindTask} />
 
       {:else if activeTab === 'attendance'}
         <AttendanceTab {allUsers} {allAttendance} {holidays} {thursdayRules} {allLeaves}
@@ -488,12 +523,14 @@
                    onUpdateStatus={updateTaskStatus}
                    onDelete={handleDeleteTaskPrompt}
                    onClose={() => showTaskDetailModal = false}
-                   onRemindMember={handleSendReminder} />
+                   onRemindMember={handleSendReminder}
+                   onRemindAll={handleRemindTask}
+                   currentUserId={user?.id} />
 {/if}
 
 {#if showPerformanceModal && performanceUser}
   <PerformanceModal user={performanceUser} tasks={allTasks} assignments={allAssignments}
-                    attendance={allAttendance} {holidays} {attendanceMonth}
+                    attendance={allAttendance} {holidays} attendanceMonth={selectedMonth}
                     onClose={() => showPerformanceModal = false} />
 {/if}
 
@@ -525,7 +562,7 @@
     onClose={() => showDeleteThursdayModal = false} />
 {/if}
 
-{#if showReminderModal && reminderTarget}
+{#if showReminderModal && (reminderTarget || detailTask)}
   <ReminderModal user={reminderTarget}
                  onClose={() => showReminderModal = false}
                  onSubmit={submitReminder} />

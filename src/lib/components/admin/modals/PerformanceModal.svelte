@@ -15,9 +15,23 @@
     onClose: () => void
   }
   let { user, tasks, assignments, attendance, holidays, attendanceMonth, onClose } = $props<Props>()
+  let activeFilter = $state<'none' | 'done' | 'overdue'>('none')
 
   let perf = $derived(getUserPerformanceStats(user.id, tasks, assignments))
   let att  = $derived(getMonthlyAttendanceStat(user.id, attendanceMonth, attendance, holidays))
+
+  let userTasks = $derived(
+    assignments
+      .filter(a => a.user_id === user.id && a.status !== 'rejected')
+      .map(a => tasks.find(t => t.id === a.task_id))
+      .filter(Boolean) as Task[]
+  )
+
+  let filteredTasks = $derived(
+    activeFilter === 'done' ? userTasks.filter(t => t.status === 'done') :
+    activeFilter === 'overdue' ? userTasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'done') :
+    []
+  )
 </script>
 
 <div class="fixed inset-0 z-50 flex items-end justify-center"
@@ -53,7 +67,8 @@
       <div>
         <h4 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Statistik Tugas</h4>
         <div class="grid grid-cols-2 gap-3">
-          <div class="bg-white border border-slate-100 rounded-xl p-4 shadow-sm">
+          <button onclick={() => activeFilter = activeFilter === 'done' ? 'none' : 'done'}
+                  class="bg-white border rounded-xl p-4 shadow-sm text-left transition-all active:scale-95 {activeFilter === 'done' ? 'border-blue-500 ring-2 ring-blue-500/10' : 'border-slate-100'}">
             <div class="flex items-center justify-between mb-2">
               <p class="text-[10px] text-slate-400 font-semibold uppercase">Penyelesaian</p>
               <PieChart size={14} class="text-blue-500" />
@@ -63,16 +78,40 @@
               <div class="h-full rounded-full bg-blue-500 transition-all" style="width:{perf.completionRate}%"></div>
             </div>
             <p class="text-[10px] text-slate-400 mt-1">{perf.done} dari {perf.total} tugas</p>
-          </div>
-          <div class="bg-white border border-slate-100 rounded-xl p-4 shadow-sm">
+          </button>
+          <button onclick={() => activeFilter = activeFilter === 'overdue' ? 'none' : 'overdue'}
+                  class="bg-white border rounded-xl p-4 shadow-sm text-left transition-all active:scale-95 {activeFilter === 'overdue' ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-100'}">
             <div class="flex items-center justify-between mb-2">
               <p class="text-[10px] text-slate-400 font-semibold uppercase">Tugas Overdue</p>
               <AlertTriangle size={14} class={perf.overdue > 0 ? 'text-red-500' : 'text-slate-300'} />
             </div>
             <p class="text-2xl font-black {perf.overdue > 0 ? 'text-red-500' : 'text-slate-800'}" style="font-family:'Plus Jakarta Sans',sans-serif;">{perf.overdue}</p>
             <p class="text-[10px] text-slate-400 mt-1">dari {perf.total} tugas total</p>
-          </div>
+          </button>
         </div>
+
+        <!-- Filtered Task List -->
+        {#if activeFilter !== 'none'}
+          <div class="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3" style="animation:slideDown .3s ease-out">
+            <div class="flex items-center justify-between mb-1">
+              <p class="text-xs font-bold text-slate-600">Daftar Tugas {activeFilter === 'done' ? 'Selesai' : 'Overdue'}</p>
+              <button onclick={() => activeFilter = 'none'} class="text-[10px] font-bold text-slate-400 hover:text-slate-600">Tutup</button>
+            </div>
+            {#each filteredTasks as t}
+              {@const ss = STATUS_STYLE[t.status]}
+              <div class="bg-white p-3 rounded-xl border border-slate-100 flex items-center gap-3">
+                <div class="w-1 h-6 rounded-full flex-shrink-0" style="background:{PRIORITY_DOT[t.priority]}"></div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-xs font-semibold text-slate-700 truncate">{t.title}</p>
+                  <p class="text-[9px] text-slate-400">Deadline: {formatDate(t.due_date)}</p>
+                </div>
+                <span class="text-[8px] font-bold px-2 py-0.5 rounded-md {ss.bg} {ss.text}">{STATUS_LABEL[t.status]}</span>
+              </div>
+            {:else}
+              <p class="text-[10px] text-slate-400 italic text-center py-2">Tidak ada tugas dalam kategori ini</p>
+            {/each}
+          </div>
+        {/if}
       </div>
 
       <!-- Attendance Stats -->
@@ -117,4 +156,7 @@
     </div>
   </div>
 </div>
-<style>@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }</style>
+<style>
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  @keyframes slideDown { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+</style>

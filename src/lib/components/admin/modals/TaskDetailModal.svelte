@@ -2,7 +2,7 @@
   import { X } from 'lucide-svelte'
   import { STATUS_LABEL, STATUS_STYLE, PRIORITY_DOT, PRIORITY_LABEL, getInitials, formatDate } from '$lib/components/admin/_utils'
   import type { Task, Profile, TaskAssignment } from '$lib/components/admin/_types'
-  import { Calendar, ClipboardList, Trash2 } from 'lucide-svelte'
+  import { Calendar, Trash2 } from 'lucide-svelte'
 
   interface Props {
     task: Task
@@ -12,13 +12,15 @@
     onDelete: (task: Task) => void
     onClose: () => void
     onRemindMember?: (p: Profile) => void
+    onRemindAll?: (t: Task) => void
+    currentUserId?: string
   }
-  let { task, allUsers, allAssignments, onUpdateStatus, onDelete, onClose, onRemindMember } = $props<Props>()
+  let { task, allUsers, allAssignments, onUpdateStatus, onDelete, onClose, onRemindMember, onRemindAll, currentUserId } = $props<Props>()
 
   let ss        = $derived(STATUS_STYLE[task.status])
   let assignees = $derived(
     allAssignments
-      .filter(a => a.task_id === task.id && a.status !== 'rejected')
+      .filter(a => a.task_id === task.id && a.status !== 'rejected' && a.user_id !== task.created_by)
       .map(a => allUsers.find(u => u.id === a.user_id))
       .filter(Boolean) as Profile[]
   )
@@ -84,42 +86,59 @@
       {/if}
 
       <!-- People Info -->
-      <div class="grid grid-cols-2 gap-6">
-        <div class="space-y-3">
-          <p class="text-[11px] font-semibold text-slate-500 ml-0.5">Dibuat Oleh</p>
-          <div class="flex items-center gap-2.5 bg-white border border-slate-100 p-2 rounded-2xl shadow-sm">
-            <div class="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center text-[10px] font-bold text-orange-600 overflow-hidden">
-              {#if creator?.avatar_url}<img src={creator.avatar_url} alt="" class="w-full h-full object-cover" />{:else}{getInitials(creator?.full_name || 'U')}{/if}
-            </div>
-            <div class="min-w-0">
-              <span class="block text-xs font-bold text-slate-700 truncate">{creator?.full_name || 'Admin'}</span>
-              <span class="block text-[9px] text-slate-400">Pemilik Tugas</span>
-            </div>
-          </div>
+      <div class="space-y-4">
+        <div class="flex items-center justify-between px-0.5">
+          <p class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Tim Terlibat</p>
+          {#if onRemindAll}
+            <button onclick={() => onRemindAll(task)} class="text-[10px] font-bold text-orange-600 bg-orange-50 px-3 py-1.5 rounded-xl hover:bg-orange-100 transition-all flex items-center gap-1.5 active:scale-95 shadow-sm border border-orange-100">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+              Ingatkan Semua
+            </button>
+          {/if}
         </div>
         
-        <div class="space-y-3">
-          <p class="text-[11px] font-semibold text-slate-500 ml-0.5">Kolaborator ({assignees.length})</p>
-          <div class="flex flex-col gap-2 max-h-32 overflow-y-auto pr-1">
-            {#each assignees as p}
-              <div class="flex items-center justify-between bg-white border border-slate-100 p-2 rounded-2xl shadow-sm">
-                <div class="flex items-center gap-2.5 min-w-0">
-                  <div class="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center text-[9px] font-bold text-slate-500 overflow-hidden">
-                    {#if p.avatar_url}<img src={p.avatar_url} alt="" class="w-full h-full object-cover" />{:else}{getInitials(p.full_name)}{/if}
+        <div class="grid grid-cols-2 gap-6">
+          <div class="space-y-3">
+            <p class="text-[11px] font-semibold text-slate-500 ml-0.5">Dibuat Oleh</p>
+            <div class="flex items-center gap-2.5 bg-white border border-slate-100 p-2 rounded-2xl shadow-sm">
+              <div class="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center text-[10px] font-bold text-orange-600 overflow-hidden">
+                {#if creator?.avatar_url}<img src={creator.avatar_url} alt="" class="w-full h-full object-cover" />{:else}{getInitials(creator?.full_name || 'U')}{/if}
+              </div>
+              <div class="min-w-0 flex-1">
+                <span class="block text-xs font-bold text-slate-700 truncate">{creator?.full_name || 'Admin'}</span>
+                <span class="block text-[9px] text-slate-400">Pemilik Tugas</span>
+              </div>
+              {#if onRemindMember && creator && creator.id !== currentUserId}
+                <button onclick={() => onRemindMember(creator)} class="w-6 h-6 rounded-lg bg-orange-50 text-orange-500 hover:bg-orange-100 transition-colors flex items-center justify-center flex-shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                </button>
+              {/if}
+            </div>
+          </div>
+          
+          <div class="space-y-3">
+            <p class="text-[11px] font-semibold text-slate-500 ml-0.5">Kolaborator ({assignees.length})</p>
+            <div class="flex flex-col gap-2 max-h-32 overflow-y-auto pr-1">
+              {#each assignees as p}
+                <div class="flex items-center justify-between bg-white border border-slate-100 p-2 rounded-2xl shadow-sm">
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center text-[9px] font-bold text-slate-500 overflow-hidden">
+                      {#if p.avatar_url}<img src={p.avatar_url} alt="" class="w-full h-full object-cover" />{:else}{getInitials(p.full_name)}{/if}
+                    </div>
+                    <span class="text-[10px] font-bold text-slate-700 truncate" title={p.full_name}>{p.full_name}</span>
                   </div>
-                  <span class="text-[10px] font-bold text-slate-700 truncate" title={p.full_name}>{p.full_name}</span>
+                  {#if onRemindMember && p.id !== currentUserId}
+                    <button onclick={() => onRemindMember(p)} class="w-6 h-6 rounded-lg bg-orange-50 text-orange-500 hover:bg-orange-100 transition-colors flex items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                    </button>
+                  {/if}
                 </div>
-                {#if onRemindMember}
-                  <button onclick={() => onRemindMember(p)} class="w-6 h-6 rounded-lg bg-orange-50 text-orange-500 hover:bg-orange-100 transition-colors flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
-                  </button>
-                {/if}
-              </div>
-            {:else}
-              <div class="p-4 text-center border border-dashed border-slate-200 rounded-2xl">
-                <span class="text-[10px] font-medium text-slate-400 italic">Belum ada tim</span>
-              </div>
-            {/each}
+              {:else}
+                <div class="p-4 text-center border border-dashed border-slate-200 rounded-2xl">
+                  <span class="text-[10px] font-medium text-slate-400 italic">Belum ada tim</span>
+                </div>
+              {/each}
+            </div>
           </div>
         </div>
       </div>
@@ -151,6 +170,7 @@
     </div>
   </div>
 </div>
+
 <style>
   @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
   .scrollbar-hide::-webkit-scrollbar { display: none; }

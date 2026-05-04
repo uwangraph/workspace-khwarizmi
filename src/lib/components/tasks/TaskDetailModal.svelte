@@ -1,6 +1,6 @@
 <script lang="ts">
   import toast from 'svelte-french-toast'
-  import { X, Calendar, Clock, MapPin, CheckCircle2, ChevronRight, Plus, Trash2, Edit, Pin, PinOff, Send, MessageCircle, Zap, Bell } from 'lucide-svelte'
+  import { X, Calendar, Clock, CheckCircle2, Trash2, Edit, Pin, Send, Zap, Bell } from 'lucide-svelte'
   interface Subtask { id: string; title: string; completed: boolean }
   interface Task { id: string; title: string; description: string|null; status: string; priority: string; progress: number; due_date: string|null; start_date: string|null; created_by: string; subtasks?: Subtask[] }
   interface Contributor { id: string; name: string; avatar: string|null; status: string }
@@ -19,6 +19,7 @@
     onClose: () => void; onProgress: () => void; onEdit: () => void; onDelete: () => void
     onAccept: () => void; onReject: () => void
     onRemindMember?: (c: Contributor) => void
+    onRemindAll?: () => void
   }
   const STATUS_STYLE: Record<string,{bg:string;text:string;dot:string}> = {
     not_started:{bg:'bg-slate-100',text:'text-slate-600',dot:'#94A3B8'},
@@ -31,7 +32,7 @@
   const PRIORITY_LABEL: Record<string,string> = { low:'Rendah', medium:'Sedang', high:'Tinggi' }
   const PRIORITY_DOT: Record<string,string> = { low:'#94A3B8', medium:'#F59E0B', high:'#EF4444' }
 
-  let { task: t, userId, contributors, myAssignment: myA, canEdit, canDelete, isPinned, onTogglePin, onUpdateSubtasks, due, formatDateShort, getUserName, getInitials, getAvatarGradient, onClose, onProgress, onEdit, onDelete, onAccept, onReject, onRemindMember }: Props = $props()
+  let { task: t, userId, contributors, myAssignment: myA, canEdit, canDelete, isPinned, onTogglePin, onUpdateSubtasks, due, formatDateShort, getUserName, getInitials, getAvatarGradient, onClose, onProgress, onEdit, onDelete, onAccept, onReject, onRemindMember, onRemindAll }: Props = $props()
   let statusStyle = $derived(STATUS_STYLE[t.status])
 
   let newSubtaskTitle = $state('')
@@ -169,33 +170,75 @@
         </div>
       </div>
 
-      <!-- Members -->
-      <div>
-        <p class="text-[11px] font-semibold text-slate-500 mb-3 px-0.5">Tim Kolaborator</p>
-        <div class="flex flex-wrap gap-2.5">
-          {#each contributors as c}
-            <div class="flex items-center gap-2.5 bg-white border border-slate-200 p-2 pr-4 rounded-full transition-all hover:border-orange-200">
+      <!-- People Info -->
+      <div class="space-y-4">
+        <div class="flex items-center justify-between px-0.5">
+          <p class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Tim Terlibat</p>
+          {#if onRemindAll}
+            <button onclick={onRemindAll} class="text-[10px] font-bold text-orange-600 bg-orange-50 px-3 py-1.5 rounded-xl hover:bg-orange-100 transition-all flex items-center gap-1.5 active:scale-95 shadow-sm border border-orange-100">
+              <Bell size={10} /> Ingatkan Semua
+            </button>
+          {/if}
+        </div>
+        
+        <div class="grid grid-cols-2 gap-6">
+          <div class="space-y-3">
+            <p class="text-[11px] font-semibold text-slate-500 ml-0.5">Dibuat Oleh</p>
+            <div class="flex items-center gap-2.5 bg-white border border-slate-200 p-2 rounded-2xl shadow-sm">
               <div class="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-[10px] font-bold text-white shadow-sm border-2 border-white"
-                   style="background:{c.avatar ? 'white' : getAvatarGradient(c.status)};">
-                {#if c.avatar}<img src={c.avatar} alt="" class="w-full h-full object-cover" />{:else}{getInitials(c.name)}{/if}
+                   style="background: {t.created_by ? getAvatarGradient('owner') : '#94A3B8'};">
+                {getInitials(getUserName(t.created_by))}
               </div>
-              <div class="flex flex-col">
-                <span class="text-xs font-bold text-slate-700 leading-none mb-0.5">{c.name}</span>
-                <span class="text-[9px] font-semibold {c.status==='accepted'?'text-emerald-500':c.status==='pending'?'text-blue-500':'text-slate-400'}">
-                  {c.status==='accepted'?'Aktif':c.status==='pending'?'Menunggu':'Selesai'}
-                </span>
+              <div class="min-w-0 flex-1">
+                <span class="block text-xs font-bold text-slate-700 truncate">{getUserName(t.created_by)}</span>
+                <span class="block text-[9px] text-slate-400">Pemilik Tugas</span>
               </div>
-              {#if canEdit && c.id !== userId && c.status !== 'completed' && onRemindMember}
+              {#if onRemindMember && t.created_by !== userId}
                 <button 
-                  onclick={(e) => { e.stopPropagation(); onRemindMember(c); }} 
-                  class="ml-1 w-7 h-7 rounded-full bg-orange-50 text-orange-500 hover:bg-orange-500 hover:text-white flex items-center justify-center transition-all duration-200 group/bell" 
-                  title={c.status === 'pending' ? 'Ingatkan untuk bergabung' : 'Ingatkan progress tugas'}
+                  onclick={(e) => { e.stopPropagation(); onRemindMember({ id: t.created_by, name: getUserName(t.created_by), avatar: null, status: 'owner' }); }} 
+                  class="w-6 h-6 rounded-lg bg-orange-50 text-orange-500 hover:bg-orange-500 hover:text-white flex items-center justify-center transition-all duration-200" 
+                  title="Kirim pengingat ke pembuat"
                 >
-                  <Bell size={12} class="transition-transform group-hover/bell:rotate-12" />
+                  <Bell size={10} />
                 </button>
               {/if}
             </div>
-          {/each}
+          </div>
+          
+          <div class="space-y-3">
+            <p class="text-[11px] font-semibold text-slate-500 ml-0.5">Kolaborator ({contributors.filter(c => c.id !== t.created_by).length})</p>
+            <div class="flex flex-col gap-2 max-h-40 overflow-y-auto pr-1">
+              {#each contributors.filter(c => c.id !== t.created_by) as c}
+                <div class="flex items-center justify-between bg-white border border-slate-200 p-2 rounded-2xl shadow-sm">
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-7 h-7 rounded-lg overflow-hidden flex items-center justify-center text-[9px] font-bold text-white shadow-sm"
+                         style="background:{c.avatar ? 'white' : getAvatarGradient(c.status)};">
+                      {#if c.avatar}<img src={c.avatar} alt="" class="w-full h-full object-cover" />{:else}{getInitials(c.name)}{/if}
+                    </div>
+                    <div class="min-w-0">
+                      <p class="text-[10px] font-bold text-slate-700 truncate leading-tight">{c.name}</p>
+                      <p class="text-[8px] font-semibold {c.status==='accepted'?'text-emerald-500':c.status==='pending'?'text-blue-500':'text-slate-400'}">
+                        {c.status==='accepted'?'Aktif':c.status==='pending'?'Menunggu':'Selesai'}
+                      </p>
+                    </div>
+                  </div>
+                  {#if onRemindMember && c.id !== userId}
+                    <button 
+                      onclick={(e) => { e.stopPropagation(); onRemindMember(c); }} 
+                      class="w-6 h-6 rounded-lg bg-orange-50 text-orange-500 hover:bg-orange-500 hover:text-white flex items-center justify-center transition-all duration-200" 
+                      title="Kirim pengingat"
+                    >
+                      <Bell size={10} />
+                    </button>
+                  {/if}
+                </div>
+              {:else}
+                <div class="p-3 text-center border border-dashed border-slate-200 rounded-2xl">
+                  <span class="text-[10px] font-medium text-slate-400 italic">Belum ada tim</span>
+                </div>
+              {/each}
+            </div>
+          </div>
         </div>
       </div>
     </div>

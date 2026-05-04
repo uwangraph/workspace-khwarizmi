@@ -2,6 +2,7 @@
   import type { Profile, Task, TaskAssignment } from '$lib/components/admin/_types'
   import { getInitials, formatWA } from '$lib/components/admin/_utils'
   import { Search, Plus, Activity, Pencil, Trash2, Users, MessageCircle } from 'lucide-svelte'
+  import toast from 'svelte-french-toast'
 
   interface Props {
     allUsers: Profile[]
@@ -76,26 +77,27 @@
               <p class="text-[11px] text-slate-400 truncate">{u.position || 'Belum diisi'}{u.phone ? ' · ' + u.phone : ''}</p>
             </div>
             <div class="flex items-center gap-1">
-              {#if u.phone}
-                <a href={`https://wa.me/${formatWA(u.phone)}`} target="_blank"
-                   class="w-8 h-8 rounded-lg bg-green-50 hover:bg-green-100 flex items-center justify-center text-green-600 transition-colors cursor-pointer" title="Hubungi via WhatsApp">
-                  <MessageCircle size={13} />
-                </a>
-              {/if}
-              <button onclick={() => onSendReminder(u)}
-                      class="w-8 h-8 rounded-lg bg-orange-50 hover:bg-orange-100 flex items-center justify-center text-orange-500 hover:text-orange-600 transition-colors cursor-pointer" title="Kirim Pengingat">
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+              <button onclick={() => {
+                        if (u.phone) {
+                          window.open(`https://wa.me/${formatWA(u.phone)}`, '_blank');
+                        } else {
+                          toast.error('User ini belum menambahkan nomor telepon');
+                        }
+                      }}
+                      class="w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer {u.phone ? 'bg-green-50 text-green-600 hover:bg-green-100' : 'bg-slate-100 text-slate-300'}" 
+                      title={u.phone ? 'Hubungi via WhatsApp' : 'Nomor tidak tersedia'}>
+                <MessageCircle size={13} />
               </button>
               <button onclick={() => onViewPerformance(u)}
-                      class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-blue-50 flex items-center justify-center text-slate-500 hover:text-blue-600 transition-colors cursor-pointer" title="Lihat Performa">
+                      class="w-8 h-8 rounded-lg bg-blue-50 hover:bg-blue-100 flex items-center justify-center text-blue-600 transition-colors cursor-pointer" title="Lihat Performa">
                 <Activity size={13} />
               </button>
               <button onclick={() => onEditUser(u)}
-                      class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-orange-50 flex items-center justify-center text-slate-500 hover:text-orange-600 transition-colors cursor-pointer">
+                      class="w-8 h-8 rounded-lg bg-amber-50 hover:bg-amber-100 flex items-center justify-center text-amber-600 transition-colors cursor-pointer" title="Edit Pengguna">
                 <Pencil size={13} />
               </button>
               <button onclick={() => onDeleteUser(u)}
-                      class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-red-50 flex items-center justify-center text-slate-500 hover:text-red-500 transition-colors cursor-pointer">
+                      class="w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-500 transition-colors cursor-pointer" title="Hapus Pengguna">
                 <Trash2 size={13} />
               </button>
             </div>

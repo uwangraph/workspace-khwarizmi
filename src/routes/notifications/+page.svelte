@@ -25,6 +25,9 @@
   let loadError = $state<string | null>(null)
   let showClearAllModal = $state(false)
   let isClearingAll = $state(false)
+  let showDeleteModal = $state(false)
+  let notifToDelete = $state<PageNotification | null>(null)
+  let isDeletingOne = $state(false)
   let notifSubscription: any = null
 
   const deletionStore = getContext<Writable<boolean>>('deletionStore')
@@ -213,12 +216,35 @@
     isUpdating = false
   }
 
-  async function deleteOne(id: string, e: Event) {
+  function handleDeleteClick(n: PageNotification, e: Event) {
     e.stopPropagation()
+    notifToDelete = n
+    showDeleteModal = true
+  }
+
+  async function confirmDeleteOne() {
+    if (!notifToDelete || isDeletingOne) return
+    isDeletingOne = true
+    const id = notifToDelete.id
     const prev = notifications
     notifications = notifications.filter(n => n.id !== id)
-    const { error } = await notificationService.deleteNotification(id)
-    if (error) { toast.error('Gagal menghapus'); notifications = prev }
+    
+    try {
+      const { error } = await notificationService.deleteNotification(id)
+      if (error) {
+        notifications = prev
+        toast.error('Gagal menghapus')
+      } else {
+        toast.success('Notifikasi dihapus')
+      }
+    } catch {
+      notifications = prev
+      toast.error('Terjadi kesalahan')
+    } finally {
+      isDeletingOne = false
+      showDeleteModal = false
+      notifToDelete = null
+    }
   }
 
   async function clearAll() {
@@ -297,40 +323,49 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
 </svelte:head>
 
-<div class="min-h-screen pb-24" style="background:#FFF9F0; font-family:'Inter',sans-serif;">
-  <header class="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-orange-100 px-5 py-4">
-    <div class="max-w-lg mx-auto flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <a href="/" class="p-2 -ml-2 hover:bg-orange-50 rounded-full transition-colors">
+<div class="min-h-screen pb-24" style="background:#FFFBF7; font-family:'Inter',sans-serif;">
+  <header class="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 px-6 py-4">
+    <div class="max-w-2xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <a href="/" class="p-2 -ml-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-all active:scale-95">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
         </a>
-        <h1 class="font-bold text-slate-900 text-lg" style="font-family:'Plus Jakarta Sans',sans-serif;">Notifikasi</h1>
-        {#if unreadCount > 0}<span class="text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style="background:linear-gradient(135deg,#F97316,#EA580C);">{unreadCount}</span>{/if}
+        <div>
+          <h1 class="font-bold text-slate-900 text-lg leading-tight" style="font-family:'Plus Jakarta Sans',sans-serif;">Notifikasi</h1>
+          {#if unreadCount > 0}
+            <p class="text-[10px] font-bold text-orange-600 uppercase tracking-wider">{unreadCount} Belum Dibaca</p>
+          {/if}
+        </div>
       </div>
-      <div class="flex gap-1">
-        <button onclick={() => fetchNotifications()} class="p-2 text-slate-400 hover:bg-slate-50 rounded-lg transition-colors" title="Refresh">
+      <div class="flex gap-2">
+        <button onclick={() => fetchNotifications()} class="p-2.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-xl transition-all active:scale-95" title="Refresh">
           <svg class="w-5 h-5 {isLoading ? 'animate-spin' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
           </svg>
         </button>
         {#if notifications.length > 0}
-          <button onclick={markAllAsRead} disabled={isUpdating || unreadCount===0} class="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors disabled:opacity-40">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7m-6 0l-4 4-4-4"/></svg>
+          <button onclick={markAllAsRead} disabled={isUpdating || unreadCount===0} class="p-2.5 text-slate-400 hover:bg-slate-100 hover:text-emerald-600 rounded-xl transition-all disabled:opacity-30" title="Tandai semua dibaca">
+            <Check size={20} />
           </button>
-          <button onclick={() => showClearAllModal = true} class="p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          <button onclick={() => showClearAllModal = true} class="p-2.5 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-xl transition-all" title="Bersihkan semua">
+            <Trash2 size={20} />
           </button>
         {/if}
       </div>
     </div>
   </header>
 
-  <main class="max-w-lg mx-auto p-4">
+  <main class="max-w-2xl mx-auto p-6">
     {#if loadError}
-      <div class="mb-4 bg-red-50 border border-red-200 rounded-xl p-4">
-        <p class="text-sm font-bold text-red-700 mb-1">Gagal memuat notifikasi</p>
-        <p class="text-xs text-red-600 mb-3">{loadError}</p>
-        <button onclick={() => fetchNotifications()} class="text-xs font-bold text-white px-3 py-1.5 rounded-lg cursor-pointer" style="background:#DC2626;">Coba Lagi</button>
+      <div class="mb-6 bg-red-50 border border-red-100 rounded-2xl p-5 flex items-start gap-4">
+        <div class="p-2 bg-white rounded-lg shadow-sm">
+          <X size={20} class="text-red-500" />
+        </div>
+        <div class="flex-1">
+          <p class="text-sm font-bold text-slate-800 mb-1">Gagal memuat notifikasi</p>
+          <p class="text-xs text-slate-500 mb-4 leading-relaxed">{loadError}</p>
+          <button onclick={() => fetchNotifications()} class="text-[11px] font-bold text-white px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 transition-all shadow-md shadow-red-500/10">Coba Lagi</button>
+        </div>
       </div>
     {/if}
 
@@ -341,79 +376,92 @@
         <Bell size={40} class="text-slate-200" />
       </EmptyState>
     {:else}
-      <div class="relative mb-4">
-        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-        </svg>
+      <div class="relative mb-8">
+        <div class="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+          <Search size={16} class="text-slate-300" />
+        </div>
         <input bind:value={notifSearch} placeholder="Cari notifikasi..."
-               class="w-full pl-9 pr-4 py-2.5 rounded-xl border border-orange-100 text-sm bg-white/90 text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400 shadow-sm" />
+               class="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-slate-200 text-sm bg-white text-slate-700 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/5 transition-all shadow-sm shadow-slate-200/40 placeholder:text-slate-300" />
       </div>
 
       {#if filteredNotifs.length === 0}
         <EmptyState title="Tidak ditemukan" subtitle="Coba kata kunci lain">
-          <Search size={40} class="text-slate-200" />
+          <Search size={48} class="text-slate-100" />
         </EmptyState>
       {:else}
-        <div class="flex items-center justify-between mb-2 px-1">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-orange-500">
-            {filteredNotifs.length} Notifikasi {unreadCount > 0 ? `· ${unreadCount} Belum Dibaca` : ''}
-          </p>
+        <div class="flex items-center justify-between mb-4 px-1">
+          <div class="flex items-center gap-2">
+            <p class="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">
+              {filteredNotifs.length} NOTIFIKASI {unreadCount > 0 ? `· ` : ''}
+              {#if unreadCount > 0}
+                <span class="text-orange-600">{unreadCount} BARU</span>
+              {/if}
+            </p>
+          </div>
           {#if unreadCount > 1}
-            <button onclick={markAllAsRead} disabled={isUpdating} class="text-[10px] font-bold text-orange-600 uppercase tracking-wider disabled:opacity-50 cursor-pointer flex items-center gap-1">
-              Tandai Semua <Check size={10} />
+            <button onclick={markAllAsRead} disabled={isUpdating} class="text-[10px] font-bold text-slate-400 hover:text-orange-600 uppercase tracking-wider disabled:opacity-50 transition-colors flex items-center gap-1.5">
+              Sapu Semua <Check size={12} />
             </button>
           {/if}
         </div>
-        <div class="flex flex-col gap-5 mb-5">
+        <div class="flex flex-col gap-8 mb-8">
           {#each groupedNotifs as group}
             <div>
-              <h2 class="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3 pl-1">{group.label}</h2>
-              <div class="flex flex-col gap-2">
+              <div class="flex items-center gap-3 mb-4 pl-1">
+                <h2 class="text-xs font-black text-slate-900 uppercase tracking-widest">{group.label}</h2>
+                <div class="flex-1 h-px bg-slate-100"></div>
+              </div>
+              <div class="flex flex-col gap-3">
                 {#each group.items as n (n.id)}
                   {@const ic = getIcon(n.type)}
-                  <div class="group relative {n.is_read ? 'bg-white/60 border-slate-100' : 'bg-white border-orange-100 shadow-sm'} border rounded-2xl p-4 transition-all hover:shadow-md cursor-pointer {!n.is_read ? 'hover:shadow-md' : 'hover:bg-white hover:shadow-sm'}"
+                  <div class="group relative flex gap-4 bg-white border {n.is_read ? 'border-slate-100' : 'border-orange-100 bg-white/50 backdrop-blur-sm shadow-sm shadow-orange-500/5'} rounded-3xl p-5 transition-all hover:border-orange-200 hover:shadow-xl hover:shadow-slate-200/30 cursor-pointer"
                        onclick={() => handleCardClick(n)} role="button" tabindex="0"
                        onkeydown={(e) => e.key === 'Enter' && handleCardClick(n)}>
-                    {#if !n.is_read}<div class="absolute top-4 right-4 w-2 h-2 rounded-full bg-orange-500"></div>{/if}
-                    <div class="flex gap-3">
-                      <div class="flex-shrink-0 p-2 rounded-xl {ic.bg} h-fit {n.is_read ? 'opacity-60' : ''}">
-                        <svg class="w-5 h-5 {ic.color}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    
+                    <div class="flex-shrink-0">
+                      <div class="w-12 h-12 rounded-2xl {ic.bg} flex items-center justify-center {n.is_read ? 'grayscale opacity-40' : ''} transition-all group-hover:scale-110">
+                        <svg class="w-6 h-6 {ic.color}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                           <path stroke-linecap="round" stroke-linejoin="round" d={ic.path}/>
                         </svg>
                       </div>
-                      <div class="flex-1 min-w-0 {!n.is_read ? 'pr-4' : ''}">
-                        <div class="flex items-start justify-between gap-2 mb-1">
-                          <h3 class="text-sm {n.is_read ? 'font-semibold text-slate-500' : 'font-bold text-slate-800'} leading-snug" style="font-family:'Plus Jakarta Sans',sans-serif;">{n.title}</h3>
-                          <span class="text-[9px] {n.is_read ? 'text-slate-300' : 'font-medium text-slate-400'} whitespace-nowrap flex-shrink-0">{formatRelative(n.created_at)}</span>
-                        </div>
-                        <p class="text-xs {n.is_read ? 'text-slate-400' : 'text-slate-600'} leading-relaxed mb-2">{n.message}</p>
-                        
-                        {#if n.data && (n.data as any).sender_name}
-                          <div class="flex items-center gap-2 mb-3">
-                            <span class="text-[9px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-500 uppercase tracking-wider">
-                              Oleh: {(n.data as any).sender_name}
-                            </span>
-                            {#if (n.data as any).is_reply}
-                              <span class="text-[9px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-600 uppercase tracking-wider">
-                                Balasan
-                              </span>
-                            {/if}
-                          </div>
-                        {/if}
+                    </div>
 
-                        <div class="flex items-center justify-between gap-2">
-                          <span class="text-[10px] {n.is_read ? 'text-slate-300' : 'text-slate-400'}">{formatDetail(n.created_at)}</span>
-                          <div class="flex gap-2">
-                            {#if n.data && (n.data as any).sender_id && (n.data as any).sender_id !== user?.id}
-                              <button onclick={(e) => handleReply(n, e)} class="text-[10px] font-bold text-white px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 shadow-sm transition-all active:scale-95 cursor-pointer">
-                                BALAS
-                              </button>
-                            {/if}
-                            <button onclick={(e) => toggleRead(n, e)} class="text-[10px] font-bold {n.is_read ? 'text-slate-300 hover:text-orange-600' : 'text-orange-600 px-2 py-1 rounded-md bg-orange-50 hover:bg-orange-100'} transition-colors cursor-pointer sm:opacity-0 sm:group-hover:opacity-100">
-                              {n.is_read ? 'BELUM DIBACA' : 'TANDAI'}
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center justify-between gap-3 mb-1">
+                        <h3 class="text-sm font-bold {n.is_read ? 'text-slate-500' : 'text-slate-900'} leading-snug tracking-tight" style="font-family:'Plus Jakarta Sans',sans-serif;">{n.title}</h3>
+                        <span class="text-[10px] font-bold text-slate-300 uppercase tracking-widest whitespace-nowrap">{formatRelative(n.created_at)}</span>
+                      </div>
+                      <p class="text-xs {n.is_read ? 'text-slate-400' : 'text-slate-600'} leading-relaxed mb-4">{n.message}</p>
+                      
+                      <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex items-center gap-2">
+                          {#if n.data && (n.data as any).sender_name}
+                            <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-100 px-2.5 py-1 rounded-lg">
+                              <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                              <span class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
+                                {(n.data as any).sender_name}
+                              </span>
+                            </div>
+                          {/if}
+                          {#if n.data && (n.data as any).is_reply}
+                            <div class="bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-lg">
+                              <span class="text-[10px] font-bold text-emerald-600 uppercase tracking-tighter">BALASAN</span>
+                            </div>
+                          {/if}
+                        </div>
+
+                        <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
+                          {#if n.data && (n.data as any).sender_id && (n.data as any).sender_id !== user?.id}
+                            <button onclick={(e) => handleReply(n, e)} class="px-4 py-1.5 rounded-xl text-[10px] font-black text-white bg-gradient-to-br from-orange-500 to-orange-600 hover:shadow-lg hover:shadow-orange-500/20 transition-all active:scale-95 shadow-lg shadow-orange-500/10">
+                              BALAS
                             </button>
-                            <button onclick={(e) => deleteOne(n.id, e)} class="text-[10px] font-bold text-slate-300 hover:text-red-500 transition-colors cursor-pointer sm:opacity-0 sm:group-hover:opacity-100">HAPUS</button>
-                          </div>
+                          {/if}
+                          <button onclick={(e) => toggleRead(n, e)} class="p-2 rounded-lg text-slate-300 hover:text-orange-600 hover:bg-orange-50 transition-all">
+                            <Check size={16} />
+                          </button>
+                          <button onclick={(e) => handleDeleteClick(n, e)} class="p-2 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all">
+                            <Trash2 size={16} />
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -428,6 +476,26 @@
     {/if}
   </main>
 </div>
+
+{#if showDeleteModal && notifToDelete}
+  <div class="fixed inset-0 z-[60] flex items-center justify-center p-4" style="background:rgba(15, 23, 42, 0.3); backdrop-filter:blur(8px);" onclick={() => !isDeletingOne && (showDeleteModal = false)}>
+    <div class="w-full max-w-sm bg-white rounded-[2rem] shadow-2xl border border-white/20" style="animation:zoomIn .2s ease-out;" onclick={(e) => e.stopPropagation()}>
+      <div class="px-8 py-10 text-center">
+        <div class="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-6">
+          <Trash2 size={28} class="text-red-500" />
+        </div>
+        <h3 class="text-xl font-black text-slate-900 mb-2" style="font-family:'Plus Jakarta Sans',sans-serif;">Hapus Notifikasi?</h3>
+        <p class="text-sm text-slate-500 leading-relaxed mb-8">Notifikasi ini akan dihapus permanen dari riwayat Anda.</p>
+        <div class="flex gap-3">
+          <button onclick={() => showDeleteModal = false} disabled={isDeletingOne} class="flex-1 py-4 rounded-2xl text-sm font-bold text-slate-400 hover:bg-slate-50 transition-all">Batal</button>
+          <button onclick={confirmDeleteOne} disabled={isDeletingOne} class="flex-1 py-4 rounded-2xl text-sm font-black text-white shadow-xl shadow-red-500/20 transition-all active:scale-95 bg-red-500 hover:bg-red-600">
+            {isDeletingOne ? '...' : 'Hapus'}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
 
 {#if showClearAllModal}
   <div class="fixed inset-0 z-[60] flex items-center justify-center p-4" style="background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);" onclick={() => !isClearingAll && (showClearAllModal = false)}>
@@ -450,47 +518,59 @@
 {/if}
 
 {#if showReplyModal && replyTarget}
-  <div class="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4" style="background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);" onclick={() => !isSendingReply && (showReplyModal = false)}>
-    <div class="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col" style="animation:slideUp .3s ease-out;" onclick={(e) => e.stopPropagation()}>
-      <div class="px-8 pt-8 pb-6">
-        <div class="flex items-center justify-between mb-6">
+  <div class="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4" style="background:rgba(15, 23, 42, 0.3); backdrop-filter:blur(12px);" onclick={() => !isSendingReply && (showReplyModal = false)}>
+    <div class="w-full max-w-lg bg-white rounded-t-[2.5rem] sm:rounded-[2rem] shadow-2xl flex flex-col border border-white/20" style="animation:slideUp .4s cubic-bezier(0.16, 1, 0.3, 1);" onclick={(e) => e.stopPropagation()}>
+      <div class="px-8 pt-10 pb-8">
+        <div class="flex items-start justify-between mb-8">
           <div>
-            <h3 class="text-xl font-black text-slate-900" style="font-family:'Plus Jakarta Sans',sans-serif;">Balas Pengingat</h3>
-            <p class="text-xs font-medium text-slate-500 mt-1">Kepada: <span class="font-bold text-orange-600">{replyTarget.name}</span></p>
+            <div class="flex items-center gap-2 mb-1">
+              <h3 class="text-2xl font-black text-slate-900 tracking-tight" style="font-family:'Plus Jakarta Sans',sans-serif;">Balas Pesan</h3>
+            </div>
+            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Kirim ke: <span class="text-orange-600">{replyTarget.name}</span></p>
           </div>
-          <button onclick={() => showReplyModal = false} class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 transition-all">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          <button onclick={() => showReplyModal = false} class="w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all active:scale-90">
+            <X size={24} />
           </button>
         </div>
 
-        <div class="mb-6 bg-orange-50/50 border border-orange-100 rounded-2xl p-4">
-          <p class="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-1">Tugas Terkait</p>
-          <p class="text-sm font-bold text-slate-800">{replyTarget.taskTitle || 'Tugas Tanpa Judul'}</p>
-        </div>
-
-        <div class="space-y-4">
-          <div>
-            <label class="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Pesan Balasan</label>
-            <textarea 
-              bind:value={replyMessage}
-              placeholder="Contoh: Baik bos, segera saya selesaikan..."
-              rows="4"
-              class="w-full rounded-2xl border-2 border-slate-100 bg-slate-50/50 px-5 py-4 text-sm font-medium text-slate-800 outline-none focus:border-orange-400 focus:bg-white transition-all resize-none shadow-inner"
-            ></textarea>
+        <div class="mb-8 bg-slate-50 border border-slate-100 rounded-2xl p-5">
+          <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Mengenai Tugas</p>
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-400">
+              <Bell size={14} />
+            </div>
+            <p class="text-sm font-bold text-slate-700">{replyTarget.taskTitle || 'Tugas Tanpa Judul'}</p>
           </div>
         </div>
 
-        <div class="flex gap-3 mt-8 mb-4">
-          <button onclick={() => showReplyModal = false} disabled={isSendingReply} class="flex-1 py-4 rounded-2xl text-sm font-bold text-slate-400 hover:bg-slate-100 transition-all">Batal</button>
+        <div class="space-y-6">
+          <div>
+            <label class="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Pesan Anda</label>
+            <div class="relative group">
+              <textarea 
+                bind:value={replyMessage}
+                placeholder="Tulis balasan profesional Anda di sini..."
+                rows="5"
+                class="w-full rounded-2xl border-2 border-slate-100 bg-white px-5 py-4 text-sm font-medium text-slate-800 outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/5 transition-all resize-none shadow-sm placeholder:text-slate-300"
+              ></textarea>
+              <div class="absolute bottom-4 right-4 text-[10px] font-bold text-slate-300 group-focus-within:text-slate-900 transition-colors">
+                {replyMessage.length} Karakter
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-4 mt-10 mb-2">
+          <button onclick={() => showReplyModal = false} disabled={isSendingReply} class="flex-1 py-4 rounded-2xl text-sm font-bold text-slate-400 hover:text-slate-900 hover:bg-slate-50 transition-all">Batal</button>
           <button onclick={submitReply} disabled={isSendingReply || !replyMessage.trim()} 
-                  class="flex-[2] py-4 rounded-2xl text-sm font-black text-white shadow-xl shadow-orange-500/20 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                  class="flex-[2] py-4 rounded-2xl text-sm font-black text-white shadow-2xl shadow-orange-500/20 transition-all active:scale-[0.98] disabled:opacity-30 flex items-center justify-center gap-3"
                   style="background: linear-gradient(135deg, #F97316, #EA580C);">
             {#if isSendingReply}
               <svg class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
-              <span>Mengirim...</span>
+              <span>MENGIRIM...</span>
             {:else}
-              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-              <span>Kirim Balasan</span>
+              <Send size={18} />
+              <span>KIRIM BALASAN</span>
             {/if}
           </button>
         </div>

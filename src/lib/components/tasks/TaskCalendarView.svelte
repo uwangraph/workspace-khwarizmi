@@ -219,6 +219,11 @@
             <div class="flex-1 min-w-0">
               <p class="text-sm font-bold text-slate-800 truncate group-hover:text-orange-700">{task.title}</p>
               <div class="flex items-center gap-2 mt-1">
+                {#if task.due_date}
+                  <span class="text-[9px] px-1.5 py-0.5 rounded-md bg-orange-100 text-orange-600 font-bold tracking-tight">
+                    {new Date(task.due_date).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':')}
+                  </span>
+                {/if}
                 {#if task.isPending}
                   <span class="text-[9px] px-1.5 py-0.5 rounded-md bg-blue-100 text-blue-700 font-bold tracking-tight uppercase">
                     Menunggu Konfirmasi

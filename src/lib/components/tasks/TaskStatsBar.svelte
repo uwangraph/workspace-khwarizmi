@@ -6,7 +6,9 @@
   const ITEMS = [
     { label: 'Total', val: stats.total, color: 'bg-slate-400' },
     { label: 'Belum', val: stats.notStarted, color: 'bg-slate-300' },
-    { label: 'Progress', val: stats.inProgress, color: 'bg-blue-400' },
+    { label: 'Proses', val: stats.inProgress, color: 'bg-blue-400' },
+    { label: 'Review', val: stats.review, color: 'bg-purple-400' },
+    { label: 'Revisi', val: stats.revision, color: 'bg-amber-400' },
     { label: 'Selesai', val: stats.done, color: 'bg-green-400' },
   ]
 </script>
@@ -37,7 +39,7 @@
     </div>
 
     <!-- Stats Grid -->
-    <div class="grid grid-cols-4 gap-2">
+    <div class="grid grid-cols-6 gap-1">
       {#each ITEMS as item}
         <div class="flex flex-col gap-1">
           <div class="flex items-center gap-1.5">

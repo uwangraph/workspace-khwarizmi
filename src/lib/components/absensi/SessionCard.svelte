@@ -21,9 +21,11 @@
     isWfa?: boolean
     onCheckIn: (sid: number) => void
     onCheckOut: (sid: number) => void
+    isLocValid: boolean
+    locStatus: 'idle' | 'loading' | 'success' | 'error'
   }
 
-  let { session: s, now, rec, sessionLeave, isWfa = false, onCheckIn, onCheckOut }: Props = $props()
+  let { session: s, now, rec, sessionLeave, isWfa = false, onCheckIn, onCheckOut, isLocValid, locStatus }: Props = $props()
 
   function toMin(t: string) { const [h, m] = t.split(':').map(Number); return h*60+m }
   function formatTime(iso: string | null) {
@@ -41,6 +43,9 @@
   let pct = $derived(rec && !rec.check_out && inWindow
     ? Math.min(Math.round(((curMin - startMin) / (endMin - startMin)) * 100), 100)
     : 0)
+  
+  let needsLocation = $derived(s.requireLocation !== false && !isWfa)
+  let canAction = $derived(!needsLocation || isLocValid)
 </script>
 
 <div class="bg-white/90 rounded-2xl p-4 shadow-sm border border-slate-100 transition-all hover:shadow-md"
@@ -93,16 +98,22 @@
         </span>
       {:else if rec}
         <button onclick={() => onCheckOut(s.id)}
-                class="text-[10px] font-bold px-3 py-2 rounded-lg bg-orange-50 text-orange-600 border border-orange-200 hover:bg-orange-100 transition-colors flex items-center gap-1">
-          <LogOut size={11} /> Checkout
+                disabled={!canAction}
+                class="text-[10px] font-bold px-3 py-2 rounded-lg transition-all flex items-center gap-1
+                       {!canAction ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200' : 'bg-orange-50 text-orange-600 border border-orange-200 hover:bg-orange-100'}">
+          {#if !canAction}<Lock size={11} />{:else}<LogOut size={11} />{/if}
+          Checkout
         </button>
       {:else if isExpired}
         <span class="text-[10px] font-semibold text-slate-400">Terlewat</span>
       {:else}
         <button onclick={() => onCheckIn(s.id)}
-                class="text-[10px] font-bold px-3 py-2 rounded-lg text-white transition-all active:scale-95 flex items-center gap-1"
-                style="background: linear-gradient(135deg, #F97316, #EA580C);">
-          <LogIn size={11} /> Check-in
+                disabled={!canAction}
+                class="text-[10px] font-bold px-3 py-2 rounded-lg text-white transition-all active:scale-95 flex items-center gap-1
+                       {!canAction ? 'bg-slate-300 cursor-not-allowed' : 'hover:brightness-110'}"
+                style={canAction ? 'background: linear-gradient(135deg, #F97316, #EA580C);' : ''}>
+          {#if !canAction}<Lock size={11} />{:else}<LogIn size={11} />{/if}
+          Check-in
         </button>
       {/if}
     </div>

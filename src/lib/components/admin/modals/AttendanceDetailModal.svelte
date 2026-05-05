@@ -78,15 +78,27 @@
               
               <div class="text-right">
                 {#if att?.check_in}
-                  <div class="flex flex-col items-end gap-1">
-                    <span class="text-[10px] font-bold px-2 py-0.5 rounded text-white {att.late ? 'bg-red-500' : 'bg-green-500'}">In: {formatTime(att.check_in)}</span>
+                  <div class="flex flex-col items-end gap-2">
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded text-white {att.late ? 'bg-red-500' : 'bg-green-500'} shadow-sm">In: {formatTime(att.check_in)}</span>
                     {#if att.photo_in_url}
-                      <button onclick={() => viewPhotoUrl = att.photo_in_url!} class="text-[9px] text-blue-500 underline flex items-center gap-0.5 hover:text-blue-600"><ImageIcon size={10} /> Foto In</button>
+                      <button onclick={() => viewPhotoUrl = att.photo_in_url!} class="relative group w-12 h-12 rounded-xl overflow-hidden border-2 border-white shadow-md hover:scale-105 transition-transform">
+                        <img src={att.photo_in_url} alt="Foto In" class="w-full h-full object-cover" />
+                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                          <ImageIcon size={12} class="text-white" />
+                        </div>
+                      </button>
                     {/if}
+
                     {#if att.check_out}
-                      <span class="text-[10px] font-bold px-2 py-0.5 rounded text-white bg-green-500 mt-1">Out: {formatTime(att.check_out)}</span>
+                      <div class="w-full h-px bg-slate-100 my-1"></div>
+                      <span class="text-[10px] font-bold px-2 py-0.5 rounded text-white bg-green-500 shadow-sm">Out: {formatTime(att.check_out)}</span>
                       {#if att.photo_out_url}
-                        <button onclick={() => viewPhotoUrl = att.photo_out_url!} class="text-[9px] text-blue-500 underline flex items-center gap-0.5 hover:text-blue-600"><ImageIcon size={10} /> Foto Out</button>
+                        <button onclick={() => viewPhotoUrl = att.photo_out_url!} class="relative group w-12 h-12 rounded-xl overflow-hidden border-2 border-white shadow-md hover:scale-105 transition-transform">
+                          <img src={att.photo_out_url} alt="Foto Out" class="w-full h-full object-cover" />
+                          <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                            <ImageIcon size={12} class="text-white" />
+                          </div>
+                        </button>
                       {/if}
                     {/if}
                   </div>

@@ -8,6 +8,7 @@
   import { adminService } from '$lib/services/adminService'
   import { notificationService } from '$lib/services/notificationService'
   import { taskService } from '$lib/services/taskService'
+  import { attendanceService } from '$lib/services/attendanceService'
 
   import type { Profile, Task, AttendanceRecord, TaskAssignment, Holiday, AdminTab, ThursdayRule, AppSetting, AttendanceLeave } from '$lib/components/admin/_types'
 
@@ -82,6 +83,8 @@
   let isClearingData       = $state(false)
   let showClearDataModal   = $state(false)
   let showImmediateDeleteModal = $state(false)
+  let showCleanupOldDataModal = $state(false)
+  let isCleaningOldData    = $state(false)
 
   // Toast
   let toastMsg     = $state('')
@@ -377,6 +380,24 @@
     }
   }
 
+  function triggerCleanupOldData() {
+    showCleanupOldDataModal = true
+  }
+
+  async function handleCleanupOldData() {
+    showCleanupOldDataModal = false
+    isCleaningOldData = true
+    try {
+      const result = await attendanceService.cleanupOldData(40)
+      showToast(`Berhasil menghapus ${result.deletedPhotos} file foto dan data absensi lama.`, 'success')
+      await loadData()
+    } catch (err: any) {
+      showToast(err.message || 'Gagal membersihkan data lama', 'error')
+    } finally {
+      isCleaningOldData = false
+    }
+  }
+
   // ── Leave Actions ──────────────────────────────────────────────────────────
   async function updateLeaveStatus(leave: AttendanceLeave, status: 'approved' | 'rejected') {
     if (!profile) return
@@ -471,8 +492,10 @@
                      onClearData={() => showClearDataModal = true}
                      onCancelClearData={cancelClearData}
                      onExecuteImmediateDeletion={executeImmediateDeletion}
+                     onCleanupOldData={triggerCleanupOldData}
                      isSaving={isSavingSettings}
-                     isClearing={isClearingData} />
+                     isClearing={isClearingData}
+                     isCleaningOldData={isCleaningOldData} />
       {/if}
     </main>
 
@@ -575,4 +598,13 @@
     isDeleting={isClearingData}
     onConfirm={clearAllData}
     onClose={() => showClearDataModal = false} />
+{/if}
+
+{#if showCleanupOldDataModal}
+  <DeleteConfirmModal
+    title="Sapu Bersih Data Lama?"
+    message="Apakah Anda yakin ingin menghapus SEMUA file foto selfie dan data absensi yang berumur <strong>lebih dari 40 hari</strong> secara permanen?<br/><br/><span class='text-[10px] text-red-500'>Tindakan ini tidak dapat dibatalkan. Pastikan Anda sudah membuat rekapan.</span>"
+    isDeleting={isCleaningOldData}
+    onConfirm={handleCleanupOldData}
+    onClose={() => showCleanupOldDataModal = false} />
 {/if}

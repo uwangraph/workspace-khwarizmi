@@ -8,10 +8,12 @@
     onClearData: () => void
     onCancelClearData: () => void
     onExecuteImmediateDeletion: () => void
+    onCleanupOldData: () => void
     isSaving: boolean
     isClearing: boolean
+    isCleaningOldData: boolean
   }
-  let { settings, onSave, onClearData, onCancelClearData, onExecuteImmediateDeletion, isSaving, isClearing } = $props<Props>()
+  let { settings, onSave, onClearData, onCancelClearData, onExecuteImmediateDeletion, onCleanupOldData, isSaving, isClearing, isCleaningOldData } = $props<Props>()
 
   let lat = $state(settings?.office_lat ?? -6.655905)
   let lng = $state(settings?.office_lng ?? 106.696199)
@@ -117,6 +119,35 @@
         </button>
       </div>
     </form>
+  </div>
+
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-50 p-6 sm:p-8">
+    <div class="flex items-center gap-4 mb-6">
+      <div class="w-11 h-11 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-500">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+      </div>
+      <div>
+        <h2 class="text-base font-bold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">Pembersihan Data Lama</h2>
+        <p class="text-[11px] text-slate-400 mt-0.5 font-medium">Hapus file foto dan data absensi yang sudah lebih dari 40 hari</p>
+      </div>
+    </div>
+
+    <div class="bg-indigo-50/50 rounded-2xl border border-indigo-100 p-5 mb-6">
+      <p class="text-[13px] text-indigo-700 leading-relaxed font-medium">
+        Fungsi ini akan mencari dan menghapus seluruh <strong>file foto selfie di Storage</strong> serta <strong>riwayat absensi di database</strong> yang usianya sudah melewati 40 hari ke belakang. Sangat disarankan dilakukan setelah rekapan bulanan selesai.
+      </p>
+    </div>
+
+    <button onclick={onCleanupOldData} disabled={isCleaningOldData || isClearing}
+            class="w-full py-4 rounded-xl text-sm font-bold text-white shadow-lg shadow-indigo-500/20 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+            style="background: linear-gradient(to right, #6366F1, #4F46E5);">
+      {#if isCleaningOldData}
+        <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+        Mengeksekusi Pembersihan...
+      {:else}
+        Sapu Bersih Data Lama (40 Hari)
+      {/if}
+    </button>
   </div>
 
   <div class="bg-white rounded-2xl shadow-sm border border-slate-50 p-6 sm:p-8">

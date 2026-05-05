@@ -26,7 +26,7 @@
   interface ThursdayRule { id: string; date: string; type: 'normal' | 'custom_time' | 'wfa'; start_time?: string | null; note?: string | null }
   interface AppSetting { office_lat: number; office_lng: number; office_radius: number }
 
-  const LATE_TOLERANCE_MIN = 5
+  const LATE_TOLERANCE_MIN = 10
   const SESSIONS: Session[] = [
     { id: 1, name: 'Sesi Pagi',  start: '08:00', end: '11:30', unlockAt: '06:00', autoCheckoutAt: '12:00', hasLateCheck: true, requireLocation: true },
     { id: 2, name: 'Sesi Siang', start: '13:30', end: '15:00', unlockAt: '12:00', autoCheckoutAt: '15:30', hasLateCheck: true, requireLocation: true },
@@ -42,6 +42,12 @@
   let todayHoliday = $state<{id: string, name: string, date: string} | null>(null)
   let now = $state(new Date())
 
+  // Geofencing states
+  let locStatus = $state<'idle' | 'loading' | 'success' | 'error'>('idle')
+  let locDistance = $state<number | null>(null)
+  let isLocValid = $state(false)
+  let locError = $state('')
+
   $effect(() => { const t = setInterval(() => (now = new Date()), 30_000); return () => clearInterval(t) })
 
   let attendanceMap = $derived(Object.fromEntries(attendance.map(a => [a.session_id, a])))
@@ -55,9 +61,18 @@
 
   async function checkLocation(): Promise<{ ok: boolean; distance?: number; error?: string }> {
     if (!appSettings) return { ok: false, error: 'Pengaturan lokasi belum dikonfigurasi' }
+    locStatus = 'loading'
     const pos = await locationService.getCurrentPosition()
-    if (!pos.ok) return { ok: false, error: pos.error }
-    return locationService.isWithinRadius(pos.coords!, appSettings.office_lat, appSettings.office_lng, appSettings.office_radius)
+    if (!pos.ok) {
+      locStatus = 'error'
+      locError = pos.error || 'Gagal mendeteksi lokasi'
+      return { ok: false, error: pos.error }
+    }
+    const result = locationService.isWithinRadius(pos.coords!, appSettings.office_lat, appSettings.office_lng, appSettings.office_radius)
+    locStatus = 'success'
+    locDistance = Math.round(result.distance)
+    isLocValid = result.ok
+    return result
   }
 
   function checkIsLate(session: Session) {
@@ -98,6 +113,10 @@
     appSettings = data.appSettings
     todayHoliday = data.todayHoliday as any
     thursdayRule = data.thursdayRule as any
+
+    if (appSettings) {
+      checkLocation()
+    }
 
     await runAutoCheckout(u)
     
@@ -211,11 +230,65 @@
 
       <AttendanceBanner isThursday={isTodayThursday} isFriday={isTodayFriday} {thursdayRule} />
 
+      <!-- Location Geofencing Card -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-2 overflow-hidden relative">
+        {#if locStatus === 'loading'}
+          <div class="flex items-center gap-3">
+            <div class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+            <p class="text-xs font-bold text-slate-500">Memverifikasi lokasi GPS...</p>
+          </div>
+        {:else if locStatus === 'error'}
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-xl bg-red-50 text-red-500 flex items-center justify-center">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+              </div>
+              <div>
+                <p class="text-xs font-bold text-slate-800">GPS Bermasalah</p>
+                <p class="text-[10px] text-red-500 font-medium">{locError}</p>
+              </div>
+            </div>
+            <button onclick={checkLocation} class="text-[10px] font-black text-orange-600 bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100 active:scale-95 transition-all">REFRESH</button>
+          </div>
+        {:else if locStatus === 'success'}
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-2xl {isLocValid ? 'bg-emerald-50 text-emerald-500' : 'bg-red-50 text-red-500'} flex items-center justify-center transition-colors">
+                {#if isLocValid}
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                {:else}
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                {/if}
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <p class="text-xs font-bold text-slate-800">{isLocValid ? 'Area Absensi Valid' : 'Di Luar Radius'}</p>
+                  <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-md {isLocValid ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}">
+                    {isLocValid ? 'AKTIF' : 'TERKUNCI'}
+                  </span>
+                </div>
+                <p class="text-[10px] text-slate-400 font-medium mt-0.5">
+                  {#if isLocValid}
+                    Anda berada dalam radius aman kantor.
+                  {:else}
+                    Jarak Anda: <span class="text-red-500 font-bold">{locDistance}m</span> dari kantor (Maks {appSettings?.office_radius}m)
+                  {/if}
+                </p>
+              </div>
+            </div>
+            <button onclick={checkLocation} class="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-slate-100 transition-all active:rotate-180 duration-500">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            </button>
+          </div>
+        {/if}
+      </div>
+
       {#if activeSessions.length > 0}
         <AttendanceStats {attendance} {activeSessions} />
         <div class="flex flex-col gap-3">
           {#each activeSessions as session}
             <SessionCard {session} {now} rec={attendanceMap[session.id]} sessionLeave={isSessionOnLeave(session.id)}
+                         {isLocValid} {locStatus}
                          {isWfa} onCheckIn={(sid) => openCamera(sid, 'in')} onCheckOut={(sid) => openCamera(sid, 'out')} />
           {/each}
         </div>

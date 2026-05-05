@@ -243,12 +243,12 @@
 				<div class="grid grid-cols-2 gap-4">
 					<div class="space-y-1.5">
 						<label class="ml-0.5 text-[11px] font-semibold text-slate-500">Mulai</label>
-						<input type="date" value={formStartDate} onchange={(e) => onStartDateChange((e.target as HTMLInputElement).value)}
+						<input type="datetime-local" value={formStartDate} onchange={(e) => onStartDateChange((e.target as HTMLInputElement).value)}
 							   class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-medium text-slate-700 focus:border-orange-500 transition-all {formFieldErrors.startDate ? 'border-red-200' : ''}" />
 					</div>
 					<div class="space-y-1.5">
 						<label class="ml-0.5 text-[11px] font-semibold text-slate-500">Batas Waktu</label>
-						<input type="date" value={formDueDate} onchange={(e) => onDueDateChange((e.target as HTMLInputElement).value)}
+						<input type="datetime-local" value={formDueDate} onchange={(e) => onDueDateChange((e.target as HTMLInputElement).value)}
 							   class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-medium text-slate-700 focus:border-orange-500 transition-all {formFieldErrors.dueDate ? 'border-red-200' : ''}" />
 					</div>
 				</div>

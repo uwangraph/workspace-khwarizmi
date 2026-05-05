@@ -183,15 +183,51 @@
 
 
 
-  function formatDateShort(iso: string | null) { return iso ? new Date(iso).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : null }
+  function formatForInput(iso: string | null) {
+    if (!iso) return ''
+    const d = new Date(iso)
+    // Convert to local time string for datetime-local input: YYYY-MM-DDTHH:mm
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    const hours = String(d.getHours()).padStart(2, '0')
+    const minutes = String(d.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day}T${hours}:${minutes}`
+  }
+
+  function formatDateShort(iso: string | null) { 
+    if (!iso) return null
+    return new Date(iso).toLocaleDateString('id-ID', { 
+      day: 'numeric', 
+      month: 'short', 
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).replace('.', ':')
+  }
+
   function formatDueDate(iso: string | null) {
     if (!iso) return null
-    const d = new Date(iso); d.setHours(0, 0, 0, 0)
+    const d = new Date(iso)
+    const now = new Date()
+    
+    const dDate = new Date(d); dDate.setHours(0, 0, 0, 0)
     const today = new Date(); today.setHours(0, 0, 0, 0)
-    const diff = Math.floor((d.getTime() - today.getTime()) / 86400000)
+    const diff = Math.floor((dDate.getTime() - today.getTime()) / 86400000)
+    
+    const timeStr = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':')
+
     if (diff < 0) return { label: `Terlambat ${Math.abs(diff)}h`, color: 'text-red-600', urgent: true }
-    if (diff === 0) return { label: 'Hari ini', color: 'text-red-600', urgent: true }
-    if (diff <= 3) return { label: `${diff} hari lagi`, color: 'text-orange-600', urgent: false }
+    if (diff === 0) {
+      // Check if time has passed
+      const isOverdue = d.getTime() < now.getTime()
+      return { 
+        label: isOverdue ? `Terlewat (${timeStr})` : `Hari ini, ${timeStr}`, 
+        color: isOverdue ? 'text-red-700' : 'text-red-600', 
+        urgent: true 
+      }
+    }
+    if (diff <= 3) return { label: `${diff} hari lagi, ${timeStr}`, color: 'text-orange-600', urgent: false }
     return { label: `${diff} hari lagi`, color: 'text-slate-500', urgent: false }
   }
   function getStatusByProgress(progress: number): Task['status'] { return progress === 0 ? 'not_started' : progress === 100 ? 'done' : progress >= 80 ? 'review' : 'in_progress' }
@@ -361,7 +397,17 @@
   
   function openEditModal(task: Task) {
     if (!canEditTask(task)) { toast.error('Anda tidak memiliki akses untuk mengedit tugas ini'); return }
-    isEditing = true; editingTaskId = task.id; formTitle = task.title; formDescription = task.description || ''; formStatus = task.status; formPriority = task.priority; formProgress = task.progress; formStartDate = task.start_date ? task.start_date.split('T')[0] : ''; formDueDate = task.due_date ? task.due_date.split('T')[0] : ''; formError = ''; formFieldErrors = {}
+    isEditing = true; 
+    editingTaskId = task.id; 
+    formTitle = task.title; 
+    formDescription = task.description || ''; 
+    formStatus = task.status; 
+    formPriority = task.priority; 
+    formProgress = task.progress; 
+    formStartDate = formatForInput(task.start_date); 
+    formDueDate = formatForInput(task.due_date); 
+    formError = ''; 
+    formFieldErrors = {}
     // Load current assignees using allAssignments already in memory (faster, no extra query)
     formAssignedUsers = allAssignments
       .filter(a => a.task_id === task.id && a.status !== 'rejected' && a.user_id !== user?.id)
@@ -692,8 +738,18 @@
                  {formProgress} {formStartDate} {formDueDate} {formAssignedUsers} {formError} {formFieldErrors} {isSubmitting}
                  onClose={() => showTaskModal = false} onSave={saveTask}
                  onTitleChange={(v) => formTitle = v} onDescChange={(v) => formDescription = v}
-                 onStatusChange={(v) => formStatus = v as any} onPriorityChange={(v) => formPriority = v as any}
-                 onProgressChange={(v) => formProgress = v} onStartDateChange={(v) => formStartDate = v}
+                 onStatusChange={(v) => {
+                   formStatus = v as any;
+                   if (v === 'done') formProgress = 100;
+                   else if (v === 'not_started' && formProgress > 0) formProgress = 0;
+                   else if (v === 'in_progress' && (formProgress === 0 || formProgress === 100)) formProgress = 10;
+                 }} 
+                 onPriorityChange={(v) => formPriority = v as any}
+                 onProgressChange={(v) => {
+                   formProgress = v;
+                   formStatus = getStatusByProgress(v);
+                 }} 
+                 onStartDateChange={(v) => formStartDate = v}
                  onDueDateChange={(v) => formDueDate = v}
                  onAssignChange={(id, checked) => { if (checked) formAssignedUsers = [...formAssignedUsers, id]; else formAssignedUsers = formAssignedUsers.filter(uid => uid !== id) }}
                  {getInitials} />

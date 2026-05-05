@@ -123,15 +123,15 @@
         <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
           <p class="text-[11px] font-semibold text-slate-500 mb-2">Tanggal Mulai</p>
           <div class="flex items-center gap-2">
-            <Calendar size={14} class="text-slate-400" />
-            <p class="text-xs font-bold text-slate-700">{formatDateShort(t.start_date) || '—'}</p>
+            <Calendar size={13} class="text-slate-400" />
+            <p class="text-[11px] font-bold text-slate-700 leading-none">{formatDateShort(t.start_date) || '—'}</p>
           </div>
         </div>
         <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
           <p class="text-[11px] font-semibold text-slate-500 mb-2">Batas Waktu</p>
           <div class="flex items-center gap-2">
-            <Clock size={14} class="text-orange-500" />
-            <p class="text-xs font-bold {due?.color || 'text-slate-700'}">{formatDateShort(t.due_date) || '—'}</p>
+            <Clock size={13} class="text-orange-500" />
+            <p class="text-[11px] font-bold {due?.color || 'text-slate-700'} leading-none">{formatDateShort(t.due_date) || '—'}</p>
           </div>
         </div>
       </div>

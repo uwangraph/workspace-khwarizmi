@@ -112,5 +112,52 @@ export const attendanceService = {
   async getTotalAttendanceDays(userId: string) {
     const { data } = await supabase.from('attendance').select('date').eq('user_id', userId);
     return new Set((data || []).map(a => a.date)).size;
+  },
+
+  async cleanupOldData(daysThreshold: number = 40) {
+    const thresholdDate = new Date();
+    thresholdDate.setDate(thresholdDate.getDate() - daysThreshold);
+    const thresholdString = thresholdDate.toISOString().split('T')[0];
+
+    // 1. Cari data lama untuk menghapus foto di Storage
+    const { data: oldRecords } = await supabase
+      .from('attendance')
+      .select('photo_in_url, photo_out_url')
+      .lt('date', thresholdString);
+
+    if (oldRecords && oldRecords.length > 0) {
+      const filesToDelete: string[] = [];
+      
+      for (const record of oldRecords) {
+        if (record.photo_in_url) {
+          const parts = record.photo_in_url.split('/selfies/');
+          if (parts.length > 1) filesToDelete.push(parts[1]);
+        }
+        if (record.photo_out_url) {
+          const parts = record.photo_out_url.split('/selfies/');
+          if (parts.length > 1) filesToDelete.push(parts[1]);
+        }
+      }
+
+      // Hapus dari bucket secara bertahap (batch) jika datanya sangat banyak
+      const chunkSize = 100;
+      for (let i = 0; i < filesToDelete.length; i += chunkSize) {
+        const chunk = filesToDelete.slice(i, i + chunkSize);
+        await supabase.storage.from('selfies').remove(chunk);
+      }
+    }
+
+    // 2. Hapus data dari database (Absensi, Izin, Penalti)
+    const [delAttend, delLeaves, delPenalties] = await Promise.all([
+      supabase.from('attendance').delete().lt('date', thresholdString),
+      supabase.from('attendance_leaves').delete().lt('date', thresholdString),
+      supabase.from('attendance_penalties').delete().lt('date', thresholdString)
+    ]);
+
+    return {
+      success: true,
+      deletedPhotos: oldRecords ? oldRecords.length * 2 : 0, // Estimasi maksimal
+      thresholdDate: thresholdString
+    };
   }
 };

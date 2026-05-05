@@ -41,19 +41,18 @@ export const notificationService = {
 
   async send(uid: string, type: string, title: string, message: string, data: Record<string, any> = {}) {
     try {
-      // Bypass RLS menggunakan RPC sesuai dokumen
-      const { error } = await supabase.rpc('send_notification', { 
-        p_user_id: uid, 
-        p_type: type, 
-        p_title: title, 
-        p_message: message, 
-        p_data: data 
+      // Kirim via API Route agar push notification (Firebase Admin) tereksekusi
+      const response = await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: uid, type, title, message, data })
       });
-      if (error) throw error;
+      
+      if (!response.ok) throw new Error(`API returned ${response.status}`);
       return true;
     } catch (err) {
-      console.error('RPC failed, falling back to direct insert:', err);
-      // Strategy 2: Direct insert (fallback)
+      console.error('API /api/notifications failed, falling back to direct insert:', err);
+      // Strategy 2: Direct insert (fallback, tapi tidak akan ada push notification)
       const { error } = await supabase.from('notifications').insert({ 
         user_id: uid, type, title, message, data, is_read: false 
       });

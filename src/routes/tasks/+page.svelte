@@ -567,7 +567,7 @@
   <title>Tugas — Workspace Khwarizmi</title>
 </svelte:head>
 
-<div class="min-h-screen pb-24 bg-[#FFF9F0]">
+<div class="min-h-screen pb-24 bg-[#FFF9F0]/30">
   <AppHeader title="Daftar Tugas" subtitle="Kelola proyek & kolaborasi" />
 
   <main class="{viewMode === 'calendar' ? 'max-w-4xl' : 'max-w-lg'} mx-auto p-4 flex flex-col gap-5 transition-all duration-500">

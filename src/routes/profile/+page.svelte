@@ -18,7 +18,8 @@
 		X,
 		ZoomIn,
 		ZoomOut,
-		RotateCcw
+		RotateCcw,
+		BookOpen
 	} from 'lucide-svelte';
 
 	import { authService } from '$lib/services/authService';
@@ -345,7 +346,7 @@
 	/>
 </svelte:head>
 
-<div class="min-h-screen bg-[#FFF9F0] pb-28" style="font-family:'Inter',sans-serif;">
+<div class="min-h-screen bg-[#FFF9F0]/30 pb-28" style="font-family:'Inter',sans-serif;">
 	<header
 		class="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-50 bg-white/80 px-5 py-4 backdrop-blur-xl"
 	>
@@ -434,6 +435,14 @@
 			<InfoSection
 				title="Navigasi Cepat"
 				actions={[
+					{
+						Icon: BookOpen,
+						label: 'Panduan Pengguna',
+						href: '/panduan',
+						bg: 'bg-blue-50/50',
+						iconColor: 'text-blue-500',
+						onClick: () => location.assign('/panduan')
+					},
 					{
 						Icon: ClipboardList,
 						label: 'Daftar Tugas',

@@ -12,7 +12,7 @@
   import { authService } from '$lib/services/authService'
   import { notificationService } from '$lib/services/notificationService'
   import type { AppNotification } from '$lib/type'
-  import { Check, Bell, Search, RefreshCw, Trash2, X, Send } from 'lucide-svelte'
+  import { Check, Bell, Search, RefreshCw, Trash2, X, Send, Reply } from 'lucide-svelte'
 
   type NotifType = 'task_collaboration_invite'|'task_deadline_today'|'collaboration_accepted'|'collaboration_rejected'|'task_completed'|'task_ready_review'|'task_deleted'|'task_assigned'|'task_revision'|(string & {})
   // Use AppNotification from type.ts to avoid shadowing the browser's Notification API
@@ -450,10 +450,11 @@
                           {/if}
                         </div>
 
-                        <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
+                        <div class="flex items-center gap-2 transition-all">
                           {#if n.data && (n.data as any).sender_id && (n.data as any).sender_id !== user?.id}
-                            <button onclick={(e) => handleReply(n, e)} class="px-4 py-1.5 rounded-xl text-[10px] font-black text-white bg-gradient-to-br from-orange-500 to-orange-600 hover:shadow-lg hover:shadow-orange-500/20 transition-all active:scale-95 shadow-lg shadow-orange-500/10">
-                              BALAS
+                            <button onclick={(e) => handleReply(n, e)} class="px-3 py-1.5 rounded-xl text-[10px] font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 transition-all active:scale-95 flex items-center gap-1.5 border border-orange-100/50">
+                              <Reply size={12} />
+                              <span>BALAS</span>
                             </button>
                           {/if}
                           <button onclick={(e) => toggleRead(n, e)} class="p-2 rounded-lg text-slate-300 hover:text-orange-600 hover:bg-orange-50 transition-all">

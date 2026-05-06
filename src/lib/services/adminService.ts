@@ -24,7 +24,7 @@ export const adminService = {
       supabase.from('task_assignments').select('*'),
       supabase.from('holidays').select('*').order('date'),
       supabase.from('app_settings').select('*').eq('id', 1).single(),
-      supabase.from('attendance_leaves').select('*').gte('date', startDate).lte('date', endDate).order('date', { ascending: false }),
+      supabase.from('attendance_leaves').select('*').order('date', { ascending: false }),
       supabase.from('thursday_rules').select('*').order('date')
     ]);
 
@@ -140,6 +140,15 @@ export const adminService = {
     const error = results.find(r => r.error);
     if (error) throw error.error;
     return { success: true };
+  },
+
+  async getPendingLeavesCount() {
+    const { count, error } = await supabase
+      .from('attendance_leaves')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending');
+    if (error) return 0;
+    return count || 0;
   }
 };
 

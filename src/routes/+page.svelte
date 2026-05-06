@@ -8,6 +8,7 @@
   import { taskService } from '$lib/services/taskService'
   import { attendanceService } from '$lib/services/attendanceService'
   import { notificationService } from '$lib/services/notificationService'
+  import { adminService } from '$lib/services/adminService'
   import type { Profile, Task, AttendanceRecord, AppNotification } from '$lib/type'
   import { getContext } from 'svelte'
   import type { Writable } from 'svelte/store'
@@ -48,6 +49,7 @@
   }
 
   let user = $state<User | null>(null), profile = $state<Profile | null>(null), attendance = $state<AttendanceRecord[]>([]), tasks = $state<Task[]>([]), notifications = $state<DashboardNotification[]>([])
+  let pendingLeavesCount = $state(0)
   let isLoading = $state(true), gpsActive = $state(false), isNavigating = $state(false), now = $state(new Date())
   let clockInterval: ReturnType<typeof setInterval>
   let notifSubscription: any;
@@ -145,6 +147,10 @@
         .subscribe()
     }
 
+    if (profile?.role === 'admin') {
+      pendingLeavesCount = await adminService.getPendingLeavesCount()
+    }
+
     isLoading = false
   }
 
@@ -195,6 +201,11 @@
               <div class="flex items-center gap-2 mb-1.5">
                 <ShieldCheck size={18} class="text-slate-600" />
                 <h3 class="text-xs font-bold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">Mode Admin Aktif</h3>
+                {#if pendingLeavesCount > 0}
+                  <span class="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full animate-pulse shadow-sm shadow-red-500/20">
+                    {pendingLeavesCount} Permohonan
+                  </span>
+                {/if}
               </div>
               <p class="text-[11px] text-slate-500 leading-relaxed mb-4 pr-2">Kelola pengguna, pantau tugas, dan kendalikan sistem melalui panel khusus.</p>
               <a href="/admin" class="inline-flex items-center gap-2 bg-white hover:bg-slate-50 transition-colors text-slate-700 text-[11px] font-bold py-2.5 px-4 rounded-xl border border-slate-200 shadow-sm">

@@ -7,46 +7,137 @@
   interface Props {
     activeTab: AdminTab
     onTabChange: (tab: AdminTab) => void
+    pendingLeavesCount?: number
   }
-  let { activeTab, onTabChange } = $props<Props>()
+  let { activeTab, onTabChange, pendingLeavesCount = 0 } = $props<Props>()
 
-  const TABS: { id: AdminTab; label: string; Icon: any; desc: string }[] = [
-    { id: 'overview',    label: 'Ringkasan',  Icon: BarChart3,     desc: 'Statistik hari ini' },
-    { id: 'users',       label: 'Pengguna',   Icon: Users,         desc: 'Kelola akun' },
-    { id: 'tasks',       label: 'Tugas',      Icon: ClipboardList, desc: 'Semua pekerjaan' },
-    { id: 'attendance',  label: 'Kehadiran',  Icon: Clock,         desc: 'Absensi harian' },
-    { id: 'rekap',       label: 'Rekap',      Icon: FileText,      desc: 'Laporan lengkap' },
-    { id: 'holidays',    label: 'Hari Libur', Icon: CalendarOff,   desc: 'Kelola libur' },
-    { id: 'settings',    label: 'Pengaturan', Icon: Settings,      desc: 'Sistem app' },
+  const TABS: { id: AdminTab; label: string; Icon: any }[] = [
+    { id: 'overview',    label: 'Ringkasan',  Icon: BarChart3     },
+    { id: 'users',       label: 'Pengguna',   Icon: Users         },
+    { id: 'tasks',       label: 'Tugas',      Icon: ClipboardList },
+    { id: 'attendance',  label: 'Kehadiran',  Icon: Clock         },
+    { id: 'rekap',       label: 'Rekap',      Icon: FileText      },
+    { id: 'holidays',    label: 'Libur',      Icon: CalendarOff   },
+    { id: 'settings',    label: 'Pengaturan', Icon: Settings      },
   ]
 </script>
 
-<div class="sticky top-[57px] z-20 bg-white border-b border-slate-200 shadow-sm">
-  <div class="flex max-w-6xl mx-auto w-full overflow-x-auto no-scrollbar">
+<div class="tab-bar-wrapper">
+  <div class="tab-bar-inner">
     {#each TABS as tab}
       {@const isActive = activeTab === tab.id}
       <button
         onclick={() => onTabChange(tab.id)}
-        class="flex flex-col items-center gap-0.5 px-4 py-2.5 border-b-2 transition-all cursor-pointer flex-shrink-0 min-w-[80px]"
-        class:border-orange-500={isActive}
-        class:border-transparent={!isActive}
+        class="tab-btn"
+        class:active={isActive}
+        aria-current={isActive ? 'page' : undefined}
       >
-        <div class="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
-             style={isActive ? 'background:linear-gradient(135deg,#F97316,#EA580C)' : 'background:#F8FAFC'}>
-          <svelte:component this={tab.Icon} size={15}
-            style={isActive ? 'color:white' : 'color:#94A3B8'} />
-        </div>
-        <span class="text-[10px] font-bold leading-none transition-colors"
-              class:text-orange-600={isActive}
-              class:text-slate-400={!isActive}>
-          {tab.label}
-        </span>
+        <svelte:component this={tab.Icon} size={14} class="tab-icon" />
+        <span class="tab-label">{tab.label}</span>
+        
+        {#if tab.id === 'attendance' && pendingLeavesCount > 0}
+          <span class="tab-badge">{pendingLeavesCount}</span>
+        {/if}
+
+        {#if isActive}<div class="tab-indicator"></div>{/if}
       </button>
     {/each}
   </div>
 </div>
 
 <style>
-  .no-scrollbar::-webkit-scrollbar { display: none; }
-  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .tab-bar-wrapper {
+    position: sticky;
+    top: 57px;
+    z-index: 20;
+    background: #fff;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .tab-bar-inner {
+    display: flex;
+    max-width: 72rem;
+    margin: 0 auto;
+    overflow-x: auto;
+    padding: 0 1rem;
+    gap: 0;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .tab-bar-inner::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 14px;
+    height: 44px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    flex-shrink: 0;
+    color: #94a3b8;
+    transition: color 0.15s ease;
+    white-space: nowrap;
+  }
+
+  .tab-btn:hover {
+    color: #64748b;
+  }
+
+  .tab-btn.active {
+    color: #ea580c;
+  }
+
+  .tab-label {
+    font-size: 12.5px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    line-height: 1;
+  }
+
+  :global(.tab-icon) {
+    flex-shrink: 0;
+    opacity: 0.7;
+  }
+
+  .tab-btn.active :global(.tab-icon) {
+    opacity: 1;
+  }
+
+  .tab-indicator {
+    position: absolute;
+    bottom: 0;
+    left: 14px;
+    right: 14px;
+    height: 2px;
+    background: #ea580c;
+    border-radius: 2px 2px 0 0;
+    animation: slide-in 0.15s ease;
+  }
+
+  .tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #ef4444;
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+    height: 16px;
+    min-width: 16px;
+    padding: 0 4px;
+    border-radius: 99px;
+    margin-left: 2px;
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
+  }
+
+  @keyframes slide-in {
+    from { opacity: 0; transform: scaleX(0.5); }
+    to   { opacity: 1; transform: scaleX(1); }
+  }
 </style>

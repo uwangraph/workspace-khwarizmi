@@ -418,21 +418,20 @@
 <div class="min-h-screen bg-slate-50 pb-24" style="font-family:'Inter',sans-serif;">
 
   <!-- Header -->
-  <header class="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 py-3.5 flex items-center justify-between shadow-sm">
-    <div class="flex items-center gap-3">
-      <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:linear-gradient(135deg,#F97316,#EA580C)">
-        <Shield size={16} class="text-white" />
-      </div>
+  <header class="sticky top-0 z-30 bg-white border-b border-slate-100 px-5 py-0 flex items-center justify-between" style="height:57px">
+    <div class="flex items-center gap-2.5">
+      <Shield size={15} style="color:#ea580c" />
       <div>
-        <p class="font-bold text-slate-900 text-sm leading-none" style="font-family:'Plus Jakarta Sans',sans-serif;">Admin Panel</p>
+        <p class="font-semibold text-slate-800 text-sm leading-none">Admin Panel</p>
         <p class="text-[10px] text-slate-400 mt-0.5">Workspace Khwarizmi</p>
       </div>
     </div>
-    <a href="/" class="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors" title="Dashboard">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+    <a href="/" class="flex items-center gap-1.5 text-[11px] text-slate-400 hover:text-slate-700 transition-colors" title="Dashboard">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
         <polyline points="9 22 9 12 15 12 15 22"/>
       </svg>
+      Beranda
     </a>
   </header>
 
@@ -444,10 +443,14 @@
   {:else}
 
     <!-- Tab Bar -->
-    <AdminTabBar {activeTab} onTabChange={t => activeTab = t} />
+    <AdminTabBar 
+      {activeTab} 
+      onTabChange={t => activeTab = t} 
+      pendingLeavesCount={allLeaves.filter(l => l.status === 'pending').length}
+    />
 
     <!-- Tab Content -->
-    <main class="max-w-6xl mx-auto w-full px-4 py-5">
+    <main class="max-w-6xl mx-auto w-full px-4 py-6">
       {#if activeTab === 'overview'}
         <OverviewTab {allUsers} {allTasks} {allAttendance} {allAssignments} {holidays}
                      onSwitchTab={t => activeTab = t as AdminTab} />

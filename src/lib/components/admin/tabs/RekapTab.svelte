@@ -285,7 +285,7 @@
             </div>
             <div class="min-w-0">
               <p class="text-xs font-semibold text-slate-700 truncate">{s.user.full_name}</p>
-              <p class="text-[9px] text-slate-400">{s.user.position || 'Karyawan'}</p>
+              <p class="text-[9px] text-slate-400">{s.user.position || 'Anggota'}</p>
             </div>
           </div>
           <span class="text-sm font-bold text-slate-700 text-center w-16">{s.totalPresentDays}<span class="text-[9px] text-slate-400">/{s.totalWorkingDays}</span></span>
@@ -318,7 +318,7 @@
                   <span class="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 flex-shrink-0">ADMIN</span>
                 {/if}
               </div>
-              <p class="text-[10px] text-slate-400">{s.user.position || 'Karyawan'}</p>
+              <p class="text-[10px] text-slate-400">{s.user.position || 'Anggota'}</p>
             </div>
           </div>
           <!-- Stats row -->

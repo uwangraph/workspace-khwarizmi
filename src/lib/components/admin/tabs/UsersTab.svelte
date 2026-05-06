@@ -12,108 +12,164 @@
     onDeleteUser: (u: Profile) => void
     onViewPerformance: (u: Profile) => void
     onAddUser: () => void
-    onSendReminder: (u: Profile) => void
+    onSendReminder?: (u: Profile) => void
   }
-  let { allUsers, allTasks, allAssignments, onEditUser, onDeleteUser, onViewPerformance, onAddUser, onSendReminder } = $props<Props>()
+  let { allUsers, allTasks, allAssignments, onEditUser, onDeleteUser, onViewPerformance, onAddUser } = $props<Props>()
 
-  const ITEMS_PER_PAGE = 10
-  let userSearch = $state('')
-  let page       = $state(1)
+  let userSearch  = $state('')
+  let roleFilter  = $state<'all' | 'admin' | 'user'>('all')
 
-  let filtered   = $derived(allUsers.filter(u =>
-    !userSearch ||
-    u.full_name.toLowerCase().includes(userSearch.toLowerCase()) ||
-    u.position?.toLowerCase().includes(userSearch.toLowerCase())
-  ))
-  let paginated   = $derived(filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE))
-  let totalPages  = $derived(Math.ceil(filtered.length / ITEMS_PER_PAGE))
+  let filtered = $derived(allUsers.filter(u => {
+    const matchSearch = !userSearch ||
+      u.full_name.toLowerCase().includes(userSearch.toLowerCase()) ||
+      u.position?.toLowerCase().includes(userSearch.toLowerCase())
+    const matchRole = roleFilter === 'all' || u.role === roleFilter
+    return matchSearch && matchRole
+  }))
+
   let totalAdmins = $derived(allUsers.filter(u => u.role === 'admin').length)
 
-  $effect(() => { userSearch; page = 1 })
+  function getTaskCount(uid: string) {
+    return allAssignments.filter(a => a.user_id === uid && a.status !== 'rejected').length
+  }
+
+  function openWA(u: Profile) {
+    if (u.phone) window.open(`https://wa.me/${formatWA(u.phone)}`, '_blank')
+    else toast.error('User ini belum menambahkan nomor telepon')
+  }
+
+  // Custom Dropdown State
+  let isRoleDropdownOpen = $state(false)
+
+  function handleBodyClick(e: MouseEvent) {
+    const target = e.target as HTMLElement;
+    if (!target.closest('.custom-role-dropdown')) {
+      isRoleDropdownOpen = false;
+    }
+  }
+
+  function getRoleLabel(role: string) {
+    if (role === 'all') return `Semua (${allUsers.length})`
+    if (role === 'user') return `Anggota (${allUsers.length - totalAdmins})`
+    if (role === 'admin') return `Admin (${totalAdmins})`
+    return role
+  }
 </script>
 
+<svelte:window onclick={handleBodyClick} />
+
 <div class="flex flex-col gap-4">
-  <!-- Search + Add -->
+
+  <!-- Toolbar: Search + Dropdown + Add -->
   <div class="flex gap-2 items-center">
+    <!-- Search -->
     <div class="flex-1 relative">
-      <Search size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+      <Search size={13} class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
       <input bind:value={userSearch} placeholder="Cari nama atau posisi..."
-             class="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+             class="w-full pl-9 pr-4 py-2 rounded-lg border border-slate-200 text-sm bg-white text-slate-700 focus:outline-none focus:border-orange-300 focus:ring-1 focus:ring-orange-200 transition-all" />
     </div>
+
+    <!-- Custom Dropdown -->
+    <div class="relative custom-role-dropdown flex-shrink-0">
+        <button onclick={() => isRoleDropdownOpen = !isRoleDropdownOpen}
+                class="w-full flex items-center gap-2 text-sm px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 focus:outline-none focus:border-orange-300 transition-all min-w-[130px] justify-between">
+          <span>{getRoleLabel(roleFilter)}</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+
+        {#if isRoleDropdownOpen}
+          <div class="absolute left-0 top-full mt-1.5 w-48 bg-white rounded-xl shadow-lg border border-slate-100 z-50 overflow-hidden flex flex-col py-1">
+            {#each [
+              { val: 'all', label: `Semua (${allUsers.length})` },
+              { val: 'user', label: `Anggota (${allUsers.length - totalAdmins})` },
+              { val: 'admin', label: `Admin (${totalAdmins})` }
+            ] as option}
+              <button onclick={() => { roleFilter = option.val as any; isRoleDropdownOpen = false; }}
+                      class="w-full text-left px-3 py-2 text-xs hover:bg-orange-50 transition-colors flex items-center justify-between"
+                      class:bg-orange-50={roleFilter === option.val} class:text-orange-600={roleFilter === option.val} class:text-slate-700={roleFilter !== option.val}>
+                <span>{option.label}</span>
+                {#if roleFilter === option.val}
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-orange-600"><path d="M20 6 9 17l-5-5"/></svg>
+                {/if}
+              </button>
+            {/each}
+          </div>
+        {/if}
+    </div>
+
+    <!-- Add Button -->
     <button onclick={onAddUser}
-            class="w-10 h-10 rounded-xl flex items-center justify-center text-white cursor-pointer flex-shrink-0"
-            style="background:linear-gradient(135deg,#F97316,#EA580C)">
-      <Plus size={16} />
+            class="flex items-center justify-center gap-1.5 px-3 md:px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium cursor-pointer transition-colors flex-shrink-0" title="Tambah Pengguna">
+      <Plus size={14} />
+      <span class="hidden md:inline">Tambah</span>
     </button>
   </div>
 
-  <!-- List -->
-  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-    <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-      <span class="text-xs font-bold text-slate-500">{filtered.length} pengguna</span>
-      <span class="text-[10px] text-slate-400">{totalAdmins} admin · {allUsers.length - totalAdmins} karyawan</span>
+  <p class="text-[11px] text-slate-400">{filtered.length} pengguna ditemukan</p>
+
+  <!-- User List -->
+  {#if filtered.length === 0}
+    <div class="py-16 text-center bg-white rounded-xl border border-slate-100">
+      <Users size={24} class="text-slate-200 mx-auto mb-2" />
+      <p class="text-xs text-slate-400">Tidak ada pengguna ditemukan</p>
     </div>
+  {:else}
+    <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+      <div class="grid grid-cols-1 md:grid-cols-2">
+      {#each filtered as u}
+        {@const taskCount = getTaskCount(u.id)}
+        <div class="flex items-center gap-3 px-4 py-3 border-b border-r-0 md:odd:border-r border-slate-100 hover:bg-slate-50/60 transition-colors">
 
-    {#if filtered.length === 0}
-      <div class="py-12 text-center">
-        <Users size={28} class="text-slate-200 mx-auto mb-2" />
-        <p class="text-xs text-slate-400">Tidak ada pengguna ditemukan</p>
-      </div>
-    {:else}
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-        {#each paginated as u}
-          <div class="flex items-center gap-3 px-4 py-3.5 border-b border-slate-50 hover:bg-slate-50 transition-colors">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-sm font-bold text-white overflow-hidden"
-                 style="background:linear-gradient(135deg,#F97316,#EA580C)">
-              {#if u.avatar_url}<img src={u.avatar_url} alt="" class="w-full h-full object-cover" />{:else}{getInitials(u.full_name)}{/if}
-            </div>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-1.5">
-                <p class="text-sm font-semibold text-slate-800 truncate">{u.full_name}</p>
-                {#if u.role === 'admin'}
-                  <span class="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 flex-shrink-0">ADMIN</span>
-                {/if}
-              </div>
-              <p class="text-[11px] text-slate-400 truncate">{u.position || 'Belum diisi'}{u.phone ? ' · ' + u.phone : ''}</p>
-            </div>
-            <div class="flex items-center gap-1">
-              <button onclick={() => {
-                        if (u.phone) {
-                          window.open(`https://wa.me/${formatWA(u.phone)}`, '_blank');
-                        } else {
-                          toast.error('User ini belum menambahkan nomor telepon');
-                        }
-                      }}
-                      class="w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer {u.phone ? 'bg-green-50 text-green-600 hover:bg-green-100' : 'bg-slate-100 text-slate-300'}" 
-                      title={u.phone ? 'Hubungi via WhatsApp' : 'Nomor tidak tersedia'}>
-                <MessageCircle size={13} />
-              </button>
-              <button onclick={() => onViewPerformance(u)}
-                      class="w-8 h-8 rounded-lg bg-blue-50 hover:bg-blue-100 flex items-center justify-center text-blue-600 transition-colors cursor-pointer" title="Lihat Performa">
-                <Activity size={13} />
-              </button>
-              <button onclick={() => onEditUser(u)}
-                      class="w-8 h-8 rounded-lg bg-amber-50 hover:bg-amber-100 flex items-center justify-center text-amber-600 transition-colors cursor-pointer" title="Edit Pengguna">
-                <Pencil size={13} />
-              </button>
-              <button onclick={() => onDeleteUser(u)}
-                      class="w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-500 transition-colors cursor-pointer" title="Hapus Pengguna">
-                <Trash2 size={13} />
-              </button>
-            </div>
+          <!-- Avatar -->
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-semibold text-white overflow-hidden bg-orange-500">
+            {#if u.avatar_url}
+              <img src={u.avatar_url} alt="" class="w-full h-full object-cover" />
+            {:else}
+              {getInitials(u.full_name)}
+            {/if}
           </div>
-        {/each}
-      </div>
-    {/if}
 
-    {#if totalPages > 1}
-      <div class="px-4 py-3 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
-        <button onclick={() => page = Math.max(1, page - 1)} disabled={page === 1}
-                class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors cursor-pointer">Prev</button>
-        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Halaman {page} / {totalPages}</span>
-        <button onclick={() => page = Math.min(totalPages, page + 1)} disabled={page === totalPages}
-                class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white border border-slate-200 text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors cursor-pointer">Next</button>
+          <!-- Info -->
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-1.5">
+              <p class="text-sm font-medium text-slate-800 truncate">{u.full_name}</p>
+              {#if u.role === 'admin'}
+                <span class="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-orange-100 text-orange-600 flex-shrink-0">Admin</span>
+              {/if}
+            </div>
+            <p class="text-[10px] text-slate-400 mt-0.5 truncate">
+              {u.position || 'Posisi belum diisi'}
+              {#if taskCount > 0}
+                <span class="ml-1.5 text-slate-300">·</span>
+                <span class="ml-1.5">{taskCount} tugas aktif</span>
+              {/if}
+            </p>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex gap-1">
+            <button onclick={() => openWA(u)}
+                    class="w-7 h-7 rounded-lg flex items-center justify-center transition-colors cursor-pointer {u.phone ? 'hover:bg-green-50 text-slate-400 hover:text-green-600' : 'text-slate-200 cursor-not-allowed'}"
+                    title={u.phone ? 'WhatsApp' : 'No. telp tidak ada'}>
+              <MessageCircle size={13} />
+            </button>
+            <button onclick={() => onViewPerformance(u)}
+                    class="w-7 h-7 rounded-lg hover:bg-blue-50 flex items-center justify-center text-slate-400 hover:text-blue-600 transition-colors cursor-pointer" title="Performa">
+              <Activity size={13} />
+            </button>
+            <button onclick={() => onEditUser(u)}
+                    class="w-7 h-7 rounded-lg hover:bg-amber-50 flex items-center justify-center text-slate-400 hover:text-amber-600 transition-colors cursor-pointer" title="Edit">
+              <Pencil size={13} />
+            </button>
+            <button onclick={() => onDeleteUser(u)}
+                    class="w-7 h-7 rounded-lg hover:bg-red-50 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors cursor-pointer" title="Hapus">
+              <Trash2 size={13} />
+            </button>
+          </div>
+        </div>
+      {/each}
       </div>
-    {/if}
-  </div>
+    </div>
+  {/if}
+
 </div>

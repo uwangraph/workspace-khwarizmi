@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Profile, AttendanceRecord, Holiday, ThursdayRule, AttendanceLeave } from '$lib/components/admin/_types'
   import { getInitials, formatTime, getMonthlyAttendanceStat, getHolidayName, isHoliday, isThursday, isFriday, getThursdayRule, SESSIONS } from '$lib/components/admin/_utils'
-  import { Search, CalendarDays, Calendar, CheckCircle2, Clock, X, FileText, Check, XCircle } from 'lucide-svelte'
+  import { Search, CalendarDays, Calendar, CheckCircle2, Clock, X, FileText, Check, XCircle, BarChart3 } from 'lucide-svelte'
   import AttendanceDetailModal from '$lib/components/admin/modals/AttendanceDetailModal.svelte'
 
   interface Props {
@@ -45,19 +45,36 @@
   $effect(() => { userSearch; attendanceDate; attendanceMonth; mode; page = 1 })
 
   function getUserAtt(userId: string) { return attendByDate.filter(a => a.user_id === userId) }
+
+  let pendingLeavesCount = $derived(allLeaves.filter(l => l.status === 'pending').length)
 </script>
 
 <div class="flex flex-col gap-3">
   <!-- Mode Toggle -->
   <div class="flex gap-2 bg-slate-100 rounded-xl p-1">
-    {#each [{ val: 'daily', label: '📅 Harian' }, { val: 'monthly', label: '📊 Bulanan' }, { val: 'leaves', label: '📝 Persetujuan Izin' }] as m}
-      <button onclick={() => mode = m.val as any}
-              class="flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer"
-              class:text-white={mode === m.val} class:bg-slate-100={mode !== m.val} class:text-slate-500={mode !== m.val}
-              style={mode === m.val ? 'background:linear-gradient(135deg,#F97316,#EA580C)' : 'background:transparent'}>
-        {m.label}
-      </button>
-    {/each}
+    <button onclick={() => mode = 'daily'}
+            class="flex-1 py-2 flex items-center justify-center gap-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer"
+            class:text-white={mode === 'daily'} class:bg-slate-100={mode !== 'daily'} class:text-slate-500={mode !== 'daily'}
+            style={mode === 'daily' ? 'background:linear-gradient(135deg,#F97316,#EA580C)' : 'background:transparent'}>
+      <CalendarDays size={14} /> Harian
+    </button>
+    <button onclick={() => mode = 'monthly'}
+            class="flex-1 py-2 flex items-center justify-center gap-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer"
+            class:text-white={mode === 'monthly'} class:bg-slate-100={mode !== 'monthly'} class:text-slate-500={mode !== 'monthly'}
+            style={mode === 'monthly' ? 'background:linear-gradient(135deg,#F97316,#EA580C)' : 'background:transparent'}>
+      <BarChart3 size={14} /> Bulanan
+    </button>
+    <button onclick={() => mode = 'leaves'}
+            class="flex-1 py-2 flex items-center justify-center gap-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer relative"
+            class:text-white={mode === 'leaves'} class:bg-slate-100={mode !== 'leaves'} class:text-slate-500={mode !== 'leaves'}
+            style={mode === 'leaves' ? 'background:linear-gradient(135deg,#F97316,#EA580C)' : 'background:transparent'}>
+      <FileText size={14} /> Persetujuan Izin
+      {#if pendingLeavesCount > 0}
+        <span class="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm shadow-red-500/30 border-2 border-white min-w-[20px] flex items-center justify-center">
+          {pendingLeavesCount}
+        </span>
+      {/if}
+    </button>
   </div>
 
   {#if mode !== 'leaves'}
@@ -159,7 +176,7 @@
               </div>
               <div class="min-w-0">
                 <p class="text-xs font-semibold text-slate-700 truncate">{u.full_name}</p>
-                <p class="text-[9px] text-slate-400">{u.position || 'Karyawan'}</p>
+                <p class="text-[9px] text-slate-400">{u.position || 'Anggota'}</p>
               </div>
             </div>
             {#each activeSessions as s}
@@ -240,7 +257,7 @@
                   </div>
                   <div class="min-w-0">
                     <p class="text-sm font-semibold text-slate-800 truncate">{u.full_name}</p>
-                    <p class="text-[10px] text-slate-400">{u.position || 'Karyawan'}</p>
+                    <p class="text-[10px] text-slate-400">{u.position || 'Anggota'}</p>
                   </div>
                 </div>
                 <div class="text-right flex-shrink-0">
@@ -297,7 +314,7 @@
                       <span>{new Date(leave.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
                       {#if leave.session_id !== null}
                         <span>·</span>
-                        <span class="font-semibold">{SESSIONS.find(s => s.id === leave.session_id)?.name}</span>
+                        <span class="font-semibold">Sesi {SESSIONS.find(s => s.id === leave.session_id)?.label}</span>
                       {/if}
                     </div>
                     <p class="text-xs text-slate-600 bg-white border border-slate-100 p-2 rounded-lg italic inline-block w-full">"{leave.reason}"</p>

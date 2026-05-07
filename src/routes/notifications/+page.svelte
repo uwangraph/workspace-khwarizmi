@@ -323,7 +323,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
 </svelte:head>
 
-<div class="min-h-screen pb-24" style="background:#FFFBF7; font-family:'Inter',sans-serif;">
+<div class="min-h-screen" style="background:#FFFBF7; font-family:'Inter',sans-serif;">
   <header class="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 px-6 py-4">
     <div class="max-w-2xl mx-auto flex items-center justify-between">
       <div class="flex items-center gap-4">

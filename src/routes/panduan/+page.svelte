@@ -6,7 +6,7 @@
 	<title>Panduan Pengguna — Workspace Khwarizmi</title>
 </svelte:head>
 
-<div class="min-h-screen bg-[#FFF9F0]/30 font-sans pb-24">
+<div class="min-h-screen bg-[#FFF9F0]/30 font-sans">
 	<!-- Header -->
 	<header class="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-orange-100 px-5 py-4">
 		<div class="max-w-lg mx-auto flex items-center gap-4">

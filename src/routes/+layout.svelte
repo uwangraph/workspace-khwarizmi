@@ -17,7 +17,7 @@
     import { X, AlertTriangle, RefreshCw } from 'lucide-svelte';
 
     // ── Constants & Layout ──────────────────────────────
-    const hiddenNavRoutes = ['/auth', '/login', '/register', '/admin'];
+    const hiddenNavRoutes = ['/auth', '/login', '/register', '/admin', '/notifications', '/panduan'];
     const showNav = $derived(!hiddenNavRoutes.some((route) => $page.url.pathname.startsWith(route)));
 
     const fullWidthRoutes = ['/admin', '/auth', '/login', '/register'];

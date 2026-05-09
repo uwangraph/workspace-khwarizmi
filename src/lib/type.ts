@@ -52,8 +52,8 @@ export interface AttendanceRecord {
   user_id: string
   session_id: number
   date: string
-  check_in: string | null
-  check_out: string | null
+  clock_in: string | null
+  clock_out: string | null
   photo_in_url: string | null
   photo_out_url: string | null
   forgot_checkout: boolean

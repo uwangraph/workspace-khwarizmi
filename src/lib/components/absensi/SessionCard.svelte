@@ -7,8 +7,8 @@
     hasLateCheck?: boolean; requireLocation?: boolean
   }
   interface AttendanceRecord {
-    id: string; session_id: number; check_in: string | null
-    check_out: string | null; late: boolean; late_reason: string | null
+    id: string; session_id: number; clock_in: string | null
+    clock_out: string | null; late: boolean; late_reason: string | null
     forgot_checkout: boolean
   }
   interface LeaveRecord { session_id: number | null; type: 'izin' | 'sakit'; reason: string }
@@ -40,7 +40,7 @@
   let isLocked = $derived(curMin < unlockMin)
   let isExpired = $derived(!rec && curMin > endMin + 30)
   let inWindow = $derived(curMin >= startMin && curMin <= endMin)
-  let pct = $derived(rec && !rec.check_out && inWindow
+  let pct = $derived(rec && !rec.clock_out && inWindow
     ? Math.min(Math.round(((curMin - startMin) / (endMin - startMin)) * 100), 100)
     : 0)
   
@@ -68,8 +68,8 @@
 
       {#if rec}
         <div class="mt-2 flex items-center gap-3 text-xs text-slate-500">
-          <span class="flex items-center gap-1"><LogIn size={11} /> {formatTime(rec.check_in)}</span>
-          {#if rec.check_out}<span class="flex items-center gap-1"><LogOut size={11} /> {formatTime(rec.check_out)}</span>{/if}
+          <span class="flex items-center gap-1"><LogIn size={11} /> {formatTime(rec.clock_in)}</span>
+          {#if rec.clock_out}<span class="flex items-center gap-1"><LogOut size={11} /> {formatTime(rec.clock_out)}</span>{/if}
         </div>
         {#if rec.late && rec.late_reason}<p class="mt-1 text-xs text-amber-500">Alasan: {rec.late_reason}</p>{/if}
       {/if}
@@ -92,7 +92,7 @@
         <span class="text-xs font-semibold text-slate-400 flex items-center gap-1"><Lock size={12} /></span>
       {:else if rec?.forgot_checkout}
         <span class="text-[10px] font-bold px-2.5 py-1.5 rounded-lg bg-orange-100 text-orange-600">Lupa</span>
-      {:else if rec?.check_out}
+      {:else if rec?.clock_out}
         <span class="text-[10px] font-bold px-2.5 py-1.5 rounded-lg bg-green-100 text-green-700 flex items-center gap-1">
           <Check size={11} /> Selesai
         </span>

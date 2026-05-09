@@ -3,7 +3,7 @@
   interface AttendanceRecord {
     id: string; session_id: number
     photo_in_url: string | null; photo_out_url: string | null
-    check_in: string | null; check_out: string | null; late: boolean
+    clock_in: string | null; clock_out: string | null; late: boolean
   }
   interface Session { id: number; name: string }
   interface Props {
@@ -31,7 +31,7 @@
         {rec.late ? 'Terlambat' : 'Tepat Waktu'}
       </p>
       <p class="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
-        <Clock size={10} /> {formatTime(rec.check_in)}
+        <Clock size={10} /> {formatTime(rec.clock_in)}
         <span class="mx-1">·</span>
         <Eye size={10} /> Ketuk untuk perbesar
       </p>
@@ -50,7 +50,7 @@
       <p class="text-sm font-bold text-slate-800">{sesi?.name}</p>
       <p class="text-xs font-medium text-orange-600 mt-0.5">Clock Out</p>
       <p class="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
-        <Clock size={10} /> {formatTime(rec.check_out)}
+        <Clock size={10} /> {formatTime(rec.clock_out)}
       </p>
     </div>
     <span class="text-[9px] font-bold px-2 py-1 rounded-lg bg-green-50 text-green-600 border border-green-200 flex-shrink-0">OUT</span>

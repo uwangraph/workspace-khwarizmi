@@ -1,7 +1,7 @@
 <script lang="ts">
   import { ArrowRight } from 'lucide-svelte'
   interface Props {
-    attendance: { session_id: number; check_in: string | null; check_out: string | null }[]
+    attendance: { session_id: number; clock_in: string | null; clock_out: string | null }[]
     sessions: { id: number; label: string; time: string }[]
   }
   let { attendance, sessions }: Props = $props()
@@ -18,16 +18,16 @@
       {@const log = attendance.find(a => a.session_id === s.id)}
       <div class="flex items-center justify-between p-4">
         <div class="flex items-center gap-3">
-          <div class="w-2 h-2 rounded-full {log?.check_out ? 'bg-green-500' : log?.check_in ? 'bg-orange-500' : 'bg-slate-200'}"></div>
+          <div class="w-2 h-2 rounded-full {log?.clock_out ? 'bg-green-500' : log?.clock_in ? 'bg-orange-500' : 'bg-slate-200'}"></div>
           <div>
             <p class="text-sm font-semibold text-slate-800">{s.label}</p>
             <p class="text-[10px] text-slate-400">{s.time}</p>
           </div>
         </div>
         <div class="text-right">
-          {#if log?.check_out}
+          {#if log?.clock_out}
             <span class="text-[9px] font-bold px-2 py-1 bg-green-50 text-green-600 rounded-lg">SELESAI</span>
-          {:else if log?.check_in}
+          {:else if log?.clock_in}
             <span class="text-[9px] font-bold px-2 py-1 bg-orange-50 text-orange-600 rounded-lg">AKTIF</span>
           {:else}
             <span class="text-[9px] font-bold px-2 py-1 bg-slate-50 text-slate-400 rounded-lg">BELUM</span>

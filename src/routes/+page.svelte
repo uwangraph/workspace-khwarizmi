@@ -92,7 +92,7 @@
   let heroDate = $derived(`${DAYS[now.getDay()]}, ${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`)
   function getFirstName() { if (!profile) return 'Pengguna'; const n = profile.full_name.split(' ')[0]; return n.charAt(0).toUpperCase() + n.slice(1) }
 
-  let totalIn = $derived(attendance.filter(a => a.check_in !== null).length), taskActive = $derived(tasks.filter(t => t.status !== 'done').length), taskDone = $derived(tasks.filter(t => t.status === 'done').length), taskTotal = $derived(tasks.length), completionRate = $derived(taskTotal > 0 ? Math.round((taskDone / taskTotal) * 100) : 0), unreadCount = $derived(notifications.filter(n => !n.is_read).length), recentNotifs = $derived(notifications.slice(0, 3)), totalSessions = $derived(now.getDay() === 5 ? 0 : now.getDay() === 4 ? 1 : 4)
+  let totalIn = $derived(attendance.filter(a => a.clock_in !== null).length), taskActive = $derived(tasks.filter(t => t.status !== 'done').length), taskDone = $derived(tasks.filter(t => t.status === 'done').length), taskTotal = $derived(tasks.length), completionRate = $derived(taskTotal > 0 ? Math.round((taskDone / taskTotal) * 100) : 0), unreadCount = $derived(notifications.filter(n => !n.is_read).length), recentNotifs = $derived(notifications.slice(0, 3)), totalSessions = $derived(now.getDay() === 5 ? 0 : now.getDay() === 4 ? 1 : 4)
   let recentTasks = $derived(tasks.filter(t => t.status !== 'done').sort((a, b) => { const p: Record<string, number> = { high: 0, medium: 1, low: 2 }; return p[a.priority] - p[b.priority] }).slice(0, 3))
 
   function formatDue(iso: string | null) {

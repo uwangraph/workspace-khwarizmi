@@ -28,8 +28,8 @@ export interface AttendanceRecord {
   user_id: string
   session_id: number
   date: string
-  check_in: string | null
-  check_out: string | null
+  clock_in: string | null
+  clock_out: string | null
   late: boolean
   forgot_checkout: boolean
 }

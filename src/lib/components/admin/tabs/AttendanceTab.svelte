@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { Profile, AttendanceRecord, Holiday, ThursdayRule, AttendanceLeave } from '$lib/components/admin/_types'
-  import { getInitials, formatTime, getMonthlyAttendanceStat, getHolidayName, isHoliday, isThursday, isFriday, getThursdayRule, SESSIONS } from '$lib/components/admin/_utils'
+  import type { Profile, AttendanceRecord, Holiday, SpecialRule, AttendanceLeave } from '$lib/components/admin/_types'
+  import { getInitials, formatTime, getMonthlyAttendanceStat, getHolidayName, isHoliday, isThursday, isFriday, getSpecialRule, SESSIONS } from '$lib/components/admin/_utils'
   import { Search, CalendarDays, Calendar, CheckCircle2, Clock, X, FileText, Check, XCircle, BarChart3 } from 'lucide-svelte'
   import AttendanceDetailModal from '$lib/components/admin/modals/AttendanceDetailModal.svelte'
 
@@ -8,11 +8,11 @@
     allUsers: Profile[]
     allAttendance: AttendanceRecord[]
     holidays: Holiday[]
-    thursdayRules: ThursdayRule[]
+    specialRules: SpecialRule[]
     allLeaves: AttendanceLeave[]
     onUpdateLeave: (leave: AttendanceLeave, status: 'approved' | 'rejected') => void
   }
-  let { allUsers, allAttendance, holidays, thursdayRules, allLeaves, onUpdateLeave } = $props<Props>()
+  let { allUsers, allAttendance, holidays, specialRules, onUpdateLeave } = $props<Props>()
 
   const ITEMS_PER_PAGE = 10
   let mode           = $state<'daily' | 'monthly' | 'leaves'>('daily')
@@ -38,7 +38,7 @@
   let holidayName     = $derived(getHolidayName(attendanceDate, holidays))
   let dateIsThursday  = $derived(isThursday(attendanceDate))
   let dateIsFriday    = $derived(isFriday(attendanceDate))
-  let thursdayRule    = $derived(getThursdayRule(attendanceDate, thursdayRules))
+  let specialRule    = $derived(getSpecialRule(attendanceDate, specialRules))
   // Sesi yang tampil: Kamis hanya sesi 1 (Pagi), hari lain semua sesi
   let activeSessions  = $derived(dateIsThursday ? SESSIONS.slice(0, 1) : SESSIONS)
 
@@ -116,23 +116,23 @@
       </div>
     {/if}
 
-    <!-- Thursday banner -->
-    {#if dateIsThursday}
+    <!-- Special Rule banner -->
+    {#if specialRule}
       <div class="flex items-center gap-3 px-3 py-2.5 rounded-xl border"
-           class:bg-amber-50={thursdayRule?.type === 'custom_time'}
-           class:border-amber-200={thursdayRule?.type === 'custom_time'}
-           class:bg-blue-50={thursdayRule?.type === 'wfa'}
-           class:border-blue-200={thursdayRule?.type === 'wfa'}
-           class:bg-orange-50={!thursdayRule || thursdayRule.type === 'normal'}
-           class:border-orange-200={!thursdayRule || thursdayRule.type === 'normal'}>
-        <span class="text-sm">{thursdayRule?.type === 'wfa' ? '🏠' : thursdayRule?.type === 'custom_time' ? '⏰' : '📅'}</span>
+           class:bg-amber-50={specialRule.type === 'custom_time'}
+           class:border-amber-200={specialRule.type === 'custom_time'}
+           class:bg-blue-50={specialRule.type === 'wfa'}
+           class:border-blue-200={specialRule.type === 'wfa'}
+           class:bg-orange-50={specialRule.type === 'normal'}
+           class:border-orange-200={specialRule.type === 'normal'}>
+        <span class="text-sm">{specialRule.type === 'wfa' ? '🏠' : specialRule.type === 'custom_time' ? '⏰' : '📅'}</span>
         <div>
           <p class="text-xs font-semibold text-slate-700">
-            Hari Kamis — Hanya Sesi Pagi
-            {#if thursdayRule?.type === 'wfa'} · Mode WFA{/if}
-            {#if thursdayRule?.type === 'custom_time' && thursdayRule.start_time} · Masuk {thursdayRule.start_time}{/if}
+            Jadwal Khusus
+            {#if specialRule.type === 'wfa'} · Mode WFA{/if}
+            {#if specialRule.type === 'custom_time' && specialRule.start_time} · Masuk {specialRule.start_time}{/if}
           </p>
-          {#if thursdayRule?.note}<p class="text-[10px] text-slate-400 mt-0.5">{thursdayRule.note}</p>{/if}
+          {#if specialRule.note}<p class="text-[10px] text-slate-400 mt-0.5">{specialRule.note}</p>{/if}
         </div>
       </div>
     {/if}
@@ -183,15 +183,15 @@
               {@const att = userAtt.find(a => a.session_id === s.id)}
               {@const leave = userLeaves.find(l => l.session_id === null || l.session_id === s.id)}
               <div class="w-14 text-center">
-                {#if att?.check_out}
+                {#if att?.clock_out}
                   <div class="flex flex-col items-center gap-0.5">
                     <div class="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center"><CheckCircle2 size={11} class="text-green-600" /></div>
-                    <span class="text-[8px] text-green-600 font-medium">{formatTime(att.check_in)}</span>
+                    <span class="text-[8px] text-green-600 font-medium">{formatTime(att.clock_in)}</span>
                   </div>
-                {:else if att?.check_in}
+                {:else if att?.clock_in}
                   <div class="flex flex-col items-center gap-0.5">
                     <div class="w-5 h-5 rounded-full bg-orange-100 flex items-center justify-center"><Clock size={11} class="text-orange-500" /></div>
-                    <span class="text-[8px] text-orange-500 font-medium">{formatTime(att.check_in)}</span>
+                    <span class="text-[8px] text-orange-500 font-medium">{formatTime(att.clock_in)}</span>
                   </div>
                 {:else if leave}
                   <div class="flex justify-center">

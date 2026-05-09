@@ -77,3 +77,39 @@ export interface AppNotification {
   is_read: boolean
   created_at: string
 }
+
+// ── Chat Types ──────────────────────────────────────────────────────────────
+
+export interface ChatRoom {
+  id: string
+  name: string | null
+  type: 'group' | 'direct'
+  created_by: string
+  created_at: string
+}
+
+export interface ChatParticipant {
+  room_id: string
+  user_id: string
+  joined_at: string
+  profile?: Profile
+}
+
+export interface ChatMessage {
+  id: string
+  room_id: string
+  sender_id: string
+  type: 'text' | 'image' | 'file' | 'audio' | 'poll'
+  content: string | null
+  metadata: any | null
+  created_at: string
+  sender?: Profile
+}
+
+export interface ChatPollVote {
+  id: string
+  message_id: string
+  user_id: string
+  option_id: string
+  created_at: string
+}

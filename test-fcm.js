@@ -11,10 +11,9 @@ envFile.split('\n').forEach(line => {
 
 const supabaseUrl = env.PUBLIC_SUPABASE_URL;
 const anonKey = env.PUBLIC_SUPABASE_ANON_KEY;
+const uid = 'ffc14c64-b2a0-4589-8f84-28898ad79cc2';
 
-async function test() {
-  const uid = 'ffc14c64-b2a0-4589-8f84-28898ad79cc2'; 
-  
+async function sendOne(i) {
   const res = await fetch(`${supabaseUrl}/functions/v1/send-fcm`, {
     method: 'POST',
     headers: {
@@ -23,15 +22,17 @@ async function test() {
     },
     body: JSON.stringify({
       user_id: uid,
-      title: `Test Data Message`,
-      message: `Message Body`,
+      title: `Notifikasi #${i}`,
+      message: `Ini adalah tes notifikasi ke-${i}`,
       data: {}
     })
   });
-  
   const text = await res.text();
-  console.log(`Response: ${res.status}`);
-  console.log(text);
+  console.log(`#${i}: ${res.status} → ${text}`);
 }
 
-test();
+// Kirim 5 notifikasi berurutan dengan jeda 2 detik
+for (let i = 1; i <= 5; i++) {
+  await sendOne(i);
+  if (i < 5) await new Promise(r => setTimeout(r, 2000));
+}

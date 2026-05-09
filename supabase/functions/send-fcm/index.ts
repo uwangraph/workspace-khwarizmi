@@ -72,35 +72,73 @@ serve(async (req) => {
         .map(([k, v]) => [k, String(v)])
     ) : {};
 
-    // Kirim pesan Data-Only agar Service Worker (onBackgroundMessage) bisa menangani
-    // dan memunculkan notifikasi secara manual dengan tag unik (mencegah notif tertimpa).
+    // Tag unik agar setiap notifikasi TIDAK menimpa notifikasi sebelumnya
+    const uniqueTag = 'wk-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7);
+
+    // Gunakan webpush.notification agar BROWSER yang menampilkan notifikasi secara otomatis.
+    // Ini 100x lebih reliabel daripada data-only message + Service Worker handler,
+    // karena browser tidak perlu menjalankan kode SW apapun untuk menampilkan notif.
+    // Data-only message menyebabkan Chrome memberikan "penalty" dan memblokir push selanjutnya
+    // jika SW gagal menampilkan notifikasi tepat waktu.
     const payload = {
-      data: {
-        title: title,
-        message: message,
-        ...safeData
+      data: safeData,
+      webpush: {
+        notification: {
+          title: title,
+          body: message,
+          icon: '/logo-khwarizmi-192.png',
+          badge: '/logo-khwarizmi-192.png',
+          tag: uniqueTag,
+          renotify: true
+        }
       },
-      tokens: tokens,
       android: {
         priority: 'high'
       },
       apns: {
         payload: {
           aps: {
-            'content-available': 1
+            alert: {
+              title: title,
+              body: message
+            },
+            sound: 'default'
           }
         },
         headers: {
           'apns-priority': '10'
         }
-      }
+      },
+      tokens: tokens
     }
 
     // Kirim Push Notification via Firebase
     const response = await admin.messaging().sendEachForMulticast(payload)
-    console.log(`Successfully sent message:`, response)
+    
+    // Bersihkan token yang sudah expired/invalid
+    const failedTokens = []
+    response.responses.forEach((resp, idx) => {
+      if (!resp.success && resp.error?.code === 'messaging/registration-token-not-registered') {
+        failedTokens.push(tokens[idx])
+      }
+    })
+    
+    // Hapus token expired dari database agar tidak menumpuk
+    if (failedTokens.length > 0) {
+      await supabaseClient
+        .from('fcm_tokens')
+        .delete()
+        .in('token', failedTokens)
+      console.log(`Cleaned up ${failedTokens.length} expired tokens`)
+    }
 
-    return new Response(JSON.stringify({ success: true, response }), { 
+    console.log(`FCM sent: ${response.successCount} success, ${response.failureCount} failed`)
+
+    return new Response(JSON.stringify({ 
+      success: true, 
+      successCount: response.successCount,
+      failureCount: response.failureCount
+    }), { 
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     })

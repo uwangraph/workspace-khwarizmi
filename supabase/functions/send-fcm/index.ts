@@ -72,24 +72,35 @@ serve(async (req) => {
         .map(([k, v]) => [k, String(v)])
     ) : {};
 
-    // Menggunakan payload NOTIFICATION murni (Seperti WhatsApp/Aplikasi Native).
-    // Pesan jenis ini ditangani langsung oleh Sistem Operasi (Google Play Services / iOS Push)
-    // sehingga dijamin MUNCUL seketika tanpa perlu membangunkan Service Worker secara manual.
-    const uniqueTag = 'notif-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7);
+    // --- SMART TAGGING SYSTEM ---
+    // Jika kita tidak menggunakan tag, HP Android (terutama Vivo/Oppo/Xiaomi) akan membatasi
+    // maksimal 3 notifikasi PWA untuk mencegah spam, lalu memblokir sisanya.
+    // Solusinya: Kita gunakan 'tag' berbasis konteks (misal: ID Tugas). 
+    // Jadi notifikasi untuk Tugas A dan Tugas B akan muncul terpisah (maksimal 3-5 tugas berbeda),
+    // tapi update berulang pada Tugas A akan menimpa notifikasi Tugas A sebelumnya.
+    // Jika tidak ada konteks, kita rotasi di 3 slot acak untuk mengelabui limitasi OS.
+    
+    let smartTag = 'general-slot-' + Math.floor(Math.random() * 3);
+    if (safeData.task_id) {
+      smartTag = 'task-' + safeData.task_id;
+    } else if (safeData.type) {
+      smartTag = 'type-' + safeData.type;
+    }
 
     const payload = {
       notification: {
         title: title,
         body: message,
       },
-      data: safeData, // Data sisipan untuk dikirim ke aplikasi saat diklik
+      data: safeData,
       tokens: tokens,
       android: {
         priority: 'high',
         notification: {
           icon: 'logo_khwarizmi_192',
-          clickAction: 'FLUTTER_NOTIFICATION_CLICK', // Standar fallback
-          channelId: 'default'
+          clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+          channelId: 'default',
+          tag: smartTag
         }
       },
       webpush: {
@@ -99,8 +110,8 @@ serve(async (req) => {
         notification: {
           icon: '/logo-khwarizmi-192.png',
           badge: '/logo-khwarizmi-192.png',
-          // Menghapus 'tag' agar browser memunculkan tiap notifikasi secara individual
-          // Meskipun nantinya akan di-group (dikumpulkan) oleh OS di bawah nama aplikasi.
+          tag: smartTag,
+          renotify: true // Selalu getar/bunyi meskipun menimpa notifikasi lama
         }
       },
       apns: {

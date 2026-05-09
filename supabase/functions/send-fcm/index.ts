@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import admin from "npm:firebase-admin@11.11.1"
+import admin from "npm:firebase-admin@13.8.0"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -93,7 +93,7 @@ serve(async (req) => {
     }
 
     // Kirim Push Notification via Firebase
-    const response = await admin.messaging().sendMulticast(payload)
+    const response = await admin.messaging().sendEachForMulticast(payload)
     console.log(`Successfully sent message:`, response)
 
     return new Response(JSON.stringify({ success: true, response }), { 

@@ -72,8 +72,15 @@ export const taskService = {
 
       await supabase.from('task_assignments').insert(newAssignments);
       
-      // Return new collabs for notification
-      return { taskId, newCollabs: assignedUserIds.filter(uid => uid !== userId && uid !== ownerId && !oldStatusMap.has(uid)) };
+      // Return new collabs for notification: 
+      // Anggap baru jika sebelumnya belum ada, atau sebelumnya pernah menolak/pending lama
+      const newCollabs = assignedUserIds.filter(uid => {
+        if (uid === userId || uid === ownerId) return false;
+        const oldStatus = oldStatusMap.get(uid);
+        return !oldStatus || oldStatus === 'pending' || oldStatus === 'rejected';
+      });
+
+      return { taskId, newCollabs };
     } else {
       const { data: newTask, error: insertError } = await supabase.from('tasks').insert({ ...taskData, created_by: userId }).select().single();
       if (insertError || !newTask) throw new Error(insertError?.message || 'Gagal membuat tugas');

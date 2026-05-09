@@ -5,59 +5,97 @@ import { PUBLIC_FIREBASE_VAPID_KEY } from '$env/static/public';
 export const notificationService = {
   async requestPermissionAndGetToken(userId: string) {
     if (typeof window === 'undefined') return null;
+    
     try {
       const { getToken } = await import('firebase/messaging');
       const msg = await messaging;
-      if (!msg) return null;
+      if (!msg) {
+        console.warn('[NotificationService] Firebase Messaging not supported/initialized.');
+        return null;
+      }
+
+      // Pastikan Service Worker terdaftar secara eksplisit untuk menghindari konflik dengan PWA
+      const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+        scope: '/'
+      });
 
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
-        const token = await getToken(msg, { vapidKey: PUBLIC_FIREBASE_VAPID_KEY });
+        const token = await getToken(msg, { 
+          vapidKey: PUBLIC_FIREBASE_VAPID_KEY,
+          serviceWorkerRegistration: registration
+        });
+        
         if (token) {
+          console.log('[NotificationService] FCM Token obtained:', token.substring(0, 10) + '...');
           await this.saveTokenToSupabase(userId, token);
           return token;
+        } else {
+          console.warn('[NotificationService] No registration token available. Request permission to generate one.');
         }
+      } else {
+        console.warn('[NotificationService] Notification permission denied.');
       }
     } catch (error) {
-      console.error('Error requesting notification permission:', error);
+      console.error('[NotificationService] Error requesting notification permission:', error);
     }
     return null;
   },
 
   async saveTokenToSupabase(userId: string, token: string) {
     if (!token || !userId) return;
+    
+    // Gunakan upsert dengan filter untuk memastikan tidak ada duplikasi berlebih
     const { error } = await supabase
       .from('fcm_tokens')
-      .upsert({ user_id: userId, token }, { onConflict: 'token' });
+      .upsert(
+        { user_id: userId, token }, 
+        { onConflict: 'token' }
+      );
     
     if (error) {
       if (error.code === '42501') {
-        console.warn('FCM Token: Policy RLS fcm_tokens belum dikonfigurasi di Supabase Dashboard.');
+        console.warn('FCM Token: Policy RLS fcm_tokens belum dikonfigurasi (42501).');
       } else {
         console.error('Error saving FCM token:', error.message);
       }
+    } else {
+      console.log('[NotificationService] Token saved to Supabase.');
     }
   },
 
   async send(uid: string, type: string, title: string, message: string, data: Record<string, any> = {}) {
+    // 1. Simpan ke database via RPC agar selalu berhasil (bypass RLS untuk user lain)
+    const { error: rpcError } = await supabase.rpc('send_notification', {
+      p_user_id: uid,
+      p_type: type,
+      p_title: title,
+      p_message: message,
+      p_data: data || {}
+    });
+
+    if (rpcError) {
+      console.warn('[NotificationService] RPC send_notification failed, trying direct insert:', rpcError);
+      // Fallback terakhir
+      await supabase.from('notifications').insert({ 
+        user_id: uid, type, title, message, data, is_read: false 
+      });
+    }
+
+    // 2. Panggil API khusus untuk memicu Push Notification (FCM)
     try {
-      // Kirim via API Route agar push notification (Firebase Admin) tereksekusi
       const response = await fetch('/api/notifications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: uid, type, title, message, data })
+        body: JSON.stringify({ user_id: uid, type, title, message, data, skip_db: true })
       });
       
-      if (!response.ok) throw new Error(`API returned ${response.status}`);
-      return true;
+      if (!response.ok) console.warn(`[NotificationService] Push API returned ${response.status}`);
     } catch (err) {
-      console.error('API /api/notifications failed, falling back to direct insert:', err);
-      // Strategy 2: Direct insert (fallback, tapi tidak akan ada push notification)
-      const { error } = await supabase.from('notifications').insert({ 
-        user_id: uid, type, title, message, data, is_read: false 
-      });
-      return !error;
+      console.warn('[NotificationService] Push API failed (non-fatal):', err);
     }
+    
+    return true;
   },
 
   // [TAMBAHAN]: Pindahkan logika subscribe dari +layout.svelte ke sini

@@ -14,7 +14,7 @@ async function run() {
   const { data: users } = await supabase.from('profiles').select('id').limit(1);
   const uid = users[0].id;
 
-  const res = await fetch('http://localhost:5174/api/notifications', {
+  const res = await fetch('http://localhost:5175/api/notifications', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

@@ -15,33 +15,44 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message ', payload);
   
-  const notificationTitle = payload.notification?.title || payload.data?.title || 'Notifikasi Baru';
+  // Ambil data dari payload. Ada kemungkinan dikirim via 'notification' atau 'data'
+  const title = payload.notification?.title || payload.data?.title || 'Workspace Khwarizmi';
+  const body = payload.notification?.body || payload.data?.message || 'Ada informasi baru untuk Anda.';
+  
   const notificationOptions = {
-    body: payload.notification?.body || payload.data?.message || 'Anda mendapatkan notifikasi baru dari Workspace Khwarizmi',
+    body: body,
     icon: '/logo-khwarizmi-192.png',
     badge: '/logo-khwarizmi-192.png',
-    tag: 'notif-' + Date.now(),
-    data: payload.data
+    tag: payload.data?.tag || 'notif-' + Date.now(),
+    data: payload.data,
+    vibrate: [200, 100, 200],
+    requireInteraction: true // Menjaga notifikasi tetap ada sampai diklik (khusus desktop)
   };
 
-  self.registration.showNotification(notificationTitle, notificationOptions);
+  // Tampilkan notifikasi
+  return self.registration.showNotification(title, notificationOptions);
 });
 
 self.addEventListener('notificationclick', function(event) {
-  console.log('[firebase-messaging-sw.js] Notification click Received.', event);
+  console.log('[firebase-messaging-sw.js] Notification click Received.', event.notification.tag);
+  
   event.notification.close();
+
+  // Ambil URL target dari data jika ada, default ke root
+  const targetUrl = event.notification.data?.url || '/';
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      // Check if there is already a window/tab open with the target URL
+      // Cari jika ada tab yang sudah terbuka
       for (let i = 0; i < windowClients.length; i++) {
         const client = windowClients[i];
-        if (client.url === self.registration.scope && 'focus' in client) {
+        if (client.url.includes(self.registration.scope) && 'focus' in client) {
           return client.focus();
         }
       }
-      // If not, open a new window
+      // Jika tidak ada tab terbuka, buka tab baru
       if (clients.openWindow) {
-        return clients.openWindow('/');
+        return clients.openWindow(targetUrl);
       }
     })
   );

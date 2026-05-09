@@ -59,32 +59,58 @@
             unsubscribeRealtime = notificationService.subscribeRealtime(user.id, (newNotif) => {
                 if (!audio) audio = new Audio(NOTIF_SOUND);
                 audio.currentTime = 0;
-                audio.play().catch(() => {});
+                audio.play().catch(() => {
+                    console.warn('[Layout] Audio playback blocked by browser.');
+                });
                 
                 if (newNotif && newNotif.title) {
-                    toast.success(`${newNotif.title}\n${newNotif.message}`, { duration: 5000, position: 'top-center' });
+                    toast.success(`${newNotif.title}\n${newNotif.message}`, { 
+                        duration: 5000, 
+                        position: 'top-center' 
+                    });
                     incrementUnread();
                     
-                    // Munculkan notifikasi sistem (push) jika tab sedang tidak aktif/tersembunyi
+                    // Munculkan notifikasi sistem (local) HANYA jika tab sedang tidak aktif/tersembunyi
+                    // Ini menangani kasus tab aktif di background, bukan aplikasi tertutup
                     if (document.visibilityState === 'hidden' && 'Notification' in window && Notification.permission === 'granted') {
-                        const systemNotif = new Notification(newNotif.title, {
-                            body: newNotif.message,
-                            icon: '/logo-khwarizmi-192.png',
-                            badge: '/logo-khwarizmi-192.png',
-                            tag: 'notif-' + Date.now()
-                        });
-                        systemNotif.onclick = () => {
-                            window.focus();
-                            systemNotif.close();
-                        };
+                        try {
+                            const systemNotif = new Notification(newNotif.title, {
+                                body: newNotif.message,
+                                icon: '/logo-khwarizmi-192.png',
+                                badge: '/logo-khwarizmi-192.png',
+                                tag: 'local-notif-' + newNotif.id
+                            });
+                            systemNotif.onclick = () => {
+                                window.focus();
+                                systemNotif.close();
+                            };
+                        } catch (e) {
+                            console.error('[Layout] Failed to show local notification:', e);
+                        }
                     }
                 }
             });
 
             // Delay request izin FCM (memberi ruang loading UI)
+            // Hanya jalankan jika di lingkungan browser dan bukan di iOS Safari biasa (non-PWA)
             setTimeout(() => {
-                notificationService.requestPermissionAndGetToken(user.id);
-            }, 3000);
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+                const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+                
+                // Di iOS, push notification web hanya bekerja di mode Standalone (PWA)
+                if (isIOS && !isStandalone) {
+                    console.log('[Layout] FCM skipped: iOS requires PWA Mode for Push Notifications.');
+                    return;
+                }
+
+                if ('Notification' in window) {
+                    if (Notification.permission !== 'denied') {
+                        notificationService.requestPermissionAndGetToken(user.id);
+                    } else {
+                        console.warn('[Layout] FCM skipped: Notification permission denied.');
+                    }
+                }
+            }, 5000);
         }
 
         return () => {

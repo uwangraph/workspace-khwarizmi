@@ -2,7 +2,7 @@
     import { onMount } from 'svelte';
     import './layout.css';
     import { page } from '$app/stores';
-    import { Toaster, toast } from 'svelte-french-toast';
+    import { Toaster, toast, ToastBar } from 'svelte-french-toast';
     import { notificationService } from '$lib/services/notificationService';
     import { fetchUnreadCount, incrementUnread } from '$lib/stores/notificationStore';
     import { fade } from 'svelte/transition';
@@ -291,9 +291,28 @@
 		position="bottom-center"
 		toastOptions={{
 			style:
-				"font-family:'Inter',sans-serif; font-size:13px; font-weight:500; border-radius:14px; padding:12px 16px;"
+				"font-family:'Inter',sans-serif; font-size:13px; font-weight:500; border-radius:16px; padding:6px 6px 6px 16px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.05);"
 		}}
-	/>
+	>
+		{#snippet children({ toast: t })}
+			<ToastBar toast={t}>
+				{#snippet children({ icon, message })}
+					<div class="flex items-center gap-2">
+						{icon}
+						<div class="flex-1">{message}</div>
+						{#if t.type !== 'loading'}
+							<button 
+								onclick={(e) => { e.stopPropagation(); toast.dismiss(t.id); }} 
+								class="ml-2 p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+							>
+								<X size={14} />
+							</button>
+						{/if}
+					</div>
+				{/snippet}
+			</ToastBar>
+		{/snippet}
+	</Toaster>
 
 	{#if showInstallBanner}
 		<div class="fixed bottom-24 left-1/2 z-[100] w-[90%] max-w-sm -translate-x-1/2" transition:fade>

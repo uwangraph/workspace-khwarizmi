@@ -72,45 +72,37 @@ serve(async (req) => {
         .map(([k, v]) => [k, String(v)])
     ) : {};
 
-    // Gunakan tag yang sangat unik berbasis timestamp dan UUID agar notifikasi
-    // dianggap sebagai entitas terpisah oleh Chrome dan TIDAK ditumpuk (collapsed).
-    const uniqueTag = 'notif-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
-
+    // Menggunakan payload DATA-ONLY murni.
+    // Tidak ada objek 'notification' sama sekali agar FCM tidak ikut campur.
+    // Notifikasi akan ditangani 100% manual oleh Service Worker kita via event 'push'.
     const payload = {
-      data: safeData,
+      data: {
+        title: title,
+        message: message,
+        ...safeData
+      },
+      tokens: tokens,
+      android: {
+        // WAJIB untuk Android Doze Mode: memaksa perangkat membangunkan Service Worker
+        priority: 'high'
+      },
       webpush: {
-        // Mencegah Chrome melakukan throttling/Doze mode
+        // WAJIB untuk Chrome Web Push: mencegah throttling
         headers: {
           Urgency: 'high'
-        },
-        notification: {
-          title: title,
-          body: message,
-          icon: '/logo-khwarizmi-192.png',
-          badge: '/logo-khwarizmi-192.png',
-          tag: uniqueTag,
-          // Waktu notifikasi spesifik agar diurutkan dengan benar
-          timestamp: Date.now()
         }
-      },
-      android: {
-        priority: 'high'
       },
       apns: {
         payload: {
           aps: {
-            alert: {
-              title: title,
-              body: message
-            },
-            sound: 'default'
+            // content-available: 1 berfungsi membangunkan aplikasi iOS di background
+            'content-available': 1
           }
         },
         headers: {
           'apns-priority': '10'
         }
-      },
-      tokens: tokens
+      }
     }
 
     // Kirim Push Notification via Firebase

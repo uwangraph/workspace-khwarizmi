@@ -1,40 +1,62 @@
-importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
+// PURE VANILLA WEB PUSH SERVICE WORKER
+// Didesain KHUSUS untuk menghindari bug Firebase onBackgroundMessage di Chrome Android
 
-firebase.initializeApp({
-  apiKey: "AIzaSyC0Gpv9GISMSKAfKKV0FDn436ZE9T4wpa0",
-  authDomain: "khwarizmi-attendance.firebaseapp.com",
-  projectId: "khwarizmi-attendance",
-  storageBucket: "khwarizmi-attendance.firebasestorage.app",
-  messagingSenderId: "346078156513",
-  appId: "1:346078156513:web:bf268fa32a8bd29dcb09a0"
+self.addEventListener('push', function(event) {
+  console.log('[Service Worker] Push Received.');
+
+  if (!event.data) {
+    console.warn('[Service Worker] Push event has no data.');
+    return;
+  }
+
+  let payload;
+  try {
+    payload = event.data.json();
+  } catch (e) {
+    console.error('[Service Worker] Failed to parse push data as JSON', e);
+    return;
+  }
+
+  console.log('[Service Worker] Push Payload:', payload);
+
+  // Payload untuk pesan Data-Only dikirim melalui objek `data` dari FCM
+  const title = payload.data?.title || 'Workspace Khwarizmi';
+  const body = payload.data?.message || 'Ada pemberitahuan baru.';
+  const url = payload.data?.url || '/';
+
+  // Tag yang sangat unik agar notifikasi TIDAK ditumpuk oleh Chrome
+  const uniqueTag = 'wk-' + Date.now() + '-' + Math.floor(Math.random() * 100000);
+
+  const notificationOptions = {
+    body: body,
+    icon: '/logo-khwarizmi-192.png',
+    badge: '/logo-khwarizmi-192.png',
+    tag: uniqueTag,
+    data: { url: url }, // Simpan URL untuk dipakai saat diklik
+    vibrate: [200, 100, 200, 100, 200]
+  };
+
+  // 🚨 WAJIB: event.waitUntil MENCEGAH browser mematikan SW sebelum notifikasi muncul
+  // Jika ini gagal/tidak dipanggil, Chrome akan memberikan PENALTY dan membisu notifikasi berikutnya
+  event.waitUntil(
+    self.registration.showNotification(title, notificationOptions)
+  );
 });
 
-// WAJIB: Inisialisasi Firebase Messaging agar getToken() di client bisa bekerja.
-// Tanpa ini, push subscription tidak akan terbuat.
-const messaging = firebase.messaging();
-
-// Untuk pesan dengan webpush.notification payload:
-// Browser OTOMATIS menampilkan notifikasi tanpa kode apapun di sini.
-// Kita TIDAK perlu self.addEventListener('push') atau messaging.onBackgroundMessage()
-// karena notifikasi sudah di-handle langsung oleh browser dari payload server.
-
-// Handler klik notifikasi — buka/fokus aplikasi saat notifikasi di-tap
 self.addEventListener('notificationclick', function(event) {
+  console.log('[Service Worker] Notification click Received.');
   event.notification.close();
 
   const targetUrl = event.notification.data?.url || '/';
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(windowClients) {
-      // Cari tab yang sudah terbuka dan fokuskan
       for (var i = 0; i < windowClients.length; i++) {
         var client = windowClients[i];
         if ('focus' in client) {
           return client.focus();
         }
       }
-      // Jika tidak ada tab terbuka, buka tab baru
       if (clients.openWindow) {
         return clients.openWindow(targetUrl);
       }

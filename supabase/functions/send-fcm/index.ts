@@ -68,9 +68,14 @@ serve(async (req) => {
         .map(([k, v]) => [k, String(v)])
     ) : {};
 
+    // Kirim pesan Data-Only agar Service Worker (onBackgroundMessage) bisa menangani
+    // dan memunculkan notifikasi secara manual dengan tag unik (mencegah notif tertimpa).
     const payload = {
-      notification: { title, body: message },
-      data: safeData,
+      data: {
+        title: title,
+        message: message,
+        ...safeData
+      },
       tokens: tokens
     }
 

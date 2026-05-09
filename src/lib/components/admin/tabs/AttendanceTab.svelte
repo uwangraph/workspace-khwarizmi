@@ -140,8 +140,8 @@
     <!-- Legend -->
     <div class="flex gap-3 px-1">
       {#each [
-        { color: 'bg-green-400', label: 'Check-in & out' },
-        { color: 'bg-orange-400', label: 'Hanya check-in' },
+        { color: 'bg-green-400', label: 'Clock In & Out' },
+        { color: 'bg-orange-400', label: 'Hanya Clock In' },
         { color: 'bg-slate-300', label: 'Tidak hadir' },
       ] as l}
         <div class="flex items-center gap-1.5">

@@ -72,14 +72,9 @@ serve(async (req) => {
         .map(([k, v]) => [k, String(v)])
     ) : {};
 
-    // Tag unik agar setiap notifikasi TIDAK menimpa notifikasi sebelumnya
-    const uniqueTag = 'wk-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7);
-
-    // Gunakan webpush.notification agar BROWSER yang menampilkan notifikasi secara otomatis.
-    // Ini 100x lebih reliabel daripada data-only message + Service Worker handler,
-    // karena browser tidak perlu menjalankan kode SW apapun untuk menampilkan notif.
-    // Data-only message menyebabkan Chrome memberikan "penalty" dan memblokir push selanjutnya
-    // jika SW gagal menampilkan notifikasi tepat waktu.
+    // TIDAK menggunakan 'tag' di webpush.notification agar setiap notifikasi
+    // 100% independen dan TIDAK MUNGKIN menimpa/menumpuk notif lainnya.
+    // Properti 'tag' justru digunakan browser untuk MENGGABUNGKAN notifikasi.
     const payload = {
       data: safeData,
       webpush: {
@@ -87,9 +82,7 @@ serve(async (req) => {
           title: title,
           body: message,
           icon: '/logo-khwarizmi-192.png',
-          badge: '/logo-khwarizmi-192.png',
-          tag: uniqueTag,
-          renotify: true
+          badge: '/logo-khwarizmi-192.png'
         }
       },
       android: {

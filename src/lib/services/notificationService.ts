@@ -120,7 +120,27 @@ export const notificationService = {
   },
 
   async sendBulk(uids: string[], type: string, title: string, message: string, data: Record<string, any> = {}) {
-    await Promise.all(uids.map(uid => this.send(uid, type, title, message, data)));
+    if (!uids || uids.length === 0) return;
+    
+    // 1. Simpan ke database via RPC untuk semua user secara paralel
+    await Promise.all(uids.map(uid => supabase.rpc('send_notification', {
+      p_user_id: uid,
+      p_type: type,
+      p_title: title,
+      p_message: message,
+      p_data: data || {}
+    })));
+
+    // 2. Panggil Supabase Edge Function SEKALI untuk semua user
+    try {
+      const { data: funcData, error: funcError } = await supabase.functions.invoke('send-fcm', {
+        body: { user_ids: uids, title, message, data }
+      });
+      
+      if (funcError) console.warn(`[NotificationService] Edge Function returned error for bulk:`, funcError);
+    } catch (err) {
+      console.warn('[NotificationService] Edge Function failed for bulk (non-fatal):', err);
+    }
   },
 
   async getNotifications(userId: string, limit: number = 100) {

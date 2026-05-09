@@ -13,27 +13,25 @@ const supabaseUrl = env.PUBLIC_SUPABASE_URL;
 const anonKey = env.PUBLIC_SUPABASE_ANON_KEY;
 
 async function test() {
-  const uid = 'ffc14c64-b2a0-4589-8f84-28898ad79cc2'; // From previous test
-  console.log("Sending 5 push notifications...");
+  const uid = 'ffc14c64-b2a0-4589-8f84-28898ad79cc2'; 
   
-  for(let i=1; i<=5; i++) {
-    const res = await fetch(`${supabaseUrl}/functions/v1/send-fcm`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${anonKey}`
-      },
-      body: JSON.stringify({
-        user_id: uid,
-        title: `Test Notif ${i}`,
-        message: `Message ${i}`,
-        data: {}
-      })
-    });
-    
-    const text = await res.text();
-    console.log(`Response ${i}: ${res.status} - ${text.substring(0, 50)}...`);
-  }
+  const res = await fetch(`${supabaseUrl}/functions/v1/send-fcm`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${anonKey}`
+    },
+    body: JSON.stringify({
+      user_id: uid,
+      title: `Test Data Message`,
+      message: `Message Body`,
+      data: {}
+    })
+  });
+  
+  const text = await res.text();
+  console.log(`Response: ${res.status}`);
+  console.log(text);
 }
 
 test();

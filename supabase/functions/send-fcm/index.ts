@@ -32,9 +32,13 @@ serve(async (req) => {
   }
 
   try {
-    const { user_id, title, message, data } = await req.json()
+    const body = await req.json()
+    const { user_ids, user_id, title, message, data } = body
     
-    if (!user_id || !title) {
+    // Support both single user_id and array of user_ids for backward compatibility
+    const uids = user_ids ? user_ids : (user_id ? [user_id] : []);
+    
+    if (uids.length === 0 || !title) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), { 
         status: 400, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -47,11 +51,11 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Ambil FCM Token milik user tujuan
+    // Ambil FCM Token milik semua user tujuan
     const { data: tokenData, error } = await supabaseClient
       .from('fcm_tokens')
       .select('token')
-      .eq('user_id', user_id)
+      .in('user_id', uids)
       
     if (error || !tokenData || tokenData.length === 0) {
       return new Response(JSON.stringify({ success: false, reason: 'No tokens found for user' }), { 

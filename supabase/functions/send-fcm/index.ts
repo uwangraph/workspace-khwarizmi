@@ -76,7 +76,20 @@ serve(async (req) => {
         message: message,
         ...safeData
       },
-      tokens: tokens
+      tokens: tokens,
+      android: {
+        priority: 'high'
+      },
+      apns: {
+        payload: {
+          aps: {
+            'content-available': 1
+          }
+        },
+        headers: {
+          'apns-priority': '10'
+        }
+      }
     }
 
     // Kirim Push Notification via Firebase

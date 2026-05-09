@@ -243,16 +243,17 @@ $effect(() => { search; filter; currentPage = 1 })
 
 ---
 
-## 7. Notifikasi (insertNotification)
+## 7. Notifikasi (notificationService)
 
-### ✅ Selalu Gunakan Dual-Strategy
+### ✅ Selalu Gunakan Serverless Architecture
 ```typescript
-// ✅ WAJIB — gunakan fungsi ini, bukan insert langsung
-await insertNotification(userId, 'task_assigned', 'Judul', 'Pesan', { task_id })
-await insertNotificationMany([uid1, uid2], 'type', 'Judul', 'Pesan', data)
+// ✅ WAJIB — gunakan method dari notificationService, JANGAN insert langsung
+await notificationService.send(userId, 'task_assigned', 'Judul', 'Pesan', { task_id })
+await notificationService.sendBulk([uid1, uid2], 'type', 'Judul', 'Pesan', data)
 ```
 
-Jangan pernah insert langsung ke tabel `notifications` tanpa try/catch dan fallback.
+Jangan pernah *insert* langsung ke tabel `notifications` dari klien. `notificationService.send` sudah dirancang untuk memanggil **RPC (bypass RLS)** dan **Edge Function (FCM Push)** secara bersamaan.
+Jangan gunakan API SvelteKit (`+server.ts`) karena akan dihapus di *production* (`adapter-static`).
 
 ---
 

@@ -23,7 +23,7 @@ messaging.onBackgroundMessage((payload) => {
     body: body,
     icon: '/logo-khwarizmi-192.png',
     badge: '/logo-khwarizmi-192.png',
-    tag: payload.data?.tag || 'notif-' + Date.now(),
+    tag: payload.data?.tag || 'notif-' + Date.now() + '-' + Math.floor(Math.random() * 10000),
     data: payload.data,
     vibrate: [200, 100, 200],
     requireInteraction: true // Menjaga notifikasi tetap ada sampai diklik (khusus desktop)

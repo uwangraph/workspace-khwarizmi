@@ -245,14 +245,27 @@ const SESSIONS = [
 | `task_deleted` | ⚫ Slate | `/tasks` |
 | `task_revision` | 🟡 Amber | `/tasks` |
 
-### Dual-Strategy Insert Notifikasi
-```typescript
-// Strategy 1: RPC (bypass RLS)
-await supabase.rpc('send_notification', { p_user_id, p_type, p_title, p_message, p_data })
+### Arsitektur Notifikasi (Serverless)
+Karena aplikasi dikonfigurasi sebagai **Static SPA** (`adapter-static`), *Backend API Route* SvelteKit (`+server.ts`) tidak akan ada di *production*. Karena itu, aplikasi menggunakan arsitektur **Serverless** berikut:
 
-// Strategy 2: Direct insert (fallback)
-await supabase.from('notifications').insert({ user_id, type, title, message, data, is_read: false })
-```
+1. **Database Insert (RPC):**
+   ```typescript
+   // Strategy 1: RPC (bypass RLS) -> PASTI MASUK KE DB
+   await supabase.rpc('send_notification', { p_user_id, p_type, p_title, p_message, p_data })
+   ```
+2. **Push Notification (FCM via Edge Function):**
+   ```typescript
+   // Panggil Edge Function Deno (firebase-admin)
+   await supabase.functions.invoke('send-fcm', { body: { user_id, title, message, data } })
+   ```
+   *Penting: Edge Function mengirimkan "Data-Only message" (tanpa object `notification`) agar PWA Service Worker bisa memunculkan notifikasi manual dengan `tag` unik (mencegah notif lama tertimpa/collapse di HP).*
+
+### Mobile PWA & FCM Quirks
+1. **Service Worker Conflict:** Plugin `vite-plugin-pwa` akan menimpa Service Worker Firebase. Solusinya: Firebase disuntikkan ke dalam PWA lewat `vite.config.ts`:
+   ```typescript
+   workbox: { importScripts: ['firebase-messaging-sw.js'] }
+   ```
+2. **iOS User Gesture Block:** Pemanggilan `Notification.requestPermission()` **HARUS SINKRON** di baris pertama fungsi klik/tap. Dilarang meletakkan `await` apapun (seperti load token atau SW ready) *sebelum* meminta izin, karena iOS Safari akan membuang konteks sentuhan user dan memblokir popup izin.
 
 ### Dedup Deadline Notification
 ```typescript

@@ -4,9 +4,18 @@ import { PUBLIC_FIREBASE_VAPID_KEY } from '$env/static/public';
 
 export const notificationService = {
   async requestPermissionAndGetToken(userId: string) {
-    if (typeof window === 'undefined') return null;
+    if (typeof window === 'undefined' || !('Notification' in window)) return null;
     
     try {
+      // 🚨 SANGAT PENTING: Harus dipanggil SEGERA sebelum ada `await` apapun
+      // Jika di-delay oleh await, iOS Safari akan menganggap ini bukan dari "User Gesture" dan memblokirnya.
+      const permission = await Notification.requestPermission();
+      
+      if (permission !== 'granted') {
+        console.warn('[NotificationService] Notification permission denied or dismissed.');
+        return null;
+      }
+
       const { getToken } = await import('firebase/messaging');
       const msg = await messaging;
       if (!msg) {
@@ -14,16 +23,13 @@ export const notificationService = {
         return null;
       }
 
-      // Gunakan Service Worker PWA yang sudah aktif (yang sekarang me-load firebase-messaging-sw.js)
-      // agar tidak ada bentrokan scope dengan PWA.
+      // Gunakan Service Worker PWA yang sudah aktif
       const registration = await navigator.serviceWorker.ready;
 
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        const token = await getToken(msg, { 
-          vapidKey: PUBLIC_FIREBASE_VAPID_KEY,
-          serviceWorkerRegistration: registration
-        });
+      const token = await getToken(msg, { 
+        vapidKey: PUBLIC_FIREBASE_VAPID_KEY,
+        serviceWorkerRegistration: registration
+      });
         
         if (token) {
           console.log('[NotificationService] FCM Token obtained:', token.substring(0, 10) + '...');
@@ -32,10 +38,7 @@ export const notificationService = {
         } else {
           console.warn('[NotificationService] No registration token available. Request permission to generate one.');
         }
-      } else {
-        console.warn('[NotificationService] Notification permission denied.');
-      }
-    } catch (error) {
+      } catch (error) {
       console.error('[NotificationService] Error requesting notification permission:', error);
     }
     return null;

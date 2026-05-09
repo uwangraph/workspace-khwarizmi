@@ -19,10 +19,13 @@ self.addEventListener('push', function(event) {
 
   console.log('[Service Worker] Push Payload:', payload);
 
-  // Payload untuk pesan Data-Only dikirim melalui objek `data` dari FCM
-  const title = payload.data?.title || 'Workspace Khwarizmi';
-  const body = payload.data?.message || 'Ada pemberitahuan baru.';
-  const url = payload.data?.url || '/';
+  // Payload FCM bisa berupa 'data' (dari server kita) atau 'notification' (dari Firebase Console)
+  const notificationObj = payload.notification || {};
+  const dataObj = payload.data || {};
+
+  const title = notificationObj.title || dataObj.title || 'Workspace Khwarizmi';
+  const body = notificationObj.body || dataObj.message || 'Ada pemberitahuan baru.';
+  const url = dataObj.url || '/';
 
   // Tag yang sangat unik agar notifikasi TIDAK ditumpuk oleh Chrome
   const uniqueTag = 'wk-' + Date.now() + '-' + Math.floor(Math.random() * 100000);

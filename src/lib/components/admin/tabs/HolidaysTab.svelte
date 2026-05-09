@@ -1,28 +1,28 @@
 <script lang="ts">
-  import type { Holiday, ThursdayRule } from '../_types'
+  import type { Holiday, SpecialRule } from '../_types'
   import { CalendarDays, Plus, Trash2, Settings, X, CalendarCheck, CalendarOff, Calendar, Home, Clock, FileText, ClipboardList, PartyPopper } from 'lucide-svelte'
 
   interface Props {
     holidays: Holiday[]
-    thursdayRules: ThursdayRule[]
+    specialRules: SpecialRule[]
     onAddHoliday: () => void
     onDeleteHoliday: (h: Holiday) => void
-    onManageThursday: () => void
-    onDeleteThursdayRule: (r: ThursdayRule) => void
+    onManageSpecial: () => void
+    onDeleteSpecialRule: (r: SpecialRule) => void
   }
-  let { holidays, thursdayRules, onAddHoliday, onDeleteHoliday, onManageThursday, onDeleteThursdayRule } = $props<Props>()
+  let { holidays, specialRules, onAddHoliday, onDeleteHoliday, onManageSpecial, onDeleteSpecialRule } = $props<Props>()
 
   const todayISO = new Date().toISOString().split('T')[0]
 
   let sorted = $derived([...holidays].sort((a, b) => a.date.localeCompare(b.date)))
-  let sortedRules = $derived([...thursdayRules].sort((a, b) => a.date.localeCompare(b.date)))
+  let sortedRules = $derived([...specialRules].sort((a, b) => a.date.localeCompare(b.date)))
 
   function isUpcoming(date: string) {
     const diff = (new Date(date).getTime() - new Date(todayISO).getTime()) / 86400000
     return diff >= 0 && diff <= 14
   }
 
-  const TYPE_STYLE: Record<ThursdayRule['type'], { label: string; bg: string; text: string; Icon: any }> = {
+  const TYPE_STYLE: Record<SpecialRule['type'], { label: string; bg: string; text: string; Icon: any }> = {
     normal:      { label: 'Normal',      bg: 'bg-slate-100',  text: 'text-slate-600', Icon: Calendar },
     custom_time: { label: 'Custom Jam',  bg: 'bg-amber-100',  text: 'text-amber-700', Icon: Clock },
     wfa:         { label: 'WFA',         bg: 'bg-blue-100',   text: 'text-blue-700',  Icon: Home },
@@ -45,7 +45,7 @@
             class="flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
             class:text-white={activeSection === 'thursday'}
             style={activeSection === 'thursday' ? 'background:linear-gradient(135deg,#F97316,#EA580C)' : 'background:transparent; color:#64748B'}>
-      <Settings size={13} /> Aturan Kamis ({thursdayRules.length})
+      <Settings size={13} /> Jadwal Khusus ({specialRules.length})
     </button>
   </div>
 
@@ -132,13 +132,13 @@
   {:else}
     <div class="flex items-center justify-between">
       <div>
-        <p class="text-sm font-bold text-slate-700" style="font-family:'Plus Jakarta Sans',sans-serif;">Aturan Jadwal Kamis</p>
-        <p class="text-[10px] text-slate-400 mt-0.5">Kamis hanya sesi Pagi. Atur waktu atau mode WFA per-minggu.</p>
+        <p class="text-sm font-bold text-slate-700" style="font-family:'Plus Jakarta Sans',sans-serif;">Aturan Jadwal Khusus</p>
+        <p class="text-[10px] text-slate-400 mt-0.5">Atur WFA atau Jam Masuk khusus untuk tanggal tertentu (rapat, dsb).</p>
       </div>
-      <button onclick={onManageThursday}
+      <button onclick={onManageSpecial}
               class="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold text-white cursor-pointer shadow-sm"
               style="background:linear-gradient(135deg,#F97316,#EA580C)">
-        <Settings size={14} /> Atur Kamis
+        <Plus size={14} /> Tambah Aturan
       </button>
     </div>
 
@@ -166,13 +166,13 @@
 
     {#if sortedRules.length === 0}
       <div class="bg-white rounded-2xl shadow-sm border border-slate-100 py-16 text-center">
-        <Settings size={32} class="text-slate-200 mx-auto mb-3" />
-        <p class="text-sm font-semibold text-slate-400">Belum ada aturan khusus Kamis</p>
-        <p class="text-xs text-slate-300 mt-1">Semua Kamis mengikuti jadwal default</p>
-        <button onclick={onManageThursday}
+        <Home size={32} class="text-slate-200 mx-auto mb-3" />
+        <p class="text-sm font-semibold text-slate-400">Belum ada aturan jadwal khusus</p>
+        <p class="text-xs text-slate-300 mt-1">Semua hari mengikuti jadwal normal</p>
+        <button onclick={onManageSpecial}
                 class="mt-4 px-5 py-2.5 rounded-xl text-sm font-bold text-white cursor-pointer"
                 style="background:linear-gradient(135deg,#F97316,#EA580C)">
-          + Atur Kamis Ini
+          + Buat Aturan Baru
         </button>
       </div>
     {:else}
@@ -212,7 +212,7 @@
                 </p>
               {/if}
             </div>
-            <button onclick={() => onDeleteThursdayRule(rule)}
+            <button onclick={() => onDeleteSpecialRule(rule)}
                     class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-red-50 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors cursor-pointer flex-shrink-0">
               <Trash2 size={13} />
             </button>

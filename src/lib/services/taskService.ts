@@ -1,5 +1,6 @@
 import { supabase } from '$lib/supabase';
 import type { Task, TaskAssignment } from '$lib/type';
+import { notificationService } from './notificationService';
 
 async function checkDeletionStatus() {
   const { data: settings } = await supabase.from('app_settings').select('deletion_scheduled_at').eq('id', 1).single();
@@ -14,7 +15,6 @@ async function checkDeletionStatus() {
 
 export const taskService = {
   async getTasks(userId: string, _role: string): Promise<Task[]> {
-    // For all users (including admins), get tasks they created or are assigned to
     const { data: myA } = await supabase
       .from('task_assignments')
       .select('task_id')
@@ -50,7 +50,6 @@ export const taskService = {
     let taskId: string;
     
     if (isEditing && editingTaskId) {
-      // Ambil data tugas lama untuk tahu siapa pembuatnya
       const { data: currentTask } = await supabase.from('tasks').select('created_by').eq('id', editingTaskId).single();
       await supabase.from('tasks').update(taskData).eq('id', editingTaskId);
       taskId = editingTaskId;
@@ -71,9 +70,6 @@ export const taskService = {
       });
 
       await supabase.from('task_assignments').insert(newAssignments);
-      
-      // Return new collabs for notification: 
-      // Anggap baru jika sebelumnya belum ada, atau sebelumnya pernah menolak/pending lama
       const newCollabs = assignedUserIds.filter(uid => {
         if (uid === userId || uid === ownerId) return false;
         const oldStatus = oldStatusMap.get(uid);
@@ -97,11 +93,43 @@ export const taskService = {
     }
   },
 
+  async checkLowTaskCount(userId: string) {
+    const { count } = await supabase
+      .from('task_assignments')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .not('status', 'eq', 'completed')
+      .not('status', 'eq', 'rejected');
+
+    if (count !== null && count <= 1) {
+      const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin');
+      if (admins && admins.length > 0) {
+        const { data: userProfile } = await supabase.from('profiles').select('full_name').eq('id', userId).single();
+        const adminIds = admins.map(a => a.id).filter(id => id !== userId);
+        
+        if (adminIds.length > 0) {
+          const title = '⚠️ Peringatan Workload';
+          const message = `${userProfile?.full_name || 'Anggota'} hanya memiliki ${count} tugas aktif. Mohon berikan tugas baru agar tetap produktif.`;
+          await notificationService.sendBulk(adminIds, 'workload_alert', title, message, { user_id: userId, task_count: count });
+        }
+      }
+    }
+  },
+
   async updateProgress(taskId: string, progress: number, status: string, _note?: string | null) {
     await checkDeletionStatus();
-    // Note: progress_note column does not exist in DB schema
     const updateData: any = { progress, status };
     const result = await supabase.from('tasks').update(updateData).eq('id', taskId);
+    
+    if (status === 'done') {
+      const { data: ass } = await supabase.from('task_assignments').select('user_id').eq('task_id', taskId);
+      if (ass) {
+        for (const a of ass) {
+          await this.checkLowTaskCount(a.user_id);
+        }
+      }
+    }
+
     if (result.error) console.error('[taskService.updateProgress] Error:', result.error.message);
     return result;
   },
@@ -110,12 +138,29 @@ export const taskService = {
     await checkDeletionStatus();
     const updateData: any = { status };
     if (completedAt) updateData.completed_at = completedAt;
-    return await supabase.from('task_assignments').update(updateData).eq('id', assignmentId);
+    
+    const result = await supabase.from('task_assignments').update(updateData).eq('id', assignmentId);
+    
+    if (status === 'completed') {
+      const { data: ass } = await supabase.from('task_assignments').select('user_id').eq('id', assignmentId).single();
+      if (ass) await this.checkLowTaskCount(ass.user_id);
+    }
+
+    return result;
   },
 
   async deleteTask(taskId: string) {
     await checkDeletionStatus();
-    return await supabase.from('tasks').delete().eq('id', taskId);
+    const { data: ass } = await supabase.from('task_assignments').select('user_id').eq('task_id', taskId);
+    const result = await supabase.from('tasks').delete().eq('id', taskId);
+    
+    if (ass) {
+      for (const a of ass) {
+        await this.checkLowTaskCount(a.user_id);
+      }
+    }
+
+    return result;
   },
 
   async bulkUpdateStatus(taskIds: string[], status: string, progress: number) {
@@ -123,18 +168,97 @@ export const taskService = {
   },
 
   async bulkDeleteTasks(taskIds: string[]) {
-    // Delete assignments first (though cascade should handle it)
     await supabase.from('task_assignments').delete().in('task_id', taskIds);
     return await supabase.from('tasks').delete().in('id', taskIds);
   },
 
   async updateTaskFields(taskId: string, fields: Partial<Task>) {
-    // Strip undefined values to avoid Supabase 400 errors
     const cleanFields = Object.fromEntries(
       Object.entries(fields).filter(([, v]) => v !== undefined)
     );
     const result = await supabase.from('tasks').update(cleanFields).eq('id', taskId);
     if (result.error) console.error('[taskService.updateTaskFields] Error:', result.error.message, result.error.details, 'Fields:', Object.keys(cleanFields));
     return result;
+  },
+
+  async uploadAttachment(taskId: string, userId: string, file: File) {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${taskId}/${userId}_${Date.now()}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('tasks')
+      .upload(filePath, file);
+
+    if (uploadError) throw uploadError;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('tasks')
+      .getPublicUrl(filePath);
+
+    const attachmentData = {
+      task_id: taskId,
+      user_id: userId,
+      filename: file.name,
+      file_url: publicUrl,
+      file_type: file.type || 'application/octet-stream'
+    };
+
+    const { data, error } = await supabase
+      .from('task_attachments')
+      .insert(attachmentData)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async getAttachments(taskId: string) {
+    const { data, error } = await supabase
+      .from('task_attachments')
+      .select('*')
+      .eq('task_id', taskId)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return data;
+  },
+
+  async deleteAttachment(attachmentId: string, filePath: string) {
+    const { error: dbError } = await supabase
+      .from('task_attachments')
+      .delete()
+      .eq('id', attachmentId);
+    
+    if (dbError) throw dbError;
+
+    if (filePath) {
+      const { error: storageError } = await supabase.storage
+        .from('tasks')
+        .remove([filePath]);
+      return { error: storageError };
+    }
+    
+    return { error: null };
+  },
+
+  async addExternalLink(taskId: string, userId: string, filename: string, url: string) {
+    const attachmentData = {
+      task_id: taskId,
+      user_id: userId,
+      filename: filename,
+      file_url: url,
+      file_type: 'link/external'
+    };
+
+    const { data, error } = await supabase
+      .from('task_attachments')
+      .insert(attachmentData)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
   }
 };

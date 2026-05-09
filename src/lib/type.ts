@@ -25,6 +25,17 @@ export interface Task {
   created_by: string
   created_at: string
   subtasks?: any[]
+  attachments?: TaskAttachment[]
+}
+
+export interface TaskAttachment {
+  id: string
+  task_id: string
+  user_id: string
+  filename: string
+  file_url: string
+  file_type: string
+  created_at: string
 }
 
 export interface TaskAssignment {

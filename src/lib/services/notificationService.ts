@@ -23,8 +23,8 @@ export const notificationService = {
       });
       
       // Tunggu sampai SW aktif
-      await navigator.serviceWorker.ready;
-      console.log('[NotificationService] Firebase SW registered at scope:', firebaseSW.scope);
+      // await navigator.serviceWorker.ready;
+      // console.log('[NotificationService] Firebase SW registered at scope:', firebaseSW.scope);
 
       const { getToken } = await import('firebase/messaging');
       const msg = await messaging;
@@ -39,7 +39,7 @@ export const notificationService = {
       });
         
       if (token) {
-        console.log('[NotificationService] FCM Token obtained:', token.substring(0, 10) + '...');
+        // console.log('[NotificationService] FCM Token obtained:', token.substring(0, 10) + '...');
         await this.saveTokenToSupabase(userId, token);
         return token;
       } else {
@@ -68,8 +68,7 @@ export const notificationService = {
       } else {
         console.error('Error saving FCM token:', error.message);
       }
-    } else {
-      console.log('[NotificationService] Token saved to Supabase.');
+      // console.log('[NotificationService] Token saved to Supabase.');
     }
   },
 

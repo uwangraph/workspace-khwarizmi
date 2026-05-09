@@ -14,10 +14,9 @@ export const notificationService = {
         return null;
       }
 
-      // Pastikan Service Worker terdaftar secara eksplisit untuk menghindari konflik dengan PWA
-      const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
-        scope: '/'
-      });
+      // Gunakan Service Worker PWA yang sudah aktif (yang sekarang me-load firebase-messaging-sw.js)
+      // agar tidak ada bentrokan scope dengan PWA.
+      const registration = await navigator.serviceWorker.ready;
 
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {

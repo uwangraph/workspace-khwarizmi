@@ -91,9 +91,9 @@
                 }
             });
 
-            // Delay request izin FCM (memberi ruang loading UI)
-            // Hanya jalankan jika di lingkungan browser dan bukan di iOS Safari biasa (non-PWA)
-            setTimeout(() => {
+            // Meminta izin FCM memerlukan interaksi pengguna (User Gesture) di iOS & Android PWA.
+            // Jika sudah diizinkan, langsung ambil token. Jika belum, tunggu klik pertama.
+            const initFCM = () => {
                 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
                 const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
                 
@@ -110,7 +110,19 @@
                         console.warn('[Layout] FCM skipped: Notification permission denied.');
                     }
                 }
-            }, 5000);
+            };
+
+            if ('Notification' in window && Notification.permission === 'granted') {
+                initFCM();
+            } else {
+                const onFirstInteraction = () => {
+                    initFCM();
+                    document.removeEventListener('click', onFirstInteraction);
+                    document.removeEventListener('touchstart', onFirstInteraction);
+                };
+                document.addEventListener('click', onFirstInteraction);
+                document.addEventListener('touchstart', onFirstInteraction, { passive: true });
+            }
         }
 
         return () => {

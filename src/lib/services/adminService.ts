@@ -17,7 +17,7 @@ export const adminService = {
       endDate = `${month}-${lastDay}`;
     }
 
-    const [usersRes, tasksRes, attendRes, assignRes, holidaysRes, settingsRes, leavesRes, thursdayRes] = await Promise.all([
+    const [usersRes, tasksRes, attendRes, assignRes, holidaysRes, settingsRes, leavesRes, specialRes] = await Promise.all([
       supabase.from('profiles').select('*').order('full_name'),
       supabase.from('tasks').select('*').order('created_at', { ascending: false }),
       supabase.from('attendance').select('*').gte('date', startDate).lte('date', endDate).order('date', { ascending: false }),
@@ -25,7 +25,7 @@ export const adminService = {
       supabase.from('holidays').select('*').order('date'),
       supabase.from('app_settings').select('*').eq('id', 1).single(),
       supabase.from('attendance_leaves').select('*').order('date', { ascending: false }),
-      supabase.from('thursday_rules').select('*').order('date')
+      supabase.from('special_rules').select('*').order('date')
     ]);
 
     return {
@@ -36,7 +36,7 @@ export const adminService = {
       holidays: holidaysRes.data || [],
       settings: settingsRes.data || null,
       leaves: leavesRes.data || [],
-      thursdayRules: thursdayRes.data || []
+      specialRules: specialRes.data || []
     };
   },
 
@@ -80,17 +80,17 @@ export const adminService = {
     return await supabase.from('holidays').delete().eq('id', id);
   },
 
-  async saveThursdayRule(rule: any) {
+  async saveSpecialRule(rule: any) {
     // Use upsert to handle both create and update, conflicting on date
     return await supabase
-      .from('thursday_rules')
+      .from('special_rules')
       .upsert(rule, { onConflict: 'date' })
       .select()
       .single();
   },
 
-  async deleteThursdayRule(id: string) {
-    return await supabase.from('thursday_rules').delete().eq('id', id);
+  async deleteSpecialRule(id: string) {
+    return await supabase.from('special_rules').delete().eq('id', id);
   },
 
   async updateSettings(settings: any) {

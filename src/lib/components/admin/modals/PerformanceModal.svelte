@@ -32,6 +32,33 @@
     activeFilter === 'overdue' ? userTasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'done') :
     []
   )
+
+  let taskDistribution = $derived({
+    high: userTasks.filter(t => t.status === 'done' && t.priority === 'high').length,
+    medium: userTasks.filter(t => t.status === 'done' && t.priority === 'medium').length,
+    low: userTasks.filter(t => t.status === 'done' && t.priority === 'low').length,
+  })
+  let totalDone = $derived(taskDistribution.high + taskDistribution.medium + taskDistribution.low)
+
+  // Badge Logic
+  let badges = $derived([
+    { 
+      id: 'master', label: 'Master of Projects', active: taskDistribution.high >= 2, 
+      desc: 'Selesaikan 2+ project berat', icon: '🏆', bg: 'bg-amber-500' 
+    },
+    { 
+      id: 'diligent', label: 'Karyawan Terajin', active: att.presentRate >= 90 && att.totalWorkingDays > 0, 
+      desc: 'Kehadiran konsisten (90%+)', icon: '⭐', bg: 'bg-blue-500' 
+    },
+    { 
+      id: 'ontime', label: 'Tepat Waktu', active: perf.overdue <= 1 && perf.done > 0, 
+      desc: 'Maks. 1 tugas terlambat', icon: '⏱️', bg: 'bg-green-500' 
+    },
+    { 
+      id: 'productive', label: 'Sangat Produktif', active: perf.done >= 5, 
+      desc: 'Selesaikan 5+ tugas', icon: '🔥', bg: 'bg-orange-500' 
+    }
+  ].filter(b => b.active))
 </script>
 
 <div class="fixed inset-0 z-50 flex items-end justify-center"
@@ -57,9 +84,15 @@
              style="background:linear-gradient(135deg,#3B82F6,#2563EB)">
           {#if user.avatar_url}<img src={user.avatar_url} alt="" class="w-full h-full object-cover" />{:else}{getInitials(user.full_name)}{/if}
         </div>
-        <div>
+        <div class="flex-1 min-w-0">
           <p class="text-base font-bold text-slate-800">{user.full_name}</p>
           <p class="text-xs text-slate-500">{user.position || 'Karyawan'} · <span class="uppercase tracking-wide text-blue-600 font-semibold text-[10px]">{user.role}</span></p>
+        </div>
+        <div class="text-right flex-shrink-0">
+          <div class="bg-orange-500 text-white px-3 py-1 rounded-full text-[10px] font-black shadow-sm shadow-orange-200">
+            {perf.performanceScore} PTS
+          </div>
+          <p class="text-[8px] text-orange-400 font-bold uppercase mt-0.5">PERFORMANCE</p>
         </div>
       </div>
 
@@ -74,8 +107,8 @@
               <PieChart size={14} class="text-blue-500" />
             </div>
             <p class="text-2xl font-black text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">{perf.completionRate}%</p>
-            <div class="mt-2 h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-              <div class="h-full rounded-full bg-blue-500 transition-all" style="width:{perf.completionRate}%"></div>
+            <div class="mt-2 h-3 w-full bg-slate-50 rounded-full overflow-hidden border border-slate-100">
+              <div class="h-full rounded-full bg-gradient-to-r from-blue-300 to-blue-500 transition-all" style="width:{perf.completionRate}%"></div>
             </div>
             <p class="text-[10px] text-slate-400 mt-1">{perf.done} dari {perf.total} tugas</p>
           </button>
@@ -89,6 +122,35 @@
             <p class="text-[10px] text-slate-400 mt-1">dari {perf.total} tugas total</p>
           </button>
         </div>
+
+        <!-- Priority Breakdown -->
+        {#if totalDone > 0}
+          <div class="mt-4 bg-slate-50 border border-slate-100 rounded-2xl p-4">
+            <div class="flex items-center justify-between mb-3">
+              <p class="text-[10px] text-slate-500 font-bold uppercase">Distribusi Prioritas Selesai</p>
+              <p class="text-[10px] text-slate-400 font-bold">{totalDone} Total</p>
+            </div>
+            <div class="flex h-4 rounded-full overflow-hidden bg-slate-100 shadow-inner">
+              <div class="h-full bg-red-500 transition-all" style="width:{(taskDistribution.high/totalDone)*100}%" title="High Priority"></div>
+              <div class="h-full bg-amber-500 transition-all" style="width:{(taskDistribution.medium/totalDone)*100}%" title="Medium Priority"></div>
+              <div class="h-full bg-slate-400 transition-all" style="width:{(taskDistribution.low/totalDone)*100}%" title="Low Priority"></div>
+            </div>
+            <div class="flex items-center gap-4 mt-3">
+              <div class="flex items-center gap-1.5">
+                <div class="w-1.5 h-1.5 rounded-full bg-red-500"></div>
+                <span class="text-[10px] font-bold text-slate-600">{taskDistribution.high} <span class="font-normal text-slate-400">High</span></span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <div class="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
+                <span class="text-[10px] font-bold text-slate-600">{taskDistribution.medium} <span class="font-normal text-slate-400">Med</span></span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <div class="w-1.5 h-1.5 rounded-full bg-slate-400"></div>
+                <span class="text-[10px] font-bold text-slate-600">{taskDistribution.low} <span class="font-normal text-slate-400">Low</span></span>
+              </div>
+            </div>
+          </div>
+        {/if}
 
         <!-- Filtered Task List -->
         {#if activeFilter !== 'none'}
@@ -147,12 +209,32 @@
             <span class="text-[10px] font-bold text-slate-500">Tingkat Kehadiran</span>
             <span class="text-sm font-bold {att.presentRate >= 80 ? 'text-green-500' : att.presentRate >= 50 ? 'text-amber-500' : 'text-red-500'}">{att.presentRate}%</span>
           </div>
-          <div class="h-2 bg-slate-200 rounded-full overflow-hidden">
-            <div class="h-full rounded-full transition-all"
-                 style="width:{Math.min(att.presentRate,100)}%; background:{att.presentRate>=80?'#22C55E':att.presentRate>=50?'#F59E0B':'#EF4444'}"></div>
+          <div class="h-3 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
+            <div class="h-full rounded-full transition-all bg-gradient-to-r"
+                 style="width:{Math.min(att.presentRate,100)}%; {att.presentRate>=80?'background-image:linear-gradient(to right,#86EFAC,#4ADE80)':att.presentRate>=50?'background-image:linear-gradient(to right,#FDE68A,#FBBF24)':'background-image:linear-gradient(to right,#FECACA,#F87171)'}"></div>
           </div>
         </div>
       </div>
+
+      <!-- Achievements / Badges -->
+      {#if badges.length > 0}
+        <div>
+          <h4 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Pencapaian</h4>
+          <div class="flex flex-wrap gap-2">
+            {#each badges as badge}
+              <div class="flex items-center gap-2 pl-1 pr-3 py-1.5 rounded-full {badge.bg} text-white shadow-sm transition-transform hover:scale-105">
+                <div class="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs">
+                  {badge.icon}
+                </div>
+                <div class="flex flex-col leading-none">
+                  <span class="text-[9px] font-black uppercase tracking-tight">{badge.label}</span>
+                  <span class="text-[7px] opacity-80 font-bold">{badge.desc}</span>
+                </div>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
     </div>
   </div>
 </div>

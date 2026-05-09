@@ -22,5 +22,33 @@ export const locationService = {
       ok: distance <= radius,
       distance
     };
+  },
+
+  getClosestLocation(pos: GeolocationCoordinates, locations: { name: string; lat: number; lng: number; radius: number }[], fallbackLat: number, fallbackLng: number, fallbackRadius: number) {
+    const locsToSearch = locations && locations.length > 0 ? locations : [{ name: 'Kantor Pusat', lat: fallbackLat, lng: fallbackLng, radius: fallbackRadius }];
+    
+    let closestDist = Infinity;
+    let closestValid = false;
+    let closestName = '';
+    let maxRadius = 0;
+
+    for (const loc of locsToSearch) {
+      const dist = this.haversineMeters(pos.latitude, pos.longitude, loc.lat, loc.lng);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closestName = loc.name;
+        maxRadius = loc.radius;
+      }
+      if (dist <= loc.radius) {
+        closestValid = true;
+      }
+    }
+
+    return {
+      ok: closestValid,
+      distance: closestDist,
+      name: closestName,
+      radius: maxRadius
+    };
   }
 };

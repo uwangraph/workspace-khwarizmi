@@ -1,27 +1,27 @@
 <script lang="ts">
   import { X, Settings, Calendar, Clock, Home, Check } from 'lucide-svelte'
-  import type { ThursdayRule } from '$lib/components/admin/_types'
+  import type { SpecialRule } from '$lib/components/admin/_types'
   import { getUpcomingThursdays } from '$lib/components/admin/_utils'
 
   interface Props {
-    thursdayRules: ThursdayRule[]
+    specialRules: SpecialRule[]
     isSubmitting?: boolean
-    onSave: (data: { date: string; type: ThursdayRule['type']; start_time: string | null; note: string | null }) => Promise<void>
+    onSave: (data: { date: string; type: SpecialRule['type']; start_time: string | null; note: string | null }) => Promise<void>
     onClose: () => void
   }
-  let { thursdayRules, isSubmitting = false, onSave, onClose } = $props<Props>()
+  let { specialRules, isSubmitting = false, onSave, onClose } = $props<Props>()
 
-  const upcomingThursdays = getUpcomingThursdays(10)
+  // const upcomingThursdays = getUpcomingThursdays(10) // No longer restricted to Thursdays
 
   // Pre-fill jika tanggal sudah punya rule
-  let selectedDate = $state(upcomingThursdays[0] ?? '')
-  let ruleType     = $state<ThursdayRule['type']>('normal')
+  let selectedDate = $state(new Date().toISOString().split('T')[0])
+  let ruleType     = $state<SpecialRule['type']>('normal')
   let startTime    = $state('09:00')
   let note         = $state('')
 
   // Saat ganti tanggal, pre-fill dari existing rule jika ada
   $effect(() => {
-    const existing = thursdayRules.find(r => r.date === selectedDate)
+    const existing = specialRules.find(r => r.date === selectedDate)
     if (existing) {
       ruleType  = existing.type
       startTime = existing.start_time ?? '09:00'
@@ -33,13 +33,14 @@
     }
   })
 
-  function formatThursdayLabel(dateStr: string) {
+  function formatSpecialDateLabel(dateStr: string) {
+    if (!dateStr) return 'Pilih Tanggal'
     const d = new Date(dateStr)
     const today = new Date().toISOString().split('T')[0]
     const suffix = dateStr === today ? ' (Hari Ini)' : ''
-    const existing = thursdayRules.find(r => r.date === dateStr)
+    const existing = specialRules.find(r => r.date === dateStr)
     const tag = existing ? ` (${existing.type === 'wfa' ? 'WFA' : existing.type === 'custom_time' ? 'Custom' : 'Normal'})` : ''
-    return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long' }) + suffix + tag
+    return d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' }) + suffix + tag
   }
 
   const TYPE_OPTIONS = [
@@ -52,7 +53,7 @@
     {
       val: 'custom_time',
       label: 'Custom Waktu',
-      desc: 'Masuk lebih siang — tentukan jam masuk khusus hari Kamis ini',
+      desc: 'Masuk lebih siang — tentukan jam masuk khusus untuk tanggal ini',
       Icon: Clock,
     },
     {
@@ -84,8 +85,8 @@
     <!-- Header -->
     <div class="flex items-center justify-between px-8 py-6">
       <div class="flex flex-col">
-        <h3 class="text-lg font-bold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">Aturan Kamis</h3>
-        <p class="text-[11px] text-slate-400">Konfigurasi khusus untuk hari Kamis tertentu</p>
+        <h3 class="text-lg font-bold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">Aturan Jadwal Khusus</h3>
+        <p class="text-[11px] text-slate-400">Konfigurasi WFA atau jam masuk khusus per-tanggal</p>
       </div>
       <button onclick={onClose} class="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-all active:scale-90">
         <X size={18} />
@@ -93,15 +94,19 @@
     </div>
 
     <div class="px-8 pb-8 overflow-y-auto scrollbar-hide flex flex-col gap-6">
-      <!-- Pilih tanggal Kamis -->
+      <!-- Pilih tanggal -->
       <div class="space-y-1.5">
-        <label class="ml-0.5 text-[11px] font-semibold text-slate-500">Pilih Tanggal Kamis</label>
-        <select bind:value={selectedDate}
-                class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 bg-white focus:border-orange-500 focus:outline-none transition-all">
-          {#each upcomingThursdays as d}
-            <option value={d}>{formatThursdayLabel(d)}</option>
-          {/each}
-        </select>
+        <label class="ml-0.5 text-[11px] font-semibold text-slate-500">Pilih Tanggal</label>
+        <div class="relative">
+          <input type="date" bind:value={selectedDate}
+                 class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 bg-white focus:border-orange-500 focus:outline-none transition-all" />
+          <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+            <Calendar size={14} />
+          </div>
+        </div>
+        {#if selectedDate}
+          <p class="text-[10px] text-slate-400 ml-0.5">{formatSpecialDateLabel(selectedDate)}</p>
+        {/if}
       </div>
 
       <!-- Tipe aturan -->
@@ -148,7 +153,7 @@
               </div>
               <input type="time" bind:value={startTime}
                      class="w-full px-4 py-2.5 rounded-xl border border-orange-200 text-sm text-slate-700 bg-white focus:outline-none" />
-              <p class="text-[10px] text-orange-600/70">Normalnya jam 08:00. Silakan atur jam khusus untuk Kamis ini.</p>
+              <p class="text-[10px] text-orange-600/70">Silakan atur jam masuk khusus untuk tanggal ini.</p>
             </div>
           {/if}
 

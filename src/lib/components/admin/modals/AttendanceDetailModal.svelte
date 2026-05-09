@@ -54,9 +54,9 @@
             <div class="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50">
               <div class="flex items-center gap-3">
                 <div class="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center flex-shrink-0 text-slate-400">
-                  {#if att?.check_out}
+                  {#if att?.clock_out}
                     <CheckCircle2 size={16} class="text-green-500" />
-                  {:else if att?.check_in}
+                  {:else if att?.clock_in}
                     <Clock size={16} class="text-orange-500" />
                   {:else if leave && leave.status !== 'rejected'}
                     <FileText size={16} class={leave.type === 'sakit' ? 'text-red-500' : 'text-orange-500'} />
@@ -77,9 +77,9 @@
               </div>
               
               <div class="text-right">
-                {#if att?.check_in}
+                {#if att?.clock_in}
                   <div class="flex flex-col items-end gap-2">
-                    <span class="text-[10px] font-bold px-2 py-0.5 rounded text-white {att.late ? 'bg-red-500' : 'bg-green-500'} shadow-sm">In: {formatTime(att.check_in)}</span>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded text-white {att.late ? 'bg-red-500' : 'bg-green-500'} shadow-sm">In: {formatTime(att.clock_in)}</span>
                     {#if att.photo_in_url}
                       <button onclick={() => viewPhotoUrl = att.photo_in_url!} class="relative group w-12 h-12 rounded-xl overflow-hidden border-2 border-white shadow-md hover:scale-105 transition-transform">
                         <img src={att.photo_in_url} alt="Foto In" class="w-full h-full object-cover" />
@@ -89,9 +89,9 @@
                       </button>
                     {/if}
 
-                    {#if att.check_out}
+                    {#if att.clock_out}
                       <div class="w-full h-px bg-slate-100 my-1"></div>
-                      <span class="text-[10px] font-bold px-2 py-0.5 rounded text-white bg-green-500 shadow-sm">Out: {formatTime(att.check_out)}</span>
+                      <span class="text-[10px] font-bold px-2 py-0.5 rounded text-white bg-green-500 shadow-sm">Out: {formatTime(att.clock_out)}</span>
                       {#if att.photo_out_url}
                         <button onclick={() => viewPhotoUrl = att.photo_out_url!} class="relative group w-12 h-12 rounded-xl overflow-hidden border-2 border-white shadow-md hover:scale-105 transition-transform">
                           <img src={att.photo_out_url} alt="Foto Out" class="w-full h-full object-cover" />

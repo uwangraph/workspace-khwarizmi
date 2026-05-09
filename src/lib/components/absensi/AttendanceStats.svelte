@@ -2,7 +2,7 @@
   import { LogIn, Check, Clock } from 'lucide-svelte'
   interface Session { id: number; name: string }
   interface Props {
-    attendance: { session_id: number; check_out: string | null }[]
+    attendance: { session_id: number; clock_out: string | null }[]
     activeSessions: Session[]
   }
   let { attendance, activeSessions }: Props = $props()
@@ -13,7 +13,7 @@
 
   let stats = $derived([
     { label: LABELS[0], value: attendance.length,                                   total: activeSessions.length, color: COLORS[0], Icon: ICONS[0] },
-    { label: LABELS[1], value: attendance.filter(a => a.check_out).length,          total: activeSessions.length, color: COLORS[1], Icon: ICONS[1] },
+    { label: LABELS[1], value: attendance.filter(a => a.clock_out).length,          total: activeSessions.length, color: COLORS[1], Icon: ICONS[1] },
     { label: LABELS[2], value: Math.max(0, activeSessions.length - attendance.length), total: activeSessions.length, color: COLORS[2], Icon: ICONS[2] },
   ])
 </script>

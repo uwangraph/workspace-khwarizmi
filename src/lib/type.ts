@@ -25,6 +25,17 @@ export interface Task {
   created_by: string
   created_at: string
   subtasks?: any[]
+  attachments?: TaskAttachment[]
+}
+
+export interface TaskAttachment {
+  id: string
+  task_id: string
+  user_id: string
+  filename: string
+  file_url: string
+  file_type: string
+  created_at: string
 }
 
 export interface TaskAssignment {
@@ -41,8 +52,8 @@ export interface AttendanceRecord {
   user_id: string
   session_id: number
   date: string
-  check_in: string | null
-  check_out: string | null
+  clock_in: string | null
+  clock_out: string | null
   photo_in_url: string | null
   photo_out_url: string | null
   forgot_checkout: boolean

@@ -157,9 +157,9 @@
             {#each SESSIONS.slice(0, 3) as s}
               {@const att = userAtt.find(a => a.session_id === s.id)}
               <div class="w-5 h-5 rounded flex items-center justify-center text-[8px] font-bold"
-                   class:bg-green-100={att?.check_out} class:text-green-600={att?.check_out}
-                   class:bg-orange-100={att?.check_in && !att?.check_out} class:text-orange-500={att?.check_in && !att?.check_out}
-                   class:bg-slate-100={!att?.check_in} class:text-slate-400={!att?.check_in}
+                   class:bg-green-100={att?.clock_out} class:text-green-600={att?.clock_out}
+                   class:bg-orange-100={att?.clock_in && !att?.clock_out} class:text-orange-500={att?.clock_in && !att?.clock_out}
+                   class:bg-slate-100={!att?.clock_in} class:text-slate-400={!att?.clock_in}
                    title={s.label}>
                 {s.label[0]}
               </div>

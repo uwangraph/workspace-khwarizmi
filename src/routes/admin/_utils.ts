@@ -97,7 +97,7 @@ export function getMonthlyAttendanceStat(
   dateSet.forEach(date => {
     if (isHoliday(date, holidays)) return
     const dayRecords = records.filter(r => r.date === date)
-    if (dayRecords.some(r => r.check_in)) totalPresentDays++
+    if (dayRecords.some(r => r.clock_in)) totalPresentDays++
     if (dayRecords.some(r => r.late)) totalLate++
   })
 

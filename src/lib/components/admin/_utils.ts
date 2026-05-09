@@ -11,12 +11,12 @@ export const STATUS_LABEL: Record<string, string> = {
   done:         'Selesai',
 }
 
-export const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
-  not_started: { bg: 'bg-slate-100', text: 'text-slate-600' },
-  in_progress:  { bg: 'bg-blue-50',   text: 'text-blue-700'  },
-  review:       { bg: 'bg-purple-50', text: 'text-purple-700' },
-  revision:     { bg: 'bg-amber-50',  text: 'text-amber-700'  },
-  done:         { bg: 'bg-green-50',  text: 'text-green-700'  },
+export const STATUS_STYLE: Record<string, { bg: string; text: string; bar: string }> = {
+  not_started: { bg: 'bg-slate-100', text: 'text-slate-600', bar: 'bg-slate-200' },
+  in_progress:  { bg: 'bg-blue-50',   text: 'text-blue-700',  bar: 'bg-blue-400'  },
+  review:       { bg: 'bg-purple-50', text: 'text-purple-700', bar: 'bg-purple-400' },
+  revision:     { bg: 'bg-amber-50',  text: 'text-amber-700',  bar: 'bg-amber-400'  },
+  done:         { bg: 'bg-green-50',  text: 'text-green-700',  bar: 'bg-green-400'  },
 }
 
 export const PRIORITY_DOT: Record<string, string> = {
@@ -25,6 +25,10 @@ export const PRIORITY_DOT: Record<string, string> = {
 
 export const PRIORITY_LABEL: Record<string, string> = {
   low: 'Rendah', medium: 'Sedang', high: 'Tinggi',
+}
+
+export const PRIORITY_WEIGHT: Record<string, number> = {
+  low: 10, medium: 30, high: 100,
 }
 
 export const SESSIONS = [
@@ -108,8 +112,8 @@ export function isFriday(dateStr: string): boolean {
   return new Date(dateStr).getDay() === 5
 }
 
-/** Dapatkan rule Kamis untuk tanggal tertentu, atau undefined jika belum diatur */
-export function getThursdayRule(date: string, rules: ThursdayRule[]): ThursdayRule | undefined {
+/** Dapatkan rule khusus untuk tanggal tertentu, atau undefined jika belum diatur */
+export function getSpecialRule(date: string, rules: SpecialRule[]): SpecialRule | undefined {
   return rules.find(r => r.date === date)
 }
 
@@ -146,7 +150,7 @@ export function getMonthlyAttendanceStat(
   dateSet.forEach(date => {
     if (isHoliday(date, holidays)) return
     const dayRecords = records.filter(r => r.date === date)
-    if (dayRecords.some(r => r.check_in)) totalPresentDays++
+    if (dayRecords.some(r => r.clock_in)) totalPresentDays++
     if (dayRecords.some(r => r.late)) totalLate++
   })
 
@@ -170,11 +174,23 @@ export function getUserPerformanceStats(
     .filter(a => a.user_id === userId && a.status !== 'rejected')
     .map(a => a.task_id)
   const userTasks = tasks.filter(t => taskIds.includes(t.id))
+  
   const total = userTasks.length
   const done = userTasks.filter(t => t.status === 'done').length
   const overdue = userTasks.filter(
     t => t.due_date && t.status !== 'done' && new Date(t.due_date) < new Date()
   ).length
+  
   const completionRate = total > 0 ? Math.round((done / total) * 100) : 0
-  return { total, done, overdue, completionRate }
+
+  // Calculate Weighted Performance Score
+  // Logic: Earned Points * (Completion Rate / 100)
+  // This rewards both volume/difficulty and reliability.
+  const pointsEarned = userTasks
+    .filter(t => t.status === 'done')
+    .reduce((sum, t) => sum + (PRIORITY_WEIGHT[t.priority] || 10), 0)
+    
+  const performanceScore = Math.round(pointsEarned * (completionRate / 100))
+
+  return { total, done, overdue, completionRate, performanceScore }
 }

@@ -32,11 +32,7 @@ export const attendanceService = {
       supabase.from('holidays').select('*').eq('date', today).maybeSingle()
     ]);
 
-    let thursdayRule = null;
-    if (new Date().getDay() === 4) {
-      const { data } = await supabase.from('thursday_rules').select('*').eq('date', today).maybeSingle();
-      thursdayRule = data;
-    }
+    const { data: specialRule } = await supabase.from('special_rules').select('*').eq('date', today).maybeSingle();
 
     return {
       attendance: attendRes.data || [],
@@ -44,7 +40,7 @@ export const attendanceService = {
       penalties: penaltiesRes.data || [],
       appSettings: settingsRes.data || null,
       todayHoliday: holidayRes.data || null,
-      thursdayRule
+      specialRule
     };
   },
 
@@ -64,7 +60,7 @@ export const attendanceService = {
       user_id: userId, 
       session_id: sessionId, 
       date: today, 
-      check_in: new Date().toISOString(), 
+      clock_in: new Date().toISOString(), 
       photo_in_url: publicUrl, 
       late: isLate, 
       late_reason: lateReason || null 
@@ -75,7 +71,7 @@ export const attendanceService = {
     await checkDeletionStatus();
     const today = getLocalDate();
     return await supabase.from('attendance')
-      .update({ check_out: new Date().toISOString(), photo_out_url: publicUrl })
+      .update({ clock_out: new Date().toISOString(), photo_out_url: publicUrl })
       .eq('user_id', userId)
       .eq('session_id', sessionId)
       .eq('date', today);
@@ -84,7 +80,7 @@ export const attendanceService = {
   async autoCheckout(userId: string, recordId: string, sessionId: number, checkoutTime: string) {
     const today = getLocalDate();
     await supabase.from('attendance').update({ 
-      check_out: checkoutTime, 
+      clock_out: checkoutTime, 
       forgot_checkout: true 
     }).eq('id', recordId);
     
@@ -93,7 +89,7 @@ export const attendanceService = {
       date: today, 
       session_id: sessionId, 
       minutes: 10, 
-      reason: `Lupa checkout` 
+      reason: `Lupa clock out` 
     });
   },
 

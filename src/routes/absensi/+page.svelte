@@ -23,8 +23,8 @@
   interface Session { id: number; name: string; start: string; end: string; unlockAt: string; autoCheckoutAt: string; hasLateCheck?: boolean; requireLocation?: boolean }
   interface LeaveRecord { id: string; date: string; type: 'izin' | 'sakit'; reason: string; session_id: number | null; status: 'pending' | 'approved' | 'rejected' }
   interface PenaltyRecord { id: string; date: string; session_id: number; minutes: number; reason: string }
-  interface ThursdayRule { id: string; date: string; type: 'normal' | 'custom_time' | 'wfa'; start_time?: string | null; note?: string | null }
-  interface AppSetting { office_lat: number; office_lng: number; office_radius: number }
+  interface SpecialRule { id: string; date: string; type: 'normal' | 'custom_time' | 'wfa'; start_time?: string | null; note?: string | null }
+  interface AppSetting { office_lat: number; office_lng: number; office_radius: number; office_locations?: { id: string; name: string; lat: number; lng: number; radius: number }[] | null }
 
   const LATE_TOLERANCE_MIN = 10
   const SESSIONS: Session[] = [
@@ -34,7 +34,7 @@
     { id: 4, name: 'Lembur',     start: '20:00', end: '23:59', unlockAt: '19:30', autoCheckoutAt: '23:59', requireLocation: false },
   ]
 
-  let user = $state<User | null>(null), profile = $state<Profile | null>(null), attendance = $state<AttendanceRecord[]>([]), leaves = $state<LeaveRecord[]>([]), penalties = $state<PenaltyRecord[]>([]), thursdayRule = $state<ThursdayRule | null>(null), appSettings = $state<AppSetting | null>(null), isLoading = $state(true)
+  let user = $state<User | null>(null), profile = $state<Profile | null>(null), attendance = $state<AttendanceRecord[]>([]), leaves = $state<LeaveRecord[]>([]), penalties = $state<PenaltyRecord[]>([]), specialRule = $state<SpecialRule | null>(null), appSettings = $state<AppSetting | null>(null), isLoading = $state(true)
   let showCamera = $state(false), cameraSessionId = $state(0), cameraType = $state<'in' | 'out'>('in'), cameraStream = $state<MediaStream | null>(null), capturedBlob = $state<Blob | null>(null), capturedUrl = $state(''), cameraStatus = $state(''), isSubmitting = $state(false)
   let showLateModal = $state(false), lateSessionId = $state(0), lateReason = $state(''), lateMinutes = $state(0)
   let showLeaveModal = $state(false), isSubmittingLeave = $state(false), leaveStatus = $state('')
@@ -45,6 +45,8 @@
   // Geofencing states
   let locStatus = $state<'idle' | 'loading' | 'success' | 'error'>('idle')
   let locDistance = $state<number | null>(null)
+  let locName = $state<string>('')
+  let locMaxRadius = $state<number>(0)
   let isLocValid = $state(false)
   let locError = $state('')
 
@@ -52,14 +54,14 @@
 
   let attendanceMap = $derived(Object.fromEntries(attendance.map(a => [a.session_id, a])))
   let isTodayThursday = $derived(new Date().getDay() === 4), isTodayFriday = $derived(new Date().getDay() === 5)
-  let activeSessions = $derived(isTodayFriday ? [] : isTodayThursday ? SESSIONS.slice(0, 1) : SESSIONS)
-  let isWfa = $derived(isTodayThursday && thursdayRule?.type === 'wfa')
+  let activeSessions = $derived(isTodayFriday ? [] : (isTodayThursday && !specialRule) ? SESSIONS.slice(0, 1) : SESSIONS)
+  let isWfa = $derived(specialRule?.type === 'wfa')
 
   function toMin(time: string) { const [h, m] = time.split(':').map(Number); return h * 60 + m }
   function isSessionOnLeave(sessionId: number) { return leaves.find(l => (l.session_id === null || l.session_id === sessionId) && l.status !== 'rejected') || null }
   function formatDateIndonesian(date: Date) { return date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) }
 
-  async function checkLocation(): Promise<{ ok: boolean; distance?: number; error?: string }> {
+  async function checkLocation(): Promise<{ ok: boolean; distance?: number; error?: string; name?: string; radius?: number }> {
     if (!appSettings) return { ok: false, error: 'Pengaturan lokasi belum dikonfigurasi' }
     locStatus = 'loading'
     const pos = await locationService.getCurrentPosition()
@@ -68,9 +70,11 @@
       locError = pos.error || 'Gagal mendeteksi lokasi'
       return { ok: false, error: pos.error }
     }
-    const result = locationService.isWithinRadius(pos.coords!, appSettings.office_lat, appSettings.office_lng, appSettings.office_radius)
+    const result = locationService.getClosestLocation(pos.coords!, appSettings.office_locations || [], appSettings.office_lat, appSettings.office_lng, appSettings.office_radius)
     locStatus = 'success'
-    locDistance = Math.round(result.distance)
+    locDistance = Math.round(result.distance!)
+    locName = result.name || 'Kantor'
+    locMaxRadius = result.radius!
     isLocValid = result.ok
     return result
   }
@@ -78,8 +82,8 @@
   function checkIsLate(session: Session) {
     if (!session.hasLateCheck) return { late: false, minutes: 0 }
     let startMin = toMin(session.start)
-    if (isTodayThursday && session.id === 1 && thursdayRule?.type === 'custom_time' && thursdayRule.start_time) {
-      startMin = toMin(thursdayRule.start_time)
+    if (session.id === 1 && specialRule?.type === 'custom_time' && specialRule.start_time) {
+      startMin = toMin(specialRule.start_time)
     }
     const diff = (now.getHours() * 60 + now.getMinutes()) - startMin
     return { late: diff > LATE_TOLERANCE_MIN, minutes: diff }
@@ -90,7 +94,7 @@
     for (const s of SESSIONS) {
       if (curMin < toMin(s.autoCheckoutAt)) continue
       const rec = attendance.find(a => a.session_id === s.id)
-      if (rec && rec.check_in && !rec.check_out) {
+      if (rec && rec.clock_in && !rec.clock_out) {
         const [h, m] = s.autoCheckoutAt.split(':').map(Number); const checkoutTime = new Date(); checkoutTime.setHours(h, m, 0, 0)
         await attendanceService.autoCheckout(u.id, rec.id, s.id, checkoutTime.toISOString())
       }
@@ -112,7 +116,7 @@
     penalties = data.penalties as PenaltyRecord[]
     appSettings = data.appSettings
     todayHoliday = data.todayHoliday as any
-    thursdayRule = data.thursdayRule as any
+    specialRule = data.specialRule as any
 
     if (appSettings) {
       checkLocation()
@@ -134,7 +138,7 @@
       return
     }
     const session = SESSIONS.find(s => s.id === sid)!
-    if (session.requireLocation !== false && !(isTodayThursday && sid === 1 && thursdayRule?.type === 'wfa')) {
+    if (session.requireLocation !== false && !isWfa) {
       cameraStatus = 'Memverifikasi lokasi...'; showCamera = true
       const loc = await checkLocation()
       if (!loc.ok) { closeCamera(); toast.error(loc.error || 'Lokasi tidak valid'); return }
@@ -170,10 +174,10 @@
       if (cameraType === 'in') {
         const lateInfo = checkIsLate(SESSIONS.find(s => s.id === cameraSessionId)!)
         await attendanceService.submitCheckIn(user.id, cameraSessionId, publicUrl, lateInfo.late, lateReason)
-        toast.success('Check-in berhasil')
+        toast.success('Clock In berhasil')
       } else {
         await attendanceService.submitCheckOut(user.id, cameraSessionId, publicUrl)
-        toast.success('Check-out berhasil')
+        toast.success('Clock Out berhasil')
       }
       lateReason = ''; closeCamera(); await loadData()
     } catch (e: any) { cameraStatus = e.message; isSubmitting = false }
@@ -228,7 +232,7 @@
         </div>
       </div>
 
-      <AttendanceBanner isThursday={isTodayThursday} isFriday={isTodayFriday} {thursdayRule} />
+      <AttendanceBanner isThursday={isTodayThursday} isFriday={isTodayFriday} {specialRule} />
 
       <!-- Location Geofencing Card -->
       <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-2 overflow-hidden relative">
@@ -269,9 +273,9 @@
                 </div>
                 <p class="text-[10px] text-slate-400 font-medium mt-0.5">
                   {#if isLocValid}
-                    Anda berada dalam radius aman kantor.
+                    Anda berada dalam radius aman {locName}.
                   {:else}
-                    Jarak Anda: <span class="text-red-500 font-bold">{locDistance}m</span> dari kantor (Maks {appSettings?.office_radius}m)
+                    Jarak Anda: <span class="text-red-500 font-bold">{locDistance}m</span> dari {locName} (Maks {locMaxRadius}m)
                   {/if}
                 </p>
               </div>

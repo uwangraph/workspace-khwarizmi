@@ -28,8 +28,8 @@ export interface AttendanceRecord {
   user_id: string
   session_id: number
   date: string
-  check_in: string | null
-  check_out: string | null
+  clock_in: string | null
+  clock_out: string | null
   photo_in_url?: string | null
   photo_out_url?: string | null
   late: boolean
@@ -51,9 +51,9 @@ export interface Holiday {
   created_at: string
 }
 
-export interface ThursdayRule {
+export interface SpecialRule {
   id: string
-  date: string           // Harus hari Kamis
+  date: string           // Tanggal aturan berlaku
   type: 'normal' | 'custom_time' | 'wfa'
   start_time?: string | null  // e.g. '09:00' — only for custom_time
   note?: string | null
@@ -62,7 +62,7 @@ export interface ThursdayRule {
 }
 
 export type AdminTab = 'overview' | 'users' | 'tasks' | 'attendance' | 'rekap' | 'holidays' | 'settings'
-export type RekapSubTab = 'tasks' | 'attendance' | 'users'
+export type RekapSubTab = 'tasks' | 'attendance' | 'users' | 'leaderboard'
 
 export interface AttendanceLeave {
   id: string
@@ -80,6 +80,7 @@ export interface AppSetting {
   office_lat: number
   office_lng: number
   office_radius: number
+  office_locations?: { name: string; lat: number; lng: number; radius: number }[] | null
   admin_contact: string | null
   deletion_scheduled_at: string | null
   updated_at: string

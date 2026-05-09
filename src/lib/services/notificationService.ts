@@ -4,17 +4,27 @@ import { PUBLIC_FIREBASE_VAPID_KEY } from '$env/static/public';
 
 export const notificationService = {
   async requestPermissionAndGetToken(userId: string) {
-    if (typeof window === 'undefined' || !('Notification' in window)) return null;
+    if (typeof window === 'undefined' || !('Notification' in window) || !('serviceWorker' in navigator)) return null;
     
     try {
-      // 🚨 SANGAT PENTING: Harus dipanggil SEGERA sebelum ada `await` apapun
-      // Jika di-delay oleh await, iOS Safari akan menganggap ini bukan dari "User Gesture" dan memblokirnya.
+      // 🚨 KRITIS: Harus dipanggil SEGERA (sebelum await lain) agar iOS mengenali User Gesture
       const permission = await Notification.requestPermission();
       
       if (permission !== 'granted') {
         console.warn('[NotificationService] Notification permission denied or dismissed.');
         return null;
       }
+
+      // Registrasi firebase-messaging-sw.js sebagai Service Worker TERPISAH dari PWA SW
+      // Scope '/firebase-cloud-messaging-push-scope' adalah scope khusus Firebase
+      // Push subscription akan terikat ke SW ini, BUKAN ke PWA SW (sw.js)
+      const firebaseSW = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+        scope: '/firebase-cloud-messaging-push-scope'
+      });
+      
+      // Tunggu sampai SW aktif
+      await navigator.serviceWorker.ready;
+      console.log('[NotificationService] Firebase SW registered at scope:', firebaseSW.scope);
 
       const { getToken } = await import('firebase/messaging');
       const msg = await messaging;
@@ -23,22 +33,19 @@ export const notificationService = {
         return null;
       }
 
-      // Gunakan Service Worker PWA yang sudah aktif
-      const registration = await navigator.serviceWorker.ready;
-
       const token = await getToken(msg, { 
         vapidKey: PUBLIC_FIREBASE_VAPID_KEY,
-        serviceWorkerRegistration: registration
+        serviceWorkerRegistration: firebaseSW  // <-- Gunakan Firebase SW, BUKAN PWA SW
       });
         
-        if (token) {
-          console.log('[NotificationService] FCM Token obtained:', token.substring(0, 10) + '...');
-          await this.saveTokenToSupabase(userId, token);
-          return token;
-        } else {
-          console.warn('[NotificationService] No registration token available. Request permission to generate one.');
-        }
-      } catch (error) {
+      if (token) {
+        console.log('[NotificationService] FCM Token obtained:', token.substring(0, 10) + '...');
+        await this.saveTokenToSupabase(userId, token);
+        return token;
+      } else {
+        console.warn('[NotificationService] No registration token available.');
+      }
+    } catch (error) {
       console.error('[NotificationService] Error requesting notification permission:', error);
     }
     return null;

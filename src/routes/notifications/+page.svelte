@@ -400,7 +400,7 @@
           </div>
           {#if unreadCount > 1}
             <button onclick={markAllAsRead} disabled={isUpdating} class="text-[10px] font-bold text-slate-400 hover:text-orange-600 uppercase tracking-wider disabled:opacity-50 transition-colors flex items-center gap-1.5">
-              Sapu Semua <Check size={12} />
+              Baca Semua <Check size={12} />
             </button>
           {/if}
         </div>
@@ -414,31 +414,42 @@
               <div class="flex flex-col gap-3">
                 {#each group.items as n (n.id)}
                   {@const ic = getIcon(n.type)}
-                  <div class="group relative flex gap-4 bg-white border {n.is_read ? 'border-slate-100' : 'border-orange-100 bg-white/50 backdrop-blur-sm shadow-sm shadow-orange-500/5'} rounded-3xl p-5 transition-all hover:border-orange-200 hover:shadow-xl hover:shadow-slate-200/30 cursor-pointer"
+                  <div class="group relative flex gap-4 transition-all duration-300 cursor-pointer rounded-3xl p-5 
+                               {n.is_read 
+                                 ? 'bg-slate-50/50 border border-slate-100 opacity-75 hover:opacity-100 hover:bg-white hover:shadow-lg hover:shadow-slate-200/20' 
+                                 : 'bg-white border-2 border-orange-100 shadow-[0_8px_30px_rgb(249,115,22,0.08)] hover:shadow-[0_8px_30px_rgb(249,115,22,0.15)] hover:border-orange-200'}"
                        onclick={() => handleCardClick(n)} role="button" tabindex="0"
                        onkeydown={(e) => e.key === 'Enter' && handleCardClick(n)}>
                     
                     <div class="flex-shrink-0">
-                      <div class="w-12 h-12 rounded-2xl {ic.bg} flex items-center justify-center {n.is_read ? 'grayscale opacity-40' : ''} transition-all group-hover:scale-110">
-                        <svg class="w-6 h-6 {ic.color}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                      <div class="w-14 h-14 rounded-2xl {ic.bg} flex items-center justify-center transition-all duration-500 group-hover:rotate-6 group-hover:scale-110
+                                  {n.is_read ? 'grayscale opacity-30' : 'shadow-inner'}">
+                        <svg class="w-7 h-7 {ic.color}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                           <path stroke-linecap="round" stroke-linejoin="round" d={ic.path}/>
                         </svg>
                       </div>
                     </div>
 
                     <div class="flex-1 min-w-0">
-                      <div class="flex items-center justify-between gap-3 mb-1">
-                        <h3 class="text-sm font-bold {n.is_read ? 'text-slate-500' : 'text-slate-900'} leading-snug tracking-tight" style="font-family:'Plus Jakarta Sans',sans-serif;">{n.title}</h3>
-                        <span class="text-[10px] font-bold text-slate-300 uppercase tracking-widest whitespace-nowrap">{formatRelative(n.created_at)}</span>
+                      <div class="flex items-start justify-between gap-3 mb-1.5">
+                        <div class="flex-1 min-w-0">
+                          <div class="flex items-center gap-2 flex-wrap mb-1">
+                            <h3 class="text-sm font-bold leading-tight tracking-tight {n.is_read ? 'text-slate-500' : 'text-slate-900 font-extrabold'}" style="font-family:'Plus Jakarta Sans',sans-serif;">
+                              {n.title}
+                            </h3>
+                          </div>
+                          <p class="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{formatRelative(n.created_at)}</p>
+                        </div>
                       </div>
-                      <p class="text-xs {n.is_read ? 'text-slate-400' : 'text-slate-600'} leading-relaxed mb-4">{n.message}</p>
+                      
+                      <p class="text-xs leading-relaxed mb-5 {n.is_read ? 'text-slate-400' : 'text-slate-600 font-medium'}">{n.message}</p>
                       
                       <div class="flex flex-wrap items-center justify-between gap-3">
                         <div class="flex items-center gap-2">
                           {#if n.data && (n.data as any).sender_name}
-                            <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-100 px-2.5 py-1 rounded-lg">
-                              <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                              <span class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
+                            <div class="flex items-center gap-1.5 {n.is_read ? 'bg-slate-100' : 'bg-orange-50'} px-2.5 py-1 rounded-lg transition-colors">
+                              <span class="w-1.5 h-1.5 rounded-full {n.is_read ? 'bg-slate-300' : 'bg-orange-400'}"></span>
+                              <span class="text-[10px] font-bold {n.is_read ? 'text-slate-400' : 'text-orange-600'} uppercase tracking-tighter">
                                 {(n.data as any).sender_name}
                               </span>
                             </div>
@@ -450,18 +461,18 @@
                           {/if}
                         </div>
 
-                        <div class="flex items-center gap-2 transition-all">
+                        <div class="flex items-center gap-1.5 transition-all">
                           {#if n.data && (n.data as any).sender_id && (n.data as any).sender_id !== user?.id}
                             <button onclick={(e) => handleReply(n, e)} class="px-3 py-1.5 rounded-xl text-[10px] font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 transition-all active:scale-95 flex items-center gap-1.5 border border-orange-100/50">
                               <Reply size={12} />
                               <span>BALAS</span>
                             </button>
                           {/if}
-                          <button onclick={(e) => toggleRead(n, e)} class="p-2 rounded-lg text-slate-300 hover:text-orange-600 hover:bg-orange-50 transition-all">
-                            <Check size={16} />
+                          <button onclick={(e) => toggleRead(n, e)} class="p-2 rounded-lg {n.is_read ? 'text-slate-400 bg-slate-100' : 'text-slate-400 bg-slate-50'} hover:text-emerald-600 hover:bg-emerald-50 transition-all" title={n.is_read ? 'Tandai belum dibaca' : 'Tandai sudah dibaca'}>
+                            <Check size={18} strokeWidth={3} />
                           </button>
-                          <button onclick={(e) => handleDeleteClick(n, e)} class="p-2 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all">
-                            <Trash2 size={16} />
+                          <button onclick={(e) => handleDeleteClick(n, e)} class="p-2 rounded-lg {n.is_read ? 'text-slate-400 bg-slate-100' : 'text-slate-400 bg-slate-50'} hover:text-red-500 hover:bg-red-50 transition-all" title="Hapus">
+                            <Trash2 size={18} />
                           </button>
                         </div>
                       </div>

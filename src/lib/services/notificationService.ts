@@ -82,17 +82,15 @@ export const notificationService = {
       });
     }
 
-    // 2. Panggil API khusus untuk memicu Push Notification (FCM)
+    // 2. Panggil Supabase Edge Function untuk memicu Push Notification (FCM)
     try {
-      const response = await fetch('/api/notifications', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: uid, type, title, message, data, skip_db: true })
+      const { data: funcData, error: funcError } = await supabase.functions.invoke('send-fcm', {
+        body: { user_id: uid, title, message, data }
       });
       
-      if (!response.ok) console.warn(`[NotificationService] Push API returned ${response.status}`);
+      if (funcError) console.warn(`[NotificationService] Edge Function returned error:`, funcError);
     } catch (err) {
-      console.warn('[NotificationService] Push API failed (non-fatal):', err);
+      console.warn('[NotificationService] Edge Function failed (non-fatal):', err);
     }
     
     return true;

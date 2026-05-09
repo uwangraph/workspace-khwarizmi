@@ -93,7 +93,7 @@ export const attendanceService = {
       date: today, 
       session_id: sessionId, 
       minutes: 10, 
-      reason: `Lupa checkout` 
+      reason: `Lupa clock out` 
     });
   },
 

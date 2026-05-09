@@ -55,7 +55,7 @@
       <div class="flex items-center gap-2 mb-0.5">
         <p class="font-bold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">{s.name}</p>
         {#if rec?.late}<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">Terlambat</span>{/if}
-        {#if rec?.forgot_checkout}<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700">Lupa Checkout</span>{/if}
+        {#if rec?.forgot_checkout}<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700">Lupa Clock Out</span>{/if}
         {#if isWfa && s.id === 1}<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">WFA</span>{/if}
       </div>
       <p class="text-xs text-slate-400">{s.start} – {s.id === 4 ? 'Selesai' : s.end}</p>
@@ -102,7 +102,7 @@
                 class="text-[10px] font-bold px-3 py-2 rounded-lg transition-all flex items-center gap-1
                        {!canAction ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200' : 'bg-orange-50 text-orange-600 border border-orange-200 hover:bg-orange-100'}">
           {#if !canAction}<Lock size={11} />{:else}<LogOut size={11} />{/if}
-          Checkout
+          Clock Out
         </button>
       {:else if isExpired}
         <span class="text-[10px] font-semibold text-slate-400">Terlewat</span>
@@ -113,7 +113,7 @@
                        {!canAction ? 'bg-slate-300 cursor-not-allowed' : 'hover:brightness-110'}"
                 style={canAction ? 'background: linear-gradient(135deg, #F97316, #EA580C);' : ''}>
           {#if !canAction}<Lock size={11} />{:else}<LogIn size={11} />{/if}
-          Check-in
+          Clock In
         </button>
       {/if}
     </div>

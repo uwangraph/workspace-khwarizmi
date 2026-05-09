@@ -30,7 +30,7 @@
       <div>
         <span class="text-sm font-bold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">{sessionName}</span>
         <span class="ml-2 text-xs font-semibold px-2 py-0.5 rounded-full {type === 'in' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}">
-          {type === 'in' ? 'Check-in' : 'Check-out'}
+          {type === 'in' ? 'Clock In' : 'Clock Out'}
         </span>
       </div>
       <button onclick={onClose} class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200">

@@ -170,10 +170,10 @@
       if (cameraType === 'in') {
         const lateInfo = checkIsLate(SESSIONS.find(s => s.id === cameraSessionId)!)
         await attendanceService.submitCheckIn(user.id, cameraSessionId, publicUrl, lateInfo.late, lateReason)
-        toast.success('Check-in berhasil')
+        toast.success('Clock In berhasil')
       } else {
         await attendanceService.submitCheckOut(user.id, cameraSessionId, publicUrl)
-        toast.success('Check-out berhasil')
+        toast.success('Clock Out berhasil')
       }
       lateReason = ''; closeCamera(); await loadData()
     } catch (e: any) { cameraStatus = e.message; isSubmitting = false }

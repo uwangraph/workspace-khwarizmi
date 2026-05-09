@@ -72,17 +72,25 @@ serve(async (req) => {
         .map(([k, v]) => [k, String(v)])
     ) : {};
 
-    // TIDAK menggunakan 'tag' di webpush.notification agar setiap notifikasi
-    // 100% independen dan TIDAK MUNGKIN menimpa/menumpuk notif lainnya.
-    // Properti 'tag' justru digunakan browser untuk MENGGABUNGKAN notifikasi.
+    // Gunakan tag yang sangat unik berbasis timestamp dan UUID agar notifikasi
+    // dianggap sebagai entitas terpisah oleh Chrome dan TIDAK ditumpuk (collapsed).
+    const uniqueTag = 'notif-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+
     const payload = {
       data: safeData,
       webpush: {
+        // Mencegah Chrome melakukan throttling/Doze mode
+        headers: {
+          Urgency: 'high'
+        },
         notification: {
           title: title,
           body: message,
           icon: '/logo-khwarizmi-192.png',
-          badge: '/logo-khwarizmi-192.png'
+          badge: '/logo-khwarizmi-192.png',
+          tag: uniqueTag,
+          // Waktu notifikasi spesifik agar diurutkan dengan benar
+          timestamp: Date.now()
         }
       },
       android: {

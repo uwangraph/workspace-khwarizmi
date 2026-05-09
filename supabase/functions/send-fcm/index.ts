@@ -72,31 +72,46 @@ serve(async (req) => {
         .map(([k, v]) => [k, String(v)])
     ) : {};
 
-    // Menggunakan payload DATA-ONLY murni.
-    // Tidak ada objek 'notification' sama sekali agar FCM tidak ikut campur.
-    // Notifikasi akan ditangani 100% manual oleh Service Worker kita via event 'push'.
+    // Menggunakan payload NOTIFICATION murni (Seperti WhatsApp/Aplikasi Native).
+    // Pesan jenis ini ditangani langsung oleh Sistem Operasi (Google Play Services / iOS Push)
+    // sehingga dijamin MUNCUL seketika tanpa perlu membangunkan Service Worker secara manual.
+    const uniqueTag = 'notif-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7);
+
     const payload = {
-      data: {
+      notification: {
         title: title,
-        message: message,
-        ...safeData
+        body: message,
       },
+      data: safeData, // Data sisipan untuk dikirim ke aplikasi saat diklik
       tokens: tokens,
       android: {
-        // WAJIB untuk Android Doze Mode: memaksa perangkat membangunkan Service Worker
-        priority: 'high'
+        priority: 'high',
+        notification: {
+          icon: 'logo_khwarizmi_192',
+          clickAction: 'FLUTTER_NOTIFICATION_CLICK', // Standar fallback
+          channelId: 'default'
+        }
       },
       webpush: {
-        // WAJIB untuk Chrome Web Push: mencegah throttling
         headers: {
           Urgency: 'high'
+        },
+        notification: {
+          icon: '/logo-khwarizmi-192.png',
+          badge: '/logo-khwarizmi-192.png',
+          // Menghapus 'tag' agar browser memunculkan tiap notifikasi secara individual
+          // Meskipun nantinya akan di-group (dikumpulkan) oleh OS di bawah nama aplikasi.
         }
       },
       apns: {
         payload: {
           aps: {
-            // content-available: 1 berfungsi membangunkan aplikasi iOS di background
-            'content-available': 1
+            alert: {
+              title: title,
+              body: message
+            },
+            sound: 'default',
+            badge: 1
           }
         },
         headers: {

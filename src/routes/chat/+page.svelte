@@ -58,6 +58,20 @@
             rooms = await chatService.getRooms(user.id)
           }
         })
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${authUser.id}` }, (payload) => {
+          const update = payload.new
+          const roomIdx = rooms.findIndex(r => r.id === update.room_id)
+          if (roomIdx >= 0) {
+            // When last_read_at is updated, unread_count should be 0 (or recalculated, but 0 is usually correct for the active user)
+            const updatedRoom = { ...rooms[roomIdx] }
+            updatedRoom.unread_count = 0
+            rooms = [
+              ...rooms.slice(0, roomIdx),
+              updatedRoom,
+              ...rooms.slice(roomIdx + 1)
+            ]
+          }
+        })
         .subscribe()
 
     } catch (err: any) {
@@ -71,6 +85,12 @@
   onDestroy(() => {
     if (listChannel) supabase.removeChannel(listChannel)
   })
+
+  function openRoom(room: any) {
+    // Clear unread count locally for instant feel
+    rooms = rooms.map(r => r.id === room.id ? { ...r, unread_count: 0 } : r)
+    goto(`/chat/${room.id}`)
+  }
 
   async function handleNewChat(selectedUsers: Profile[], groupName?: string) {
     showNewChatModal = false

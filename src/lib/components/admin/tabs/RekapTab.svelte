@@ -80,7 +80,7 @@
     // Add header
     doc.setFontSize(18)
     doc.setTextColor(234, 88, 12) // Orange-600
-    doc.text('WORKSPACE KHWARIZMI', 14, 22)
+    doc.text('KHWARIZMI WORKSPACE', 14, 22)
     
     doc.setFontSize(12)
     doc.setTextColor(100, 116, 139) // Slate-500

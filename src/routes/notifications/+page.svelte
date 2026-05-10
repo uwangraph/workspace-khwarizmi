@@ -319,7 +319,7 @@
 </script>
 
 <svelte:head>
-  <title>Notifikasi — Workspace Khwarizmi</title>
+  <title>Notifikasi — Khwarizmi Workspace</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
 </svelte:head>
 

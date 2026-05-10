@@ -11,8 +11,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       manifest: {
-        name: 'Workspace Khwarizmi',
-        short_name: 'Workspace Khwarizmi',
+        name: 'Khwarizmi Workspace',
+        short_name: 'Khwarizmi Workspace',
         description: 'Digital Workspace by AlKhwarizmi', 
         theme_color: '#ffffff',
         background_color: '#ffffff',

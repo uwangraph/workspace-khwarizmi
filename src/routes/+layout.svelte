@@ -349,7 +349,7 @@
 						<img src="/logo-khwarizmi.png" alt="Logo" class="h-full w-auto object-contain" />
 					</div>
 					<div>
-						<h4 class="text-sm font-bold">Instal Workspace Khwarizmi</h4>
+						<h4 class="text-sm font-bold">Instal Khwarizmi Workspace</h4>
 						<p class="text-[10px] text-slate-600">Akses lebih cepat & mudah</p>
 					</div>
 				</div>

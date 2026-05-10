@@ -224,7 +224,7 @@
   onMount(loadData)
 </script>
 
-<svelte:head><title>Presensi — Workspace Khwarizmi</title></svelte:head>
+<svelte:head><title>Presensi — Khwarizmi Workspace</title></svelte:head>
 
 <div class="min-h-screen pb-24 bg-[#FFF9F0]/30">
   <AppHeader title="Kehadiran" subtitle="Catat absensi harian Anda">

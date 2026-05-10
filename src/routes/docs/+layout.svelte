@@ -142,7 +142,7 @@
       <div class="w-8 h-8 bg-orange-600 rounded-lg flex items-center justify-center">
         <BookOpen size={16} class="text-white" />
       </div>
-      <span class="font-bold text-slate-900 tracking-tight">Khwarizmi Docs</span>
+      <span class="font-bold text-slate-900 tracking-tight">Khwarizmi Workspace Docs</span>
     </div>
     <div class="flex items-center gap-4">
       <button onclick={toggleTheme} class="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
@@ -164,7 +164,7 @@
             <div class="w-9 h-9 bg-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-600/20">
               <BookOpen size={18} class="text-white" />
             </div>
-            <span class="font-black text-slate-900 dark:text-white text-xl tracking-tight">Khwarizmi</span>
+            <span class="font-black text-slate-900 dark:text-white text-xl tracking-tight">Khwarizmi Workspace</span>
           </a>
           <button onclick={toggleTheme} class="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-slate-800 rounded-xl transition-all active:scale-90">
             {#if isDark} <Sun size={18} /> {:else} <Moon size={18} /> {/if}
@@ -297,7 +297,7 @@
           <div class="w-8 h-8 bg-orange-600 rounded-lg flex items-center justify-center">
             <BookOpen size={16} class="text-white" />
           </div>
-          <span class="font-bold text-slate-900">Khwarizmi Docs</span>
+          <span class="font-bold text-slate-900">Khwarizmi Workspace Docs</span>
         </div>
         <button onclick={() => toggleSidebar(false)} class="p-2 text-slate-500">
           <ArrowLeft size={24} />

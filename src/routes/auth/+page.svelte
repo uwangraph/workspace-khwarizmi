@@ -100,7 +100,7 @@
 </script>
 
 <svelte:head>
-  <title>Workspace Khwarizmi — Login</title>
+  <title>Khwarizmi Workspace — Login</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 </svelte:head>
 
@@ -125,7 +125,7 @@
         </div>
         <div>
           <p class="font-extrabold text-white text-2xl leading-none tracking-tight" style="font-family:'Plus Jakarta Sans',sans-serif;">
-            Workspace Khwarizmi
+            Khwarizmi Workspace
           </p>
           <p class="text-xs font-semibold tracking-widest uppercase mt-1 text-orange-200">
             Platform Manajemen Kerja
@@ -182,7 +182,7 @@
         </div>
         <div>
           <span class="font-extrabold text-slate-800 text-base tracking-tight" style="font-family:'Plus Jakarta Sans',sans-serif;">
-            Workspace Khwarizmi
+            Khwarizmi Workspace
           </span>
           <p class="text-[10px] font-semibold text-orange-500 tracking-wider mt-0.5">Platform Manajemen Kerja</p>
         </div>
@@ -296,7 +296,7 @@
             <p class="text-sm text-slate-600 mb-5">Silakan hubungi Admin untuk dibuatkan akun baru.</p>
             
             {#if appSettings?.admin_contact}
-              <a href="https://wa.me/{formatWA(appSettings.admin_contact)}?text=Halo%20Admin%2C%20saya%20ingin%20mendaftar%20akun%20di%20Workspace%20Khwarizmi.%20Mohon%20bantuannya." target="_blank"
+              <a href="https://wa.me/{formatWA(appSettings.admin_contact)}?text=Halo%20Admin%2C%20saya%20ingin%20mendaftar%20akun%20di%20Khwarizmi%20Workspace.%20Mohon%20bantuannya." target="_blank"
                  class="w-full py-3.5 rounded-xl text-sm font-bold tracking-wide uppercase text-white transition-all hover:shadow-lg active:scale-[0.98] bg-green-500 shadow-md flex items-center justify-center gap-2">
                 <MessageSquare size={18} />
                 Hubungi Admin via WA

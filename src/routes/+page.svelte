@@ -166,14 +166,14 @@
   }
 </script>
 
-<svelte:head><title>Dashboard — Workspace Khwarizmi</title></svelte:head>
+<svelte:head><title>Dashboard — Khwarizmi Workspace</title></svelte:head>
 
 <div class="min-h-screen bg-[#FFF9F0]/30 font-sans">
   <header class="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-orange-100 px-5 py-4 flex items-center justify-between">
     <div class="flex items-center gap-3">
       <img src="/logo-khwarizmi.png" alt="Logo" class="w-9 h-9 rounded-xl shadow-sm p-1 bg-white border border-orange-200 object-contain cursor-pointer flex-shrink-0" />
       <div>
-        <span class="font-extrabold text-slate-900 text-base tracking-tight" style="font-family:'Plus Jakarta Sans',sans-serif;">Workspace Khwarizmi</span>
+        <span class="font-extrabold text-slate-900 text-base tracking-tight" style="font-family:'Plus Jakarta Sans',sans-serif;">Khwarizmi Workspace</span>
         <p class="text-[10px] font-medium text-orange-600 mt-0.5">Dashboard</p>
       </div>
     </div>

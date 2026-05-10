@@ -70,7 +70,7 @@
 </script>
 
 <svelte:head>
-  <title>Obrolan — Workspace Khwarizmi</title>
+  <title>Obrolan — Khwarizmi Workspace</title>
 </svelte:head>
 
 <div class="flex flex-col bg-white min-h-screen pb-24">

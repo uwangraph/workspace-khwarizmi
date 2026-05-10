@@ -56,7 +56,7 @@
 </script>
 
 <svelte:head>
-  <title>Reset Password — Workspace Khwarizmi</title>
+  <title>Reset Password — Khwarizmi Workspace</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 </svelte:head>
 

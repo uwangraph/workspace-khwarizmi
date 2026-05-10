@@ -458,7 +458,7 @@
 </script>
 
 <svelte:head>
-  <title>Admin Panel — Workspace Khwarizmi</title>
+  <title>Admin Panel — Khwarizmi Workspace</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
 </svelte:head>
 
@@ -470,7 +470,7 @@
       <Shield size={15} style="color:#ea580c" />
       <div>
         <p class="font-semibold text-slate-800 text-sm leading-none">Admin Panel</p>
-        <p class="text-[10px] text-slate-400 mt-0.5">Workspace Khwarizmi</p>
+        <p class="text-[10px] text-slate-400 mt-0.5">Khwarizmi Workspace</p>
       </div>
     </div>
     <div class="flex items-center gap-4">

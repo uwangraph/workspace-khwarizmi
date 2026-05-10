@@ -50,11 +50,27 @@
   let isLocValid = $state(false)
   let locError = $state('')
 
-  $effect(() => { const t = setInterval(() => (now = new Date()), 30_000); return () => clearInterval(t) })
+  $effect(() => { const t = setInterval(() => (now = new Date()), 1000); return () => clearInterval(t) })
 
   let attendanceMap = $derived(Object.fromEntries(attendance.map(a => [a.session_id, a])))
   let isTodayThursday = $derived(new Date().getDay() === 4), isTodayFriday = $derived(new Date().getDay() === 5)
-  let activeSessions = $derived(isTodayFriday ? [] : (isTodayThursday && !specialRule) ? SESSIONS.slice(0, 1) : SESSIONS)
+  
+  let activeSessions = $derived.by(() => {
+    if (isTodayFriday) return []
+    
+    let baseSessions = (isTodayThursday && !specialRule) ? SESSIONS.slice(0, 1) : SESSIONS
+    
+    if (todayHoliday) {
+      // On holiday, only allow Overtime (Lembur), and it starts early
+      return SESSIONS.filter(s => s.id === 4).map(s => ({
+        ...s,
+        start: '06:00',
+        unlockAt: '06:00'
+      }))
+    }
+    
+    return baseSessions
+  })
   let isWfa = $derived(specialRule?.type === 'wfa')
 
   function toMin(time: string) { const [h, m] = time.split(':').map(Number); return h * 60 + m }
@@ -133,11 +149,11 @@
   }
 
   async function openCamera(sid: number, type: 'in' | 'out') {
-    if (todayHoliday) {
+    if (todayHoliday && sid !== 4) {
       toast.error(`Tidak dapat absen. Hari ini libur: ${todayHoliday.name}`)
       return
     }
-    const session = SESSIONS.find(s => s.id === sid)!
+    const session = activeSessions.find(s => s.id === sid)!
     if (session.requireLocation !== false && !isWfa) {
       cameraStatus = 'Memverifikasi lokasi...'; showCamera = true
       const loc = await checkLocation()
@@ -172,7 +188,7 @@
       const publicUrl = await attendanceService.uploadSelfie(user.id, capturedBlob, cameraType)
       
       if (cameraType === 'in') {
-        const lateInfo = checkIsLate(SESSIONS.find(s => s.id === cameraSessionId)!)
+        const lateInfo = checkIsLate(activeSessions.find(s => s.id === cameraSessionId)!)
         await attendanceService.submitCheckIn(user.id, cameraSessionId, publicUrl, lateInfo.late, lateReason)
         toast.success('Clock In berhasil')
       } else {
@@ -217,7 +233,7 @@
           </div>
           <div>
             <h3 class="text-sm font-bold text-indigo-900">Hari Libur</h3>
-            <p class="text-xs text-indigo-700 leading-relaxed mt-0.5">Hari ini adalah hari libur <strong>"{todayHoliday.name}"</strong>. Semua presensi dinonaktifkan.</p>
+            <p class="text-xs text-indigo-700 leading-relaxed mt-0.5">Hari ini adalah hari libur <strong>"{todayHoliday.name}"</strong>. Sesi reguler dinonaktifkan, namun <strong>Lembur</strong> tetap tersedia.</p>
           </div>
         </div>
       {/if}

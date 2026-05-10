@@ -43,7 +43,7 @@
       </button>
     </div>
 
-    <div class="px-8 py-6">
+    <div class="px-8 py-6 overflow-y-auto max-h-[70vh]">
       <div class="relative w-40 h-40 mx-auto mb-6">
         <svg class="w-full h-full -rotate-90" viewBox="0 0 100 100">
           <circle cx="50" cy="50" r="42" fill="none" stroke="#F8FAFC" stroke-width="8" />
@@ -83,6 +83,18 @@
         </div>
       </div>
 
+      {#if progressValue === 100}
+        <div class="mb-6 space-y-2 animate-slideDown">
+          <div class="flex items-center justify-between px-0.5">
+            <label class="text-[11px] font-semibold text-emerald-600">Tanggal Selesai (Opsional)</label>
+            <span class="text-[9px] font-bold text-slate-400">Default: Sekarang</span>
+          </div>
+          <input type="datetime-local" 
+                 bind:value={manualCompletedAt}
+                 class="w-full rounded-xl border border-emerald-100 bg-emerald-50/20 px-3 py-2.5 text-xs font-medium text-emerald-700 outline-none focus:border-emerald-500 transition-all" />
+        </div>
+      {/if}
+
       {#if progressValue !== initialProgress}
         <div class="bg-orange-50/50 border border-orange-100/50 rounded-2xl px-4 py-3 mb-6 flex items-center gap-3 animate-slideDown">
           <svg class="w-5 h-5 text-orange-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -95,18 +107,6 @@
             {:else}Status akan berubah menjadi <strong>sedang dikerjakan</strong>.{/if}
           </p>
         </div>
-
-        {#if progressValue === 100}
-          <div class="mb-6 space-y-2 animate-slideDown">
-            <div class="flex items-center justify-between px-0.5">
-              <label class="text-[11px] font-semibold text-emerald-600">Tanggal Selesai (Opsional)</label>
-              <span class="text-[9px] font-bold text-slate-400">Default: Sekarang</span>
-            </div>
-            <input type="datetime-local" 
-                   bind:value={manualCompletedAt}
-                   class="w-full rounded-xl border border-emerald-100 bg-emerald-50/20 px-3 py-2.5 text-xs font-medium text-emerald-700 outline-none focus:border-emerald-500 transition-all" />
-          </div>
-        {/if}
       {/if}
 
       <div class="flex gap-3">

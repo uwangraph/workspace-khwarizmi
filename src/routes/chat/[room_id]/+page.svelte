@@ -412,6 +412,13 @@
       if (activeRoom) {
         initialLastReadAt = activeRoom.last_read_at || null
         initialUnreadCount = activeRoom.unread_count || 0
+        
+        // Clear divider after 5 seconds
+        if (initialUnreadCount > 0) {
+          setTimeout(() => {
+            initialUnreadCount = 0
+          }, 5000)
+        }
       }
       const savedWp = localStorage.getItem('chat_wallpaper')
       const savedColor = localStorage.getItem('chat_wallpaper_color')
@@ -573,7 +580,7 @@
               </div>
             {/if}
             {#if i === firstUnreadIndex}
-              <div class="flex justify-center my-6 animate-in fade-in zoom-in duration-500">
+              <div class="flex justify-center my-6" transition:fade={{ duration: 500 }}>
                 <div class="flex items-center gap-4 w-full max-w-md">
                   <div class="flex-1 h-[1px] bg-orange-100"></div>
                   <span class="px-4 py-1 bg-orange-50 text-orange-600 text-[10px] font-black rounded-full uppercase tracking-widest border border-orange-100 shadow-sm flex items-center gap-2">

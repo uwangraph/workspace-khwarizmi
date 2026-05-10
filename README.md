@@ -1,11 +1,11 @@
-# 🚀 Workspace Khwarizmi
+# 🚀 Khwarizmi Workspace
 
 Productivity Dashboard premium berbasis Svelte 5 yang dirancang untuk manajemen tugas tim dengan antarmuka yang modern, cepat, dan sangat mudah digunakan.
 
 ## ✨ Fitur Utama
 
 - **Dual View Mode**: Berpindah dengan mulus antara tampilan **Daftar** yang detail dan tampilan **Kalender** (Month-view) yang intuitif.
-- **Bento Stats Dashboard**: Visualisasi statistik tugas yang minimalis dengan indikator progres *real-time*.
+- **Bento Stats Dashboard**: Visualisasi statistik tugas yang minimalis dengan indikator progres _real-time_.
 - **Bulk Management**: Fitur seleksi massal untuk menghapus atau menyelesaikan banyak tugas sekaligus.
 - **Sub-tasks Checklist**: Kelola detail tugas lebih dalam dengan sistem checklist yang tersinkronisasi.
 - **Smart Calendar**: Kalender dengan mode fokus harian untuk melihat kepadatan tugas per tanggal secara jelas.
@@ -51,4 +51,5 @@ npm run dev
 ```
 
 ---
-Dibuat dengan ❤️ oleh Antigravity untuk Workspace Khwarizmi.
+
+Dibuat dengan ❤️ oleh PT. Alkhwarizmi Kreatif Produktif untuk Khwarizmi Workspace.

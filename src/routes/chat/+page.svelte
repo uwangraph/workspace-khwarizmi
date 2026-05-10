@@ -8,6 +8,8 @@
   import NewChatModal from '$lib/components/chat/NewChatModal.svelte'
   import { MessageSquare, Search, Plus, Hash } from 'lucide-svelte'
   import toast from 'svelte-french-toast'
+  import { readRoomIds } from '$lib/stores/chatReadStore'
+  import { get } from 'svelte/store'
 
   let user: any = $state(null)
   let profile = $state<Profile | null>(null)
@@ -21,6 +23,12 @@
     rooms.filter(r => r.name?.toLowerCase().includes(searchQuery.toLowerCase()))
   )
 
+  /** Timpa unread_count = 0 untuk room yang sudah pernah dibuka */
+  function applyReadOverrides(roomList: any[]): any[] {
+    const readIds = get(readRoomIds)
+    return roomList.map(r => readIds.has(r.id) ? { ...r, unread_count: 0 } : r)
+  }
+
   onMount(async () => {
     const authUser = await authService.getUser()
     if (!authUser) { goto('/auth'); return }
@@ -29,7 +37,7 @@
     profile = profileResult.data
 
     try {
-      rooms = await chatService.getRooms(authUser.id)
+      rooms = applyReadOverrides(await chatService.getRooms(authUser.id))
 
       // Subscribe to all messages to update last_message and unread_count in real-time
       const channelName = 'room-list-updates'
@@ -46,8 +54,8 @@
             updatedRoom.last_message = newMessage
             updatedRoom.updated_at = newMessage.created_at
             
-            // Increment unread count if sender is not me
-            if (newMessage.sender_id !== user.id) {
+            // Increment unread count if sender is not me AND room hasn't been read yet
+            if (newMessage.sender_id !== user.id && !get(readRoomIds).has(newMessage.room_id)) {
               updatedRoom.unread_count = (updatedRoom.unread_count || 0) + 1
             }
             
@@ -55,7 +63,7 @@
             rooms = [updatedRoom, ...rooms.filter(r => r.id !== newMessage.room_id)]
           } else {
             // If it's a new room for this user, just refresh the list
-            rooms = await chatService.getRooms(user.id)
+            rooms = applyReadOverrides(await chatService.getRooms(user.id))
           }
         })
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${authUser.id}` }, (payload) => {

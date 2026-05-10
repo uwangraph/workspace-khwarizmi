@@ -17,6 +17,7 @@
   import ChatInput from '$lib/components/chat/ChatInput.svelte'
   import RoomInfo from '$lib/components/chat/RoomInfo.svelte'
   import ForwardModal from '$lib/components/chat/ForwardModal.svelte'
+  import { markRoomAsRead } from '$lib/stores/chatReadStore'
   import { X, Star, Forward, Trash2, Pin } from 'lucide-svelte'
   import toast from 'svelte-french-toast'
 
@@ -407,6 +408,7 @@
       user = authUser
       
       // Mark as read IMMEDIATELY when entering
+      markRoomAsRead(roomId)
       chatService.markMessagesAsRead(roomId, authUser.id)
       
       const pr = await authService.getProfile(authUser.id)

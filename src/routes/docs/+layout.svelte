@@ -58,7 +58,7 @@
 
   <!-- Mobile Header (Glassmorphism) -->
   <header 
-    class="lg:hidden shrink-0 z-40 bg-white/70 backdrop-blur-xl border-b border-slate-100 py-3"
+    class="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white/70 backdrop-blur-xl border-b border-slate-100 py-3"
   >
     <div class="px-6 flex items-center justify-between">
       <div class="flex items-center gap-3">
@@ -130,32 +130,26 @@
       </div>
     </aside>
 
-    <!-- Mobile Drawer Sidebar -->
+    <!-- Mobile Drawer Sidebar (Full Width for zero overlap) -->
     {#if isSidebarOpen}
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div 
-        class="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-md lg:hidden"
-        onclick={() => isSidebarOpen = false}
-        transition:fade={{ duration: 300 }}
-      ></div>
-      
       <aside 
-        class="fixed inset-y-0 right-0 z-[70] w-[85%] max-w-sm bg-white shadow-2xl lg:hidden flex flex-col"
-        transition:fly={{ x: 300, duration: 500, easing: cubicOut }}
+        class="fixed inset-0 z-[100] bg-white lg:hidden flex flex-col"
+        transition:fly={{ y: 50, duration: 400, easing: cubicOut }}
       >
-        <div class="p-8 border-b border-slate-100 flex items-center justify-between">
+        <!-- Drawer Header -->
+        <div class="p-6 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
           <div class="flex items-center gap-3">
-            <div class="w-8 h-8 bg-orange-600 rounded-lg flex items-center justify-center">
-              <BookOpen size={16} class="text-white" />
+            <div class="w-9 h-9 bg-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-600/20">
+              <BookOpen size={18} class="text-white" />
             </div>
-            <span class="font-black text-slate-900 uppercase tracking-widest text-xs">Navigasi</span>
+            <span class="font-black text-slate-900 uppercase tracking-widest text-xs">Navigasi Panduan</span>
           </div>
-          <button onclick={() => isSidebarOpen = false} class="p-2.5 bg-slate-50 rounded-xl text-slate-500">
+          <button onclick={() => isSidebarOpen = false} class="p-2.5 bg-slate-100 rounded-xl text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all">
             <X size={20} />
           </button>
         </div>
         
+        <!-- Drawer Links -->
         <div class="flex-1 overflow-y-auto p-6 space-y-2">
           {#each sections as section}
             <a
@@ -163,7 +157,7 @@
               onclick={() => isSidebarOpen = false}
               class="w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all border-l-4
                      {activeHref === section.href 
-                       ? 'bg-white text-slate-900 shadow-lg shadow-slate-200/60 border-orange-600' 
+                       ? 'bg-slate-50 text-slate-900 border-orange-600' 
                        : 'bg-transparent text-slate-500 border-transparent active:bg-slate-50'}"
             >
               <div class="w-10 h-10 rounded-xl flex items-center justify-center transition-all
@@ -180,21 +174,22 @@
           {/each}
         </div>
 
-        <div class="p-6 bg-slate-50/50 border-t border-slate-100 mt-auto">
-          <a href="/" class="flex items-center justify-center gap-3 w-full py-4 bg-slate-900 text-white rounded-2xl font-bold shadow-xl shadow-slate-900/20 active:scale-95 transition-all text-sm">
-            <ArrowLeft size={16} /> Kembali ke Aplikasi
+        <!-- Drawer Footer -->
+        <div class="p-8 bg-slate-50 border-t border-slate-100">
+          <a href="/" class="flex items-center justify-center gap-3 w-full py-5 bg-slate-900 text-white rounded-[2rem] font-bold shadow-xl shadow-slate-900/20 active:scale-95 transition-all">
+            <ArrowLeft size={18} /> Kembali ke Aplikasi
           </a>
         </div>
       </aside>
     {/if}
 
-    <!-- Content Area -->
+    <!-- Content Area (with pt for fixed header) -->
     <main 
       bind:this={mainElement}
       onscroll={handleScroll}
       class="flex-1 min-w-0 bg-transparent overflow-y-auto custom-scrollbar relative"
     >
-      <div class="max-w-4xl mx-auto px-6 py-24 lg:px-20 lg:py-32 relative z-10">
+      <div class="max-w-4xl mx-auto px-6 pt-32 pb-24 lg:pt-32 lg:pb-32 lg:px-20 relative z-10">
         <slot />
 
         <!-- Footer -->

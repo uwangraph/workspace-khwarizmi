@@ -470,27 +470,36 @@ export const chatService = {
 
   // Tandai pesan sebagai dibaca
   async markMessagesAsRead(roomId: string, userId: string) {
-    console.log('[Chat] Menandai pesan sebagai dibaca (via RPC)...', { roomId, userId })
-    
-    const { error } = await supabase.rpc('mark_as_read', {
+    // Coba via RPC (bypass RLS, gunakan waktu server)
+    const { error: rpcErr } = await supabase.rpc('mark_as_read', {
       p_room_id: roomId,
       p_user_id: userId
     })
     
-    if (error) {
-      console.warn('[Chat] Gagal mark read via RPC, mencoba fallback manual:', error.message)
-      // Fallback jika RPC belum dibuat
+    if (rpcErr) {
+      console.warn('[Chat] RPC mark_as_read gagal (mungkin belum dibuat):', rpcErr.message)
+      // Fallback: update manual
       const { error: manualErr } = await supabase
         .from('chat_participants')
         .update({ last_read_at: new Date().toISOString() })
         .eq('room_id', roomId)
         .eq('user_id', userId)
       
-      if (manualErr) console.error('[Chat] Fallback manual juga gagal:', manualErr)
-      return !manualErr
+      if (manualErr) {
+        console.error('[Chat] Fallback manual juga gagal (kemungkinan RLS blocking):', manualErr)
+        return false
+      }
     }
-
-    console.log('[Chat] Berhasil update status baca via server time')
+    
+    // Verifikasi: baca kembali nilai last_read_at dari DB
+    const { data: verify } = await supabase
+      .from('chat_participants')
+      .select('last_read_at')
+      .eq('room_id', roomId)
+      .eq('user_id', userId)
+      .maybeSingle()
+    
+    console.log('[Chat] Verifikasi last_read_at setelah update:', verify?.last_read_at)
     return true
   },
 

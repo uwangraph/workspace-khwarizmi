@@ -23,7 +23,7 @@
   interface Session { id: number; name: string; start: string; end: string; unlockAt: string; autoCheckoutAt: string; hasLateCheck?: boolean; requireLocation?: boolean }
   interface LeaveRecord { id: string; date: string; type: 'izin' | 'sakit'; reason: string; session_id: number | null; status: 'pending' | 'approved' | 'rejected' }
   interface PenaltyRecord { id: string; date: string; session_id: number; minutes: number; reason: string }
-  interface SpecialRule { id: string; date: string; type: 'normal' | 'custom_time' | 'wfa'; start_time?: string | null; note?: string | null }
+  interface SpecialRule { id: string; date: string; type: 'normal' | 'custom_time' | 'wfa'; start_time?: string | null; active_sessions?: number[] | null; note?: string | null }
   interface AppSetting { office_lat: number; office_lng: number; office_radius: number; office_locations?: { id: string; name: string; lat: number; lng: number; radius: number }[] | null }
 
   const LATE_TOLERANCE_MIN = 10
@@ -57,6 +57,11 @@
   
   let activeSessions = $derived.by(() => {
     if (isTodayFriday) return []
+    
+    // If special rule defines specific active sessions, use them
+    if (specialRule && specialRule.active_sessions) {
+      return SESSIONS.filter(s => specialRule.active_sessions?.includes(s.id))
+    }
     
     let baseSessions = (isTodayThursday && !specialRule) ? SESSIONS.slice(0, 1) : SESSIONS
     

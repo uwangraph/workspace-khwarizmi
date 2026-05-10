@@ -40,7 +40,11 @@
   let dateIsFriday    = $derived(isFriday(attendanceDate))
   let specialRule    = $derived(getSpecialRule(attendanceDate, specialRules))
   // Sesi yang tampil: Kamis hanya sesi 1 (Pagi), hari lain semua sesi
-  let activeSessions  = $derived(dateIsThursday ? SESSIONS.slice(0, 1) : SESSIONS)
+  let activeSessions  = $derived(
+    specialRule?.active_sessions 
+      ? SESSIONS.filter(s => specialRule.active_sessions?.includes(s.id))
+      : (dateIsThursday ? SESSIONS.slice(0, 1) : SESSIONS)
+  )
 
   $effect(() => { userSearch; attendanceDate; attendanceMonth; mode; page = 1 })
 

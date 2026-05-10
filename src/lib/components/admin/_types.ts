@@ -56,6 +56,7 @@ export interface SpecialRule {
   date: string           // Tanggal aturan berlaku
   type: 'normal' | 'custom_time' | 'wfa'
   start_time?: string | null  // e.g. '09:00' — only for custom_time
+  active_sessions?: number[] | null // e.g. [1, 2] for session 1 and 2 only
   note?: string | null
   created_by?: string | null
   created_at: string

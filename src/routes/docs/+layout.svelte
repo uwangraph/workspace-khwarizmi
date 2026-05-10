@@ -13,36 +13,46 @@
   let isScrollingUp = $state(true);
   let lastScrollY = 0;
 
-  const sections = [
-    { id: 'intro', label: 'Pendahuluan', href: '/docs/intro', icon: BookOpen },
-    { id: 'install', label: 'Instalasi & Akses', href: '/docs/install', icon: LogIn },
-    { id: 'dashboard', label: 'Beranda (Dashboard)', href: '/docs/dashboard', icon: LayoutDashboard },
-    { id: 'presensi', label: 'Sistem Presensi', href: '/docs/presensi', icon: CalendarCheck },
-    { id: 'tasks', label: 'Manajemen Tugas', href: '/docs/tasks', icon: CheckSquare },
-    { id: 'chat', label: 'Obrolan (Chat)', href: '/docs/chat', icon: MessageSquare },
-    { id: 'profile', label: 'Profil & Keamanan', href: '/docs/profile', icon: Shield },
-    { id: 'faq', label: 'FAQ & Tips', href: '/docs/faq', icon: Sparkles }
+  // Categorized sections
+  const navigation = [
+    {
+      group: 'Persiapan',
+      items: [
+        { id: 'intro', label: 'Pendahuluan', href: '/docs/intro', icon: BookOpen },
+        { id: 'install', label: 'Instalasi & Akses', href: '/docs/install', icon: LogIn },
+      ]
+    },
+    {
+      group: 'Fitur Utama',
+      items: [
+        { id: 'dashboard', label: 'Beranda (Dashboard)', href: '/docs/dashboard', icon: LayoutDashboard },
+        { id: 'presensi', label: 'Sistem Presensi', href: '/docs/presensi', icon: CalendarCheck },
+        { id: 'tasks', label: 'Manajemen Tugas', href: '/docs/tasks', icon: CheckSquare },
+        { id: 'chat', label: 'Obrolan (Chat)', href: '/docs/chat', icon: MessageSquare },
+      ]
+    },
+    {
+      group: 'Lainnya',
+      items: [
+        { id: 'profile', label: 'Profil & Keamanan', href: '/docs/profile', icon: Shield },
+        { id: 'faq', label: 'FAQ & Tips', href: '/docs/faq', icon: Sparkles }
+      ]
+    }
   ];
 
-  let mainElement: HTMLElement;
+  // Flattened items for pagination
+  const allItems = navigation.flatMap(g => g.items);
+  
+  let currentIndex = $derived(allItems.findIndex(item => item.href === activeHref));
+  let prevItem = $derived(currentIndex > 0 ? allItems[currentIndex - 1] : null);
+  let nextItem = $derived(currentIndex < allItems.length - 1 ? allItems[currentIndex + 1] : null);
 
-  let searchQuery = $state('');
-  let scrollProgress = $state(0);
-
-  function handleScroll() {
-    if (!mainElement) return;
-    const currentScrollY = mainElement.scrollTop;
-    const totalHeight = mainElement.scrollHeight - mainElement.clientHeight;
-    scrollProgress = (currentScrollY / totalHeight) * 100;
-    
-    isScrollingUp = currentScrollY < lastScrollY || currentScrollY < 100;
-    lastScrollY = currentScrollY;
-    scrollY = currentScrollY;
-  }
-
-  // Filter sections based on search
-  let filteredSections = $derived(
-    sections.filter(s => s.label.toLowerCase().includes(searchQuery.toLowerCase()))
+  // Filtered navigation based on search
+  let filteredNavigation = $derived(
+    navigation.map(group => ({
+      ...group,
+      items: group.items.filter(item => item.label.toLowerCase().includes(searchQuery.toLowerCase()))
+    })).filter(group => group.items.length > 0)
   );
 
   function toggleSidebar(open: boolean) {
@@ -101,7 +111,7 @@
       <div class="w-9 h-9 bg-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-600/30">
         <BookOpen size={18} class="text-white" />
       </div>
-      <span class="font-extrabold text-slate-900 tracking-tight text-lg">Manual</span>
+      <span class="font-extrabold text-slate-900 tracking-tight text-lg italic">Khwarizmi</span>
     </div>
     <button onclick={() => toggleSidebar(true)} class="p-2.5 bg-slate-100 rounded-xl text-slate-600 active:scale-90 transition-all">
       <Menu size={20} />
@@ -110,65 +120,66 @@
 
   <div class="flex-1 flex overflow-hidden w-full relative z-10">
     <!-- Desktop Sidebar (Left) -->
-    <aside class="hidden lg:flex flex-col h-full w-[300px] border-r border-slate-200/60 bg-white/80 backdrop-blur-xl overflow-hidden flex-shrink-0">
+    <aside class="hidden lg:flex flex-col h-full w-[310px] border-r border-slate-200/60 bg-white/80 backdrop-blur-xl overflow-hidden flex-shrink-0">
       <div class="p-8 flex flex-col h-full">
         <!-- Logo -->
         <a href="/" class="flex items-center gap-3.5 mb-10 px-2 group">
-          <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-600/30 group-hover:rotate-3 transition-transform">
+          <div class="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center shadow-lg group-hover:rotate-3 transition-transform">
             <BookOpen size={20} class="text-white" />
           </div>
           <div>
             <h1 class="font-black text-slate-900 leading-none text-xl tracking-tight">Khwarizmi</h1>
-            <p class="text-[9px] font-black text-orange-600 uppercase tracking-widest mt-1">Documentation</p>
+            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">v2.4 Manual</p>
           </div>
         </a>
 
         <!-- Search Bar -->
-        <div class="relative mb-8 group">
+        <div class="relative mb-10 group">
           <div class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-orange-600 transition-colors">
-            <List size={16} />
+            <List size={14} />
           </div>
           <input 
             id="doc-search"
             type="text" 
             bind:value={searchQuery}
-            placeholder="Cari panduan... (⌘K)"
-            class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 focus:bg-white transition-all font-medium placeholder:text-slate-400"
+            placeholder="Cari dokumentasi..."
+            class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 focus:bg-white transition-all font-semibold placeholder:text-slate-400"
           />
         </div>
 
-        <!-- Nav Links -->
-        <nav class="space-y-1.5 flex-1 overflow-y-auto custom-scrollbar -mx-2 px-2">
-          {#each filteredSections as section}
-            <a
-              href={section.href}
-              class="w-full flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all duration-300 group relative
-                     {activeHref === section.href 
-                       ? 'bg-white text-slate-900 shadow-md border border-slate-100' 
-                       : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50/80'}"
-            >
-              {#if activeHref === section.href}
-                <div class="absolute left-0 top-2 bottom-2 w-1 bg-orange-600 rounded-r-full"></div>
-              {/if}
-              <div class="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300
-                          {activeHref === section.href 
-                            ? 'bg-orange-600 text-white shadow-md shadow-orange-600/20' 
-                            : 'bg-slate-100 text-slate-400 group-hover:bg-white group-hover:text-orange-600 group-hover:shadow-sm'}">
-                <section.icon size={16} />
+        <!-- Nav Links (Categorized) -->
+        <nav class="space-y-8 flex-1 overflow-y-auto custom-scrollbar -mx-2 px-2">
+          {#each filteredNavigation as group}
+            <div>
+              <p class="px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">{group.group}</p>
+              <div class="space-y-1">
+                {#each group.items as item}
+                  <a
+                    href={item.href}
+                    class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-300 group relative
+                           {activeHref === item.href 
+                             ? 'bg-orange-50/50 text-orange-600 font-bold' 
+                             : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50/80'}"
+                  >
+                    <item.icon size={16} class={activeHref === item.href ? 'text-orange-600' : 'text-slate-400 group-hover:text-slate-600'} />
+                    <span class="text-xs tracking-tight">{item.label}</span>
+                  </a>
+                {/each}
               </div>
-              <span class="text-[13px] font-bold tracking-tight">{section.label}</span>
-            </a>
+            </div>
           {/each}
         </nav>
 
-        <!-- Help Card -->
-        <div class="mt-6 p-5 bg-slate-900 rounded-2xl relative overflow-hidden group">
-          <div class="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform">
-            <MessageSquare size={60} />
-          </div>
-          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Punya Kendala?</p>
-          <a href="https://wa.me/xxx" class="flex items-center justify-between text-xs font-bold text-white group-hover:text-orange-400 transition-colors">
-            Hubungi Support <ChevronRight size={14} />
+        <!-- Help Center -->
+        <div class="mt-8 pt-8 border-t border-slate-100">
+          <a href="https://wa.me/xxx" class="flex items-center gap-3 p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:border-orange-200 transition-all group">
+            <div class="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center">
+              <MessageSquare size={16} />
+            </div>
+            <div class="flex-1">
+              <p class="text-[10px] font-bold text-slate-900 leading-none mb-1 group-hover:text-orange-600 transition-colors">Bantuan Cepat</p>
+              <p class="text-[9px] text-slate-400 font-medium">WhatsApp Support</p>
+            </div>
           </a>
         </div>
       </div>
@@ -180,46 +191,63 @@
       onscroll={handleScroll}
       class="flex-1 min-w-0 bg-white lg:bg-transparent overflow-y-auto custom-scrollbar relative"
     >
-      <div class="max-w-[1200px] mx-auto px-6 py-12 lg:px-12 lg:py-24 flex gap-16 relative z-10">
+      <div class="max-w-[850px] mx-auto px-6 py-12 lg:px-16 lg:py-24 relative z-10">
+        <!-- Article Header Metadata -->
+        <div class="flex items-center gap-4 mb-10 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+          <div class="flex items-center gap-2">
+            <CalendarCheck size={12} /> Terakhir diperbarui: 10 Mei 2024
+          </div>
+          <div class="w-1 h-1 bg-slate-200 rounded-full"></div>
+          <div class="flex items-center gap-2 text-orange-500">
+            <Sparkles size={12} /> 4 Menit Baca
+          </div>
+        </div>
+
         <!-- Content -->
-        <article class="flex-1 min-w-0">
+        <article class="w-full">
           <slot />
 
+          <!-- Page Navigation (Prev/Next) -->
+          <div class="mt-24 pt-10 border-t border-slate-100 grid grid-cols-2 gap-6">
+            {#if prevItem}
+              <a href={prevItem.href} class="p-6 bg-white border border-slate-100 rounded-3xl hover:border-orange-500 hover:bg-orange-50/30 transition-all group">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Sebelumnya</p>
+                <div class="flex items-center gap-3 text-slate-900 font-bold group-hover:text-orange-600">
+                  <ArrowLeft size={16} /> {prevItem.label}
+                </div>
+              </a>
+            {:else}
+              <div></div>
+            {/if}
+
+            {#if nextItem}
+              <a href={nextItem.href} class="p-6 bg-white border border-slate-100 rounded-3xl hover:border-orange-500 hover:bg-orange-50/30 transition-all group text-right">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Berikutnya</p>
+                <div class="flex items-center justify-end gap-3 text-slate-900 font-bold group-hover:text-orange-600">
+                  {nextItem.label} <ChevronRight size={16} />
+                </div>
+              </a>
+            {/if}
+          </div>
+
           <!-- Feedback -->
-          <div class="mt-32 pt-16 border-t border-slate-100">
-            <div class="flex flex-col md:flex-row items-center justify-between gap-8 p-10 bg-slate-50 rounded-[3rem] border border-slate-100 shadow-sm">
-              <div>
-                <h4 class="font-black text-slate-900 text-xl mb-2">Apakah panduan ini membantu?</h4>
-                <p class="text-sm text-slate-500 font-medium">Bantu kami meningkatkan dokumentasi ini.</p>
-              </div>
-              <div class="flex gap-4">
-                <button class="px-6 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-600 hover:border-orange-500 hover:text-orange-600 transition-all shadow-sm">Ya, Sangat!</button>
-                <button class="px-6 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-600 hover:border-slate-900 hover:text-slate-900 transition-all shadow-sm">Masih Bingung</button>
-              </div>
+          <div class="mt-20 p-10 bg-slate-50 rounded-[3rem] border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-8">
+            <div>
+              <h4 class="font-black text-slate-900 text-lg mb-1">Informasi ini akurat?</h4>
+              <p class="text-xs text-slate-500 font-medium tracking-tight">Kritik & saran Anda sangat berarti bagi kami.</p>
+            </div>
+            <div class="flex gap-4">
+              <button class="px-8 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-bold text-slate-600 hover:border-orange-500 hover:text-orange-600 transition-all shadow-sm active:scale-95">Ya</button>
+              <button class="px-8 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-bold text-slate-600 hover:border-slate-900 hover:text-slate-900 transition-all shadow-sm active:scale-95">Tidak</button>
             </div>
           </div>
         </article>
 
-        <!-- Right Sidebar (On This Page) -->
-        <aside class="hidden xl:block w-64 shrink-0 sticky top-0 h-fit">
-          <div class="space-y-8">
-            <div>
-              <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Di Halaman Ini</p>
-              <nav class="space-y-4 border-l border-slate-100">
-                <a href="#intro" class="block pl-4 text-xs font-bold text-orange-600 border-l-2 border-orange-600 -ml-[1px]">Overview</a>
-                <a href="#features" class="block pl-4 text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors">Key Features</a>
-                <a href="#steps" class="block pl-4 text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors">Getting Started</a>
-                <a href="#faq" class="block pl-4 text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors">Resources</a>
-              </nav>
-            </div>
-
-            <div class="p-6 bg-orange-50 rounded-[2rem] border border-orange-100">
-              <Sparkles size={20} class="text-orange-600 mb-4" />
-              <h5 class="font-bold text-sm text-slate-900 mb-2">Khwarizmi v2.4</h5>
-              <p class="text-[11px] text-slate-500 leading-relaxed font-medium">Pembaruan terbaru mencakup sistem obrolan real-time yang lebih cepat.</p>
-            </div>
-          </div>
-        </aside>
+        <!-- Global Footer Info -->
+        <footer class="mt-40 text-center pb-20 opacity-50">
+          <div class="w-10 h-1 bg-slate-200 mx-auto rounded-full mb-8"></div>
+          <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]">Workspace Khwarizmi &copy; 2024</p>
+        </footer>
       </div>
     </main>
   </div>
@@ -232,48 +260,41 @@
     >
       <div class="p-6 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white/80 backdrop-blur-xl">
         <div class="flex items-center gap-3">
-          <div class="w-9 h-9 bg-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-600/20">
+          <div class="w-9 h-9 bg-slate-900 rounded-xl flex items-center justify-center">
             <BookOpen size={18} class="text-white" />
           </div>
-          <span class="font-black text-slate-900 uppercase tracking-widest text-xs">Menu Navigasi</span>
+          <span class="font-black text-slate-900 uppercase tracking-widest text-xs">Pusat Panduan</span>
         </div>
-        <button onclick={() => toggleSidebar(false)} class="p-2.5 bg-slate-100 rounded-xl text-slate-500 hover:bg-orange-50 hover:text-orange-600 transition-all">
+        <button onclick={() => toggleSidebar(false)} class="p-2.5 bg-slate-100 rounded-xl text-slate-500 hover:text-orange-600 transition-all">
           <ArrowLeft size={20} />
         </button>
       </div>
       
-      <div class="flex-1 overflow-y-auto p-6 space-y-2">
-        <div class="relative mb-6">
-          <List size={16} class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input 
-            type="text" 
-            bind:value={searchQuery}
-            placeholder="Cari..." 
-            class="w-full pl-11 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:outline-none font-medium"
-          />
-        </div>
-        {#each filteredSections as section}
-          <a
-            href={section.href}
-            onclick={() => toggleSidebar(false)}
-            class="w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all border-l-4
-                   {activeHref === section.href 
-                     ? 'bg-slate-50 text-slate-900 border-orange-600' 
-                     : 'bg-transparent text-slate-500 border-transparent'}"
-          >
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center transition-all
-                        {activeHref === section.href 
-                          ? 'bg-orange-600 text-white' 
-                          : 'bg-slate-100 text-slate-400'}">
-              <section.icon size={18} />
+      <div class="flex-1 overflow-y-auto p-6 space-y-8">
+        {#each filteredNavigation as group}
+          <div>
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 px-2">{group.group}</p>
+            <div class="space-y-2">
+              {#each group.items as item}
+                <a
+                  href={item.href}
+                  onclick={() => toggleSidebar(false)}
+                  class="w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all
+                         {activeHref === item.href 
+                           ? 'bg-orange-50 text-orange-600 font-bold' 
+                           : 'bg-transparent text-slate-500'}"
+                >
+                  <item.icon size={18} />
+                  <span class="font-bold text-sm tracking-tight">{item.label}</span>
+                </a>
+              {/each}
             </div>
-            <span class="font-bold text-sm tracking-tight">{section.label}</span>
-          </a>
+          </div>
         {/each}
       </div>
 
       <div class="p-8 border-t border-slate-100">
-        <a href="/" class="flex items-center justify-center gap-3 w-full py-4.5 bg-slate-900 text-white rounded-[2rem] font-bold shadow-xl shadow-slate-900/20 active:scale-95 transition-all text-sm tracking-tight">
+        <a href="/" class="flex items-center justify-center gap-3 w-full py-5 bg-slate-900 text-white rounded-[2rem] font-bold shadow-xl shadow-slate-900/20 active:scale-95 transition-all text-xs">
           <ArrowLeft size={16} /> Kembali ke Aplikasi
         </a>
       </div>
@@ -303,7 +324,18 @@
     }
   }
 
-  :global(article h1, article h2, article h3) {
-    font-family: 'Plus Jakarta Sans', sans-serif;
+  :global(article h1) {
+    font-size: 3rem;
+    font-weight: 900;
+    line-height: 1.1;
+    margin-bottom: 2rem;
+    color: #0f172a;
+    letter-spacing: -0.04em;
+  }
+
+  @media (max-width: 768px) {
+    :global(article h1) {
+      font-size: 2.25rem;
+    }
   }
 </style>

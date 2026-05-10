@@ -36,6 +36,8 @@
 		"canvas-confetti": "^1.9.4",
 		"firebase": "^12.12.1",
 		"firebase-admin": "^13.8.0",
+		"jspdf": "^4.2.1",
+		"jspdf-autotable": "^5.0.7",
 		"lucide-svelte": "^1.0.1",
 		"svelte-french-toast": "^1.2.0"
 	}

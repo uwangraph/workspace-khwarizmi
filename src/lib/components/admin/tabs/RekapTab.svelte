@@ -2,7 +2,9 @@
   import type { Profile, Task, TaskAssignment, AttendanceRecord, Holiday } from '$lib/components/admin/_types'
   import { STATUS_LABEL, STATUS_STYLE, PRIORITY_DOT, PRIORITY_LABEL, getInitials, formatDate, getMonthlyAttendanceStat, getUserPerformanceStats } from '$lib/components/admin/_utils'
   import type { RekapSubTab } from '$lib/components/admin/_types'
-  import { AlertTriangle, CheckCircle2, Target, Users, ClipboardList, Calendar, Download, Trophy, Clock } from 'lucide-svelte'
+  import { AlertTriangle, CheckCircle2, Target, Users, ClipboardList, Calendar, Download, Trophy, Clock, FileText } from 'lucide-svelte'
+  import { jsPDF } from 'jspdf'
+  import autoTable from 'jspdf-autotable'
 
   interface Props {
     allUsers: Profile[]
@@ -71,18 +73,26 @@
     }).sort((a, b) => b.totalScore - a.totalScore)
   )
 
-  function exportCsv() {
+  function exportPdf() {
+    const doc = new jsPDF()
+    const title = `Rekap Laporan Khwarizmi - ${rekapMode === 'monthly' ? selectedMonth : 'Tahun ' + selectedMonth}`
+    
+    // Add header
+    doc.setFontSize(18)
+    doc.setTextColor(234, 88, 12) // Orange-600
+    doc.text('KHWARIZMI WORKSPACE', 14, 22)
+    
+    doc.setFontSize(12)
+    doc.setTextColor(100, 116, 139) // Slate-500
+    doc.text(title, 14, 30)
+    doc.text(`Dicetak pada: ${new Date().toLocaleString('id-ID')}`, 14, 37)
+    
+    // Line separator
+    doc.setDrawColor(241, 245, 249) // Slate-100
+    doc.line(14, 45, 196, 45)
+
     const headers = [
-      'Nama Pengguna', 
-      'Posisi', 
-      'Total Tugas', 
-      'Tugas Selesai', 
-      'Tugas Pending', 
-      'Rate Penyelesaian',
-      'Hari Hadir', 
-      'Terlambat', 
-      'Tanpa Keterangan', 
-      'Rate Kehadiran'
+      ['NAMA', 'POSISI', 'TASKS', 'DONE', 'RATE %', 'HADIR', 'TELAT', 'SKOR']
     ]
     
     const rows = userStats.map(s => [
@@ -90,28 +100,34 @@
       s.user.position || '-',
       s.task.total,
       s.task.done,
-      s.task.total - s.task.done,
       s.task.completionRate + '%',
       s.att.totalPresentDays,
       s.att.totalLate,
-      Math.max(0, s.att.totalWorkingDays - s.att.totalPresentDays),
-      s.att.presentRate + '%'
+      s.totalScore
     ])
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n')
+    autoTable(doc, {
+      startY: 55,
+      head: headers,
+      body: rows,
+      theme: 'striped',
+      headStyles: { 
+        fillColor: [249, 115, 22], // Orange-500
+        textColor: [255, 255, 255],
+        fontSize: 10,
+        fontStyle: 'bold'
+      },
+      bodyStyles: {
+        fontSize: 9,
+        textColor: [51, 65, 85] // Slate-700
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252] // Slate-50
+      },
+      margin: { top: 55 }
+    })
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', `Rekap_Khwarizmi_${selectedMonth}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    setTimeout(() => URL.revokeObjectURL(url), 100)
+    doc.save(`Rekap_Khwarizmi_${selectedMonth}.pdf`)
   }
 </script>
 
@@ -153,8 +169,8 @@
           <Calendar size={12} />
         </div>
       </div>
-      <button onclick={exportCsv} class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-orange-50 text-orange-600 text-[10px] font-bold hover:bg-orange-100 transition-all shadow-sm cursor-pointer border border-orange-100">
-        <Download size={14} /> Export CSV
+      <button onclick={exportPdf} class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-orange-50 text-orange-600 text-[10px] font-bold hover:bg-orange-100 transition-all shadow-sm cursor-pointer border border-orange-100">
+        <FileText size={14} /> Export PDF
       </button>
     </div>
   </div>
@@ -280,8 +296,8 @@
           {/if}
         </p>
       </div>
-      <button onclick={exportCsv} class="px-4 py-2 rounded-xl text-xs font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 transition-colors flex items-center gap-2 border border-orange-100">
-        <Download size={14} /> Export CSV
+      <button onclick={exportPdf} class="px-4 py-2 rounded-xl text-xs font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 transition-colors flex items-center gap-2 border border-orange-100">
+        <FileText size={14} /> Export PDF
       </button>
     </div>
 
@@ -436,3 +452,18 @@
     </div>
   {/if}
 </div>
+
+<style>
+  input[type="month"]::-webkit-calendar-picker-indicator {
+    background: transparent;
+    bottom: 0;
+    color: transparent;
+    cursor: pointer;
+    height: auto;
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: auto;
+  }
+</style>

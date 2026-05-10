@@ -149,35 +149,35 @@
         </a>
 
         <!-- Search Bar -->
-        <div class="relative mb-10 group">
-          <div class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-orange-600 transition-colors">
-            <List size={14} />
+        <div class="relative mb-12 group">
+          <div class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-orange-600 transition-colors">
+            <List size={16} />
           </div>
           <input 
             id="doc-search"
             type="text" 
             bind:value={searchQuery}
             placeholder="Cari dokumentasi..."
-            class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 focus:bg-white transition-all font-semibold placeholder:text-slate-400"
+            class="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 focus:bg-white transition-all font-semibold placeholder:text-slate-400"
           />
         </div>
 
         <!-- Nav Links (Categorized) -->
-        <nav class="space-y-9 flex-1 overflow-y-auto custom-scrollbar -mx-2 px-2">
+        <nav class="space-y-10 flex-1 overflow-y-auto custom-scrollbar -mx-2 px-2">
           {#each filteredNavigation as group}
             <div>
-              <p class="px-4 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">{group.group}</p>
-              <div class="space-y-1.5">
+              <p class="px-4 text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-5">{group.group}</p>
+              <div class="space-y-2">
                 {#each group.items as item}
                   <a
                     href={item.href}
-                    class="w-full flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all duration-300 group relative
+                    class="w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all duration-300 group relative
                            {activeHref === item.href 
-                             ? 'bg-orange-50/50 text-orange-600 font-bold' 
-                             : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50/80'}"
+                             ? 'bg-orange-50 text-orange-600 font-bold shadow-sm border border-orange-100/50' 
+                             : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}"
                   >
-                    <item.icon size={18} class={activeHref === item.href ? 'text-orange-600' : 'text-slate-400 group-hover:text-slate-600'} />
-                    <span class="text-sm tracking-tight">{item.label}</span>
+                    <item.icon size={20} class={activeHref === item.href ? 'text-orange-600' : 'text-slate-400 group-hover:text-slate-600'} />
+                    <span class="text-base tracking-tight">{item.label}</span>
                   </a>
                 {/each}
               </div>
@@ -187,13 +187,13 @@
 
         <!-- Help Center -->
         <div class="mt-8 pt-8 border-t border-slate-100">
-          <a href="https://wa.me/xxx" class="flex items-center gap-3 p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:border-orange-200 transition-all group">
-            <div class="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center">
-              <MessageSquare size={16} />
+          <a href="https://wa.me/xxx" class="flex items-center gap-4 p-5 bg-white border border-slate-100 rounded-2xl shadow-sm hover:border-orange-200 hover:shadow-md transition-all group">
+            <div class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+              <MessageSquare size={20} />
             </div>
             <div class="flex-1">
-              <p class="text-[10px] font-bold text-slate-900 leading-none mb-1 group-hover:text-orange-600 transition-colors">Bantuan Cepat</p>
-              <p class="text-[9px] text-slate-400 font-medium">WhatsApp Support</p>
+              <p class="text-sm font-bold text-slate-900 leading-none mb-1.5 group-hover:text-orange-600 transition-colors">Bantuan Cepat</p>
+              <p class="text-xs text-slate-400 font-medium">WhatsApp Support</p>
             </div>
           </a>
         </div>
@@ -340,41 +340,42 @@
   }
 
   :global(article h1) {
-    font-size: 4rem;
+    font-size: 5rem;
     font-weight: 900;
-    line-height: 0.95;
-    margin-bottom: 2.5rem;
+    line-height: 0.9;
+    margin-bottom: 3rem;
     color: #0f172a;
-    letter-spacing: -0.05em;
+    letter-spacing: -0.06em;
   }
 
   :global(article h2) {
-    font-size: 2.5rem;
+    font-size: 3rem;
     font-weight: 800;
     line-height: 1.1;
-    margin-top: 5rem;
-    margin-bottom: 2rem;
+    margin-top: 6rem;
+    margin-bottom: 2.5rem;
     color: #0f172a;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.04em;
   }
 
   :global(article p) {
-    font-size: 1.25rem;
-    line-height: 1.8;
-    color: #475569;
-    margin-bottom: 2rem;
+    font-size: 1.5rem;
+    line-height: 1.7;
+    color: #334155;
+    margin-bottom: 2.5rem;
     font-weight: 500;
+    letter-spacing: -0.01em;
   }
 
   @media (max-width: 768px) {
     :global(article h1) {
-      font-size: 2.75rem;
+      font-size: 3.25rem;
     }
     :global(article h2) {
-      font-size: 1.875rem;
+      font-size: 2.25rem;
     }
     :global(article p) {
-      font-size: 1.125rem;
+      font-size: 1.25rem;
     }
   }
 </style>

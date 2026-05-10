@@ -8,26 +8,17 @@
   import NewChatModal from '$lib/components/chat/NewChatModal.svelte'
   import { MessageSquare, Search, Plus, Hash } from 'lucide-svelte'
   import toast from 'svelte-french-toast'
-  import { readRoomIds } from '$lib/stores/chatReadStore'
-  import { get } from 'svelte/store'
+  import { globalRooms, isChatLoaded, initGlobalChat } from '$lib/stores/globalChatStore'
 
   let user: any = $state(null)
   let profile = $state<Profile | null>(null)
-  let rooms = $state<any[]>([])
-  let isLoading = $state(true)
   let showNewChatModal = $state(false)
   let searchQuery = $state('')
-  let listChannel: any
+  let isLoading = $derived(!$isChatLoaded)
 
   let filteredRooms = $derived(
-    rooms.filter(r => r.name?.toLowerCase().includes(searchQuery.toLowerCase()))
+    $globalRooms.filter(r => r.name?.toLowerCase().includes(searchQuery.toLowerCase()))
   )
-
-  /** Timpa unread_count = 0 untuk room yang sudah pernah dibuka */
-  function applyReadOverrides(roomList: any[]): any[] {
-    const readIds = get(readRoomIds)
-    return roomList.map(r => readIds.has(r.id) ? { ...r, unread_count: 0 } : r)
-  }
 
   onMount(async () => {
     const authUser = await authService.getUser()
@@ -37,76 +28,21 @@
     profile = profileResult.data
 
     try {
-      rooms = applyReadOverrides(await chatService.getRooms(authUser.id))
-
-      // Subscribe to all messages to update last_message and unread_count in real-time
-      const channelName = 'room-list-updates'
-      const existing = supabase.getChannels().find(c => c.name === channelName)
-      if (existing) supabase.removeChannel(existing)
-
-      listChannel = supabase.channel(channelName)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, async (payload) => {
-          const newMessage = payload.new
-          const roomIdx = rooms.findIndex(r => r.id === newMessage.room_id)
-          
-          if (roomIdx >= 0) {
-            const updatedRoom = { ...rooms[roomIdx] }
-            updatedRoom.last_message = newMessage
-            updatedRoom.updated_at = newMessage.created_at
-            
-            // Jika ada pesan baru, hapus dari "sudah dibaca" agar badge muncul lagi
-            if (newMessage.sender_id !== user.id) {
-              readRoomIds.update(set => {
-                set.delete(newMessage.room_id);
-                return new Set(set);
-              });
-              updatedRoom.unread_count = (updatedRoom.unread_count || 0) + 1
-            }
-            
-            // Move to top and update
-            rooms = [updatedRoom, ...rooms.filter(r => r.id !== newMessage.room_id)]
-          } else {
-            // If it's a new room for this user, just refresh the list
-            rooms = applyReadOverrides(await chatService.getRooms(user.id))
-          }
-        })
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${authUser.id}` }, (payload) => {
-          const update = payload.new
-          const roomIdx = rooms.findIndex(r => r.id === update.room_id)
-          if (roomIdx >= 0) {
-            // When last_read_at is updated, unread_count should be 0 (or recalculated, but 0 is usually correct for the active user)
-            const updatedRoom = { ...rooms[roomIdx] }
-            updatedRoom.unread_count = 0
-            rooms = [
-              ...rooms.slice(0, roomIdx),
-              updatedRoom,
-              ...rooms.slice(roomIdx + 1)
-            ]
-          }
-        })
-        .subscribe()
-
+      if (!$isChatLoaded) {
+        await initGlobalChat(authUser.id)
+      }
     } catch (err: any) {
       console.error('[Chat] Load error:', err)
       toast.error('Gagal memuat obrolan')
-    } finally {
-      isLoading = false
     }
   })
 
-  onDestroy(() => {
-    if (listChannel) supabase.removeChannel(listChannel)
-  })
-
   function openRoom(room: any) {
-    // Clear unread count locally for instant feel
-    rooms = rooms.map(r => r.id === room.id ? { ...r, unread_count: 0 } : r)
     goto(`/chat/${room.id}`)
   }
 
   async function handleNewChat(selectedUsers: Profile[], groupName?: string) {
     showNewChatModal = false
-    isLoading = true
     try {
       if (groupName) {
         const participantIds = selectedUsers.map(u => u.id)

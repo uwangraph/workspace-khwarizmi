@@ -7,6 +7,7 @@
     import { fetchUnreadCount, incrementUnread } from '$lib/stores/notificationStore';
     import { fade } from 'svelte/transition';
     import BottomNav from '$lib/components/BottomNav.svelte';
+    import { initGlobalChat, globalUnreadChatCount } from '$lib/stores/globalChatStore';
 
     // Ambil data session yang sudah di-load oleh +layout.ts
     let { data, children } = $props();
@@ -75,6 +76,9 @@
         if (user) {
             // Ambil hitungan unread awal
             fetchUnreadCount(user.id);
+            
+            // Inisialisasi global chat store untuk real-time dan badge nav
+            initGlobalChat(user.id);
 
             // Subscribe channel melalui service
             unsubscribeRealtime = notificationService.subscribeRealtime(user.id, (newNotif) => {

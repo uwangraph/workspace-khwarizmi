@@ -91,13 +91,13 @@
 
       {#if isGroupMode}
         <input type="text" bind:value={groupName} placeholder="Nama Grup (Misal: Proyek Alpha)" 
-               class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-800 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-slate-400" />
+               class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-800 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all placeholder:text-slate-400" />
       {/if}
 
       <div class="relative">
         <Search size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
         <input type="text" bind:value={searchQuery} placeholder="Cari nama..." 
-               class="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-slate-400" />
+               class="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all placeholder:text-slate-400" />
       </div>
     </div>
 
@@ -105,7 +105,7 @@
     <div class="flex-1 overflow-y-auto p-2">
       {#if isLoading}
         <div class="py-10 text-center">
-          <div class="w-6 h-6 border-2 border-indigo-100 border-t-indigo-500 rounded-full animate-spin mx-auto mb-2"></div>
+          <div class="w-6 h-6 border-2 border-orange-100 border-t-orange-500 rounded-full animate-spin mx-auto mb-2"></div>
           <p class="text-xs text-slate-400">Memuat kontak...</p>
         </div>
       {:else if filteredProfiles.length === 0}
@@ -120,7 +120,7 @@
           {#each filteredProfiles as p}
             {@const isSelected = selectedUsers.some(u => u.id === p.id)}
             <button onclick={() => toggleUserSelection(p)}
-                    class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-left border {isSelected ? 'border-indigo-500 bg-indigo-50/30' : 'border-transparent'}">
+                    class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-left border {isSelected ? 'border-orange-500 bg-orange-50/30' : 'border-transparent'}">
               <div class="flex items-center gap-3">
                 <img src={p.avatar_url || `https://ui-avatars.com/api/?name=${p.full_name}&background=random`} 
                      class="w-10 h-10 rounded-full object-cover shadow-sm bg-slate-100" alt={p.full_name} />
@@ -131,7 +131,7 @@
               </div>
               
               {#if isGroupMode}
-                <div class="w-5 h-5 rounded-full border flex items-center justify-center transition-colors {isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300'}">
+                <div class="w-5 h-5 rounded-full border flex items-center justify-center transition-colors {isSelected ? 'bg-orange-600 border-orange-600 text-white' : 'border-slate-300'}">
                   {#if isSelected}
                     <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                   {/if}
@@ -147,7 +147,7 @@
     {#if isGroupMode}
       <div class="p-4 border-t border-slate-100 bg-white shrink-0">
         <button onclick={handleCreateGroup} disabled={selectedUsers.length === 0 || !groupName.trim()}
-                class="w-full py-3 bg-indigo-600 text-white text-sm font-bold rounded-xl shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 disabled:opacity-50 disabled:shadow-none transition-all flex justify-center items-center gap-2">
+                class="w-full py-3 bg-orange-600 text-white text-sm font-bold rounded-xl shadow-lg shadow-orange-600/20 hover:bg-orange-700 disabled:opacity-50 disabled:shadow-none transition-all flex justify-center items-center gap-2">
           <Users size={16} /> Buat Grup ({selectedUsers.length} Anggota)
         </button>
       </div>

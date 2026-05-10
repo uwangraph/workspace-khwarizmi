@@ -78,12 +78,12 @@
       <Search size={20} />
     </button>
 
-    <button onclick={onInfo} class="p-2 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 rounded-full transition-all">
+    <button onclick={onInfo} class="p-2 text-slate-400 hover:text-orange-500 hover:bg-orange-50 rounded-full transition-all">
       <Info size={20} />
     </button>
 
     <div class="relative">
-      <button onclick={() => showWallpaperMenu = !showWallpaperMenu} class="p-2 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 rounded-full transition-all">
+      <button onclick={() => showWallpaperMenu = !showWallpaperMenu} class="p-2 text-slate-400 hover:text-orange-500 hover:bg-orange-50 rounded-full transition-all">
         <Palette size={20} />
       </button>
       
@@ -101,7 +101,7 @@
                         showWallpaperMenu = false 
                       }
                     }} 
-                    class="w-full px-4 py-2 text-left text-xs font-bold {selectedWallpaper === wp.id ? 'text-indigo-600 bg-indigo-50' : 'text-slate-600 hover:bg-slate-50'}">
+                    class="w-full px-4 py-2 text-left text-xs font-bold {selectedWallpaper === wp.id ? 'text-orange-600 bg-orange-50' : 'text-slate-600 hover:bg-slate-50'}">
               {wp.name}
             </button>
           {/each}

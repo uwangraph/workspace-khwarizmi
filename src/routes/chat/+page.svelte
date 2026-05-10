@@ -74,7 +74,7 @@
   <div class="sticky top-0 z-10 bg-white border-b border-slate-100 px-5 py-4 flex items-center justify-between">
     <h1 class="text-xl font-bold text-slate-800 tracking-tight" style="font-family:'Plus Jakarta Sans',sans-serif;">Obrolan</h1>
     <button onclick={() => showNewChatModal = true}
-            class="w-9 h-9 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center hover:bg-indigo-100 transition-colors">
+            class="w-9 h-9 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center hover:bg-orange-100 transition-colors">
       <Plus size={18} />
     </button>
   </div>
@@ -86,14 +86,14 @@
         <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
       </svg>
       <input type="text" bind:value={searchQuery} placeholder="Cari pesan atau kontak..."
-             class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium text-slate-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-slate-400" />
+             class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium text-slate-700 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all placeholder:text-slate-400" />
     </div>
   </div>
 
   <!-- Room List -->
   {#if isLoading}
     <div class="flex-1 flex flex-col items-center justify-center py-24 gap-3">
-      <div class="w-7 h-7 border-[3px] border-indigo-100 border-t-indigo-500 rounded-full animate-spin"></div>
+      <div class="w-7 h-7 border-[3px] border-orange-100 border-t-orange-500 rounded-full animate-spin"></div>
       <p class="text-xs font-bold text-slate-400">Memuat obrolan...</p>
     </div>
   {:else if filteredRooms.length === 0}
@@ -109,7 +109,7 @@
       </p>
       {#if !searchQuery}
         <button onclick={() => showNewChatModal = true}
-                class="mt-5 px-5 py-2.5 bg-indigo-600 text-white text-xs font-bold rounded-2xl shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 transition-colors">
+                class="mt-5 px-5 py-2.5 bg-orange-600 text-white text-xs font-bold rounded-2xl shadow-lg shadow-orange-600/20 hover:bg-orange-700 transition-colors">
           + Mulai Obrolan
         </button>
       {/if}

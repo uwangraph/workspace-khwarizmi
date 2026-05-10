@@ -88,7 +88,7 @@
             <img src={item.previewUrl} alt="Preview" class="w-20 h-20 rounded-xl object-cover border border-slate-200 shadow-sm" />
           {:else}
             <div class="w-20 h-20 rounded-xl bg-slate-50 border border-slate-100 flex flex-col items-center justify-center p-2 text-center">
-              <Paperclip size={20} class="text-indigo-500 mb-1" />
+              <Paperclip size={20} class="text-orange-500 mb-1" />
               <p class="text-[8px] font-bold text-slate-500 line-clamp-2">{item.file.name}</p>
             </div>
           {/if}
@@ -100,7 +100,7 @@
       {/each}
       
       <button onclick={() => triggerMediaSelect('image')} 
-              class="w-20 h-20 shrink-0 rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 hover:text-indigo-500 hover:border-indigo-200 transition-all">
+              class="w-20 h-20 shrink-0 rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 hover:text-orange-500 hover:border-orange-200 transition-all">
         <Plus size={20} />
         <span class="text-[9px] font-bold mt-1">Tambah</span>
       </button>

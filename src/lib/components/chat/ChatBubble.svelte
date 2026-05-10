@@ -83,7 +83,7 @@
     <div class="flex items-center px-2 z-[20]">
       <button onclick={() => onToggleSelect(msg.id)} 
               class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all
-                     {isSelected ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-slate-300'}">
+                     {isSelected ? 'bg-orange-600 border-orange-600 text-white shadow-md' : 'bg-white border-slate-300'}">
         {#if isSelected}
           <Check size={14} strokeWidth={4} />
         {/if}
@@ -109,7 +109,7 @@
         </div>
         
         <button onclick={() => { onReply(msg); activeMenuId = null }} class="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-3">
-          <Reply size={16} class="text-indigo-500" /> Balas
+          <Reply size={16} class="text-orange-500" /> Balas
         </button>
         <button onclick={() => { onStar(msg); activeMenuId = null }} class="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-3">
           <Star size={16} class={starredMessages.includes(msg.id) ? 'text-yellow-500 fill-yellow-500' : 'text-yellow-500'} /> {starredMessages.includes(msg.id) ? 'Hapus Bintang' : 'Bintangi'}
@@ -138,7 +138,7 @@
           </button>
         {/if}
         <button onclick={() => { onToggleSelect(msg.id); activeMenuId = null }} class="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-3">
-          <CheckSquare size={16} class="text-indigo-400" /> Pilih pesan
+          <CheckSquare size={16} class="text-orange-400" /> Pilih pesan
         </button>
       </div>
     {/if}
@@ -257,7 +257,7 @@
         </div>
       {:else if msg.type === 'file'}
         <a href={msg.metadata?.url} target="_blank" class="flex items-center gap-2 p-2 rounded-xl bg-black/5 hover:bg-black/10 transition-colors">
-          <div class="w-8 h-8 rounded-lg bg-white/80 flex items-center justify-center"><Paperclip size={14} class="text-indigo-500" /></div>
+          <div class="w-8 h-8 rounded-lg bg-white/80 flex items-center justify-center"><Paperclip size={14} class="text-orange-500" /></div>
           <div class="min-w-0 flex-1">
             <p class="font-bold text-xs truncate">{msg.metadata?.originalName || msg.content}</p>
             <p class="text-[9px] opacity-60">{((msg.metadata?.size || 0) / 1024).toFixed(1)} KB</p>

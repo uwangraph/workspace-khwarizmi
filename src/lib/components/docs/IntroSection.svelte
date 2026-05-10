@@ -3,69 +3,67 @@
 </script>
 
 <section id="intro" class="scroll-mt-32 mb-40">
-  <div class="grid lg:grid-cols-2 gap-16 items-center">
-    <div>
-      <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-50 rounded-full border border-orange-100 text-[10px] font-black text-orange-600 uppercase tracking-widest mb-8">
+  <div class="relative py-20 lg:py-32">
+    <!-- Background Decorative Elements -->
+    <div class="absolute -right-20 top-0 w-96 h-96 bg-orange-100/40 rounded-full blur-[100px] pointer-events-none"></div>
+    <div class="absolute -left-20 bottom-0 w-72 h-72 bg-blue-100/30 rounded-full blur-[80px] pointer-events-none"></div>
+
+    <div class="max-w-3xl">
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-50 rounded-full border border-orange-100 text-[10px] font-black text-orange-600 uppercase tracking-widest mb-10">
         <Sparkles size={12} /> Panduan Resmi v2.4
       </div>
       
-      <h1 class="text-5xl lg:text-7xl font-black text-slate-900 tracking-tight leading-[1] mb-8">
+      <h1 class="text-5xl lg:text-[5.5rem] font-black text-slate-900 tracking-tight leading-[0.95] mb-12">
         Kelola Kerja <br/>
         <span class="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-orange-400">Tanpa Batas.</span>
       </h1>
       
-      <p class="text-lg text-slate-500 leading-relaxed font-medium mb-10 max-w-lg">
-        Selamat datang di pusat dokumentasi Khwarizmi. Di sini Anda akan menemukan segala hal yang perlu diketahui untuk memaksimalkan efisiensi tim Anda.
+      <p class="text-xl text-slate-500 leading-relaxed font-medium mb-14 max-w-xl">
+        Pusat informasi lengkap untuk mengoptimalkan penggunaan Khwarizmi dalam ekosistem kerja tim Anda.
       </p>
 
-      <div class="flex flex-wrap gap-4">
-        <a href="#features" class="px-8 py-4 bg-slate-900 text-white rounded-2xl font-bold text-sm shadow-xl shadow-slate-900/20 hover:scale-105 transition-all active:scale-95 flex items-center gap-2">
-          Mulai Jelajahi <ArrowRight size={16} />
+      <div class="flex flex-wrap items-center gap-6">
+        <a href="#features" class="px-10 py-5 bg-slate-900 text-white rounded-[2rem] font-bold text-sm shadow-2xl shadow-slate-900/30 hover:scale-105 transition-all active:scale-95 flex items-center gap-3">
+          Mulai Jelajahi <ArrowRight size={18} />
         </a>
-        <div class="flex -space-x-3 items-center ml-4">
-          {#each [1,2,3] as i}
-            <div class="w-10 h-10 rounded-full border-4 border-white bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-400">U{i}</div>
-          {/each}
-          <span class="ml-6 text-xs font-bold text-slate-400">+500 Users</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="relative group">
-      <div class="absolute -inset-4 bg-gradient-to-r from-orange-500 to-blue-500 rounded-[3rem] blur-2xl opacity-10 group-hover:opacity-20 transition-opacity"></div>
-      <div class="relative bg-white p-4 rounded-[3rem] border border-slate-100 shadow-2xl overflow-hidden">
-        <img 
-          src="/Users/uwan/.gemini/antigravity/brain/69e4da53-e02f-41a7-adbd-175a4bf29979/khwarizmi_hero_illustration_1778429335536.png" 
-          alt="Khwarizmi App" 
-          class="w-full h-auto rounded-[2rem]"
-        />
       </div>
     </div>
   </div>
 
-  <div id="features" class="mt-40 grid md:grid-cols-3 gap-8 scroll-mt-24">
-    <div class="p-10 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all group">
-      <div class="w-14 h-14 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 transition-transform">
-        <Zap size={28} />
+  <!-- Features List (Vertical) -->
+  <div id="features" class="mt-40 flex flex-col gap-6 max-w-[800px] scroll-mt-24">
+    {#each [
+      { 
+        title: 'Real-time Sync', 
+        desc: 'Data presensi dan tugas diperbarui secara instan di semua perangkat tanpa perlu refresh halaman.',
+        icon: Zap,
+        color: 'text-orange-600',
+        bg: 'bg-orange-50'
+      },
+      { 
+        title: 'Satu Dashboard', 
+        desc: 'Lihat seluruh performa tim, rekapitulasi gaji, dan jadwal kerja dalam satu tampilan yang bersih.',
+        icon: LayoutDashboard,
+        color: 'text-blue-600',
+        bg: 'bg-blue-50'
+      },
+      { 
+        title: 'Keamanan Tinggi', 
+        desc: 'Sistem enkripsi end-to-end untuk data pribadi dan verifikasi lokasi yang tidak bisa dipalsukan.',
+        icon: ShieldCheck,
+        color: 'text-emerald-600',
+        bg: 'bg-emerald-50'
+      }
+    ] as feature}
+      <div class="group flex items-start gap-8 p-8 bg-white rounded-3xl border border-slate-100 hover:border-orange-200 hover:shadow-xl hover:shadow-orange-900/5 transition-all duration-500">
+        <div class="w-16 h-16 {feature.bg} {feature.color} rounded-2xl flex items-center justify-center shrink-0 shadow-sm group-hover:scale-110 transition-transform duration-500">
+          <svelte:component this={feature.icon} size={32} strokeWidth={2.5} />
+        </div>
+        <div>
+          <h3 class="text-2xl font-bold text-slate-900 mb-2 tracking-tight group-hover:text-orange-600 transition-colors">{feature.title}</h3>
+          <p class="text-lg text-slate-500 leading-relaxed font-medium">{feature.desc}</p>
+        </div>
       </div>
-      <h3 class="font-black text-slate-900 text-xl mb-4 tracking-tight">Real-time Sync</h3>
-      <p class="text-sm text-slate-500 leading-relaxed font-medium">Data presensi dan tugas diperbarui secara instan di semua perangkat tanpa perlu refresh halaman.</p>
-    </div>
-
-    <div class="p-10 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all group">
-      <div class="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 transition-transform">
-        <LayoutDashboard size={28} />
-      </div>
-      <h3 class="font-black text-slate-900 text-xl mb-4 tracking-tight">Satu Dashboard</h3>
-      <p class="text-sm text-slate-500 leading-relaxed font-medium">Lihat seluruh performa tim, rekapitulasi gaji, dan jadwal kerja dalam satu tampilan yang bersih.</p>
-    </div>
-
-    <div class="p-10 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all group">
-      <div class="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 transition-transform">
-        <ShieldCheck size={28} />
-      </div>
-      <h3 class="font-black text-slate-900 text-xl mb-4 tracking-tight">Keamanan Tinggi</h3>
-      <p class="text-sm text-slate-500 leading-relaxed font-medium">Sistem enkripsi end-to-end untuk data pribadi dan verifikasi lokasi yang tidak bisa dipalsukan.</p>
-    </div>
+    {/each}
   </div>
 </section>

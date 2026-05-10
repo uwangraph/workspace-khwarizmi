@@ -1,13 +1,16 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { 
-    ArrowLeft, BookOpen, MessageSquare, ChevronRight, Menu, X, List,
+    ArrowLeft, ArrowRight, BookOpen, MessageSquare, ChevronRight, Menu, X, List,
     LogIn, LayoutDashboard, CalendarCheck, CheckSquare, Shield, Sparkles
   } from 'lucide-svelte';
   import { fade, fly } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { onMount } from 'svelte';
 
+  let isSidebarOpen = $state(false);
+  let mainElement: HTMLElement;
+  let searchQuery = $state('');
   let scrollProgress = $state(0);
   let activeSection = $state('overview');
 

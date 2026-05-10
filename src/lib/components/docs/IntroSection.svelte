@@ -10,7 +10,7 @@
 
     <div class="max-w-3xl">
       <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-50 rounded-full border border-orange-100 text-[10px] font-black text-orange-600 uppercase tracking-widest mb-10">
-        <Sparkles size={12} /> Panduan Resmi v2.4
+        <Sparkles size={12} /> Panduan Resmi
       </div>
       
       <h1 class="text-5xl lg:text-[5.5rem] font-black text-slate-900 tracking-tight leading-[0.95] mb-12">

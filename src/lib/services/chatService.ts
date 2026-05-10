@@ -2,8 +2,36 @@ import { supabase } from '$lib/supabase'
 import type { ChatRoom, ChatParticipant, ChatMessage, ChatPollVote } from '$lib/type'
 
 export const chatService = {
-  // Ambil daftar grup & DM user tersebut
+  // Ambil daftar grup & DM user tersebut (optimized: 1 query via RPC)
   async getRooms(userId: string) {
+    // Coba via RPC dulu (1 query, super cepat)
+    const { data: rpcData, error: rpcErr } = await supabase.rpc('get_rooms_with_unread', {
+      p_user_id: userId
+    })
+
+    if (!rpcErr && rpcData) {
+      return rpcData.map((r: any) => ({
+        id: r.room_id,
+        name: r.room_type === 'direct' ? (r.partner_name || r.room_name) : r.room_name,
+        type: r.room_type,
+        description: r.room_description,
+        avatar_url: r.room_avatar_url,
+        created_at: r.room_created_at,
+        partner_avatar: r.partner_avatar,
+        last_message: r.last_message_content ? {
+          content: r.last_message_content,
+          type: r.last_message_type,
+          created_at: r.last_message_at,
+        } : null,
+        updated_at: r.last_message_at || r.room_created_at,
+        unread_count: Number(r.unread_count) || 0,
+        last_read_at: r.last_read_at,
+      }))
+    }
+
+    console.warn('[Chat] RPC get_rooms_with_unread gagal, fallback ke query manual:', rpcErr?.message)
+
+    // === FALLBACK: query manual (lambat, N+1) ===
     const { data, error } = await supabase
       .from('chat_participants')
       .select(`room_id, chat_rooms (id, name, type, description, avatar_url, created_at)`)
@@ -12,12 +40,9 @@ export const chatService = {
     if (error) throw error
     const rooms = data.map((d: any) => d.chat_rooms).filter(Boolean) as any[]
 
-    // Untuk DM rooms, ambil nama partner dari profiles
     const dmRooms = rooms.filter((r: any) => r.type === 'direct')
     if (dmRooms.length > 0) {
       const dmRoomIds = dmRooms.map((r: any) => r.id)
-
-      // Ambil semua peserta DM selain diri sendiri
       const { data: partners } = await supabase
         .from('chat_participants')
         .select('room_id, user_id')
@@ -31,7 +56,6 @@ export const chatService = {
           .select('id, full_name, avatar_url')
           .in('id', partnerIds)
 
-        // Pasangkan nama ke setiap DM room
         partners.forEach((partner: any) => {
           const profile = profiles?.find((p: any) => p.id === partner.user_id)
           const room = rooms.find((r: any) => r.id === partner.room_id)
@@ -43,11 +67,9 @@ export const chatService = {
       }
     }
 
-    // Ambil pesan terakhir & unread count untuk setiap room
     const roomIds = rooms.map((r: any) => r.id)
     if (roomIds.length > 0) {
       await Promise.all(rooms.map(async (room) => {
-        // 1. Ambil pesan terakhir
         const { data: latest } = await supabase
           .from('chat_messages')
           .select('content, type, created_at')
@@ -63,8 +85,6 @@ export const chatService = {
           room.updated_at = room.created_at
         }
 
-        // 2. Ambil unread count
-        // Ambil waktu terakhir user membaca room ini
         const { data: participant } = await supabase
           .from('chat_participants')
           .select('last_read_at')
@@ -73,21 +93,14 @@ export const chatService = {
           .single()
         
         if (participant?.last_read_at) {
-          // Tambahkan buffer 2 detik untuk menghindari race condition milidetik
-          const bufferTime = new Date(new Date(participant.last_read_at).getTime() + 2000).toISOString()
-          
-          const { count, error: countErr } = await supabase
+          const { count } = await supabase
             .from('chat_messages')
             .select('*', { count: 'exact', head: true })
             .eq('room_id', room.id)
             .neq('sender_id', userId)
-            .gt('created_at', bufferTime)
-          
-          if (countErr) console.error(`[Chat] Error count room ${room.id}:`, countErr)
+            .gt('created_at', participant.last_read_at)
           room.unread_count = count || 0
-          console.log(`[Chat] Room ${room.name} (${room.id}) unread:`, room.unread_count, 'last_read:', participant.last_read_at)
         } else {
-          // Jika belum pernah baca, hitung semua pesan dari orang lain
           const { count } = await supabase
             .from('chat_messages')
             .select('*', { count: 'exact', head: true })
@@ -95,9 +108,9 @@ export const chatService = {
             .neq('sender_id', userId)
           room.unread_count = count || 0
         }
+        room.last_read_at = participant?.last_read_at || null
       }))
       
-      // Sortir rooms berdasarkan pesan terbaru
       rooms.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
     }
 

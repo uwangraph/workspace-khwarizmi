@@ -12,7 +12,7 @@
     allLeaves: AttendanceLeave[]
     onUpdateLeave: (leave: AttendanceLeave, status: 'approved' | 'rejected') => void
   }
-  let { allUsers, allAttendance, holidays, specialRules, onUpdateLeave } = $props<Props>()
+  let { allUsers, allAttendance, holidays, specialRules, allLeaves, onUpdateLeave } = $props<Props>()
 
   const ITEMS_PER_PAGE = 10
   let mode           = $state<'daily' | 'monthly' | 'leaves'>('daily')

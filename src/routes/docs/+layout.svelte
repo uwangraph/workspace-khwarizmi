@@ -80,7 +80,7 @@
 
   <!-- Mobile Header (Glassmorphism) -->
   <header 
-    class="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white/70 backdrop-blur-xl border-b border-slate-100 py-3"
+    class="lg:hidden sticky top-0 left-0 right-0 z-40 bg-white/70 backdrop-blur-xl border-b border-slate-100 py-3"
   >
     <div class="px-6 flex items-center justify-between">
       <div class="flex items-center gap-3">
@@ -211,7 +211,7 @@
       onscroll={handleScroll}
       class="flex-1 min-w-0 bg-transparent overflow-y-auto custom-scrollbar relative"
     >
-      <div class="max-w-4xl mx-auto px-6 pt-32 pb-24 lg:pt-32 lg:pb-32 lg:px-20 relative z-10">
+      <div class="max-w-4xl mx-auto px-6 pt-12 pb-24 lg:pt-24 lg:pb-32 lg:px-20 relative z-10">
         <slot />
 
         <!-- Footer -->

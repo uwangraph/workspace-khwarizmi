@@ -266,14 +266,51 @@
   }
 
   // ── Holiday Actions ────────────────────────────────────────────────────────
-  async function addHoliday(data: { date: string; name: string }) {
+  async function addHoliday(data: any) {
     isSavingHoliday = true
-    const { data: h, error } = await adminService.saveHoliday({ ...data, created_by: profile?.id })
+    
+    if (data.date) {
+      // Single date
+      const { data: h, error } = await adminService.saveHoliday({ date: data.date, name: data.name, created_by: profile?.id })
+      if (error) { 
+        showToast(error.message?.includes('unique') ? `Tanggal ${data.date} sudah ditandai libur` : 'Gagal menyimpan hari libur', 'error')
+      } else {
+        holidays = [...holidays, h as any as Holiday].sort((a, b) => a.date.localeCompare(b.date))
+        showHolidayFormModal = false
+        showToast('Hari libur berhasil ditambahkan', 'success')
+      }
+    } else if (data.startDate && data.endDate) {
+      // Range
+      const start = new Date(data.startDate)
+      const end = new Date(data.endDate)
+      const newHolidays: Holiday[] = []
+      let current = new Date(start)
+      
+      let errorOccurred = false
+      while (current <= end) {
+        const dateStr = current.toISOString().split('T')[0]
+        const { data: h, error } = await adminService.saveHoliday({ date: dateStr, name: data.name, created_by: profile?.id })
+        if (error) {
+          if (!error.message?.includes('unique')) errorOccurred = true
+        } else if (h) {
+          newHolidays.push(h as any as Holiday)
+        }
+        current.setDate(current.getDate() + 1)
+      }
+      
+      if (newHolidays.length > 0) {
+        holidays = [...holidays, ...newHolidays].sort((a, b) => a.date.localeCompare(b.date))
+        showHolidayFormModal = false
+        showToast(`${newHolidays.length} hari libur ditambahkan`, 'success')
+      } else if (errorOccurred) {
+        showToast('Beberapa tanggal gagal disimpan', 'error')
+      } else {
+        showToast('Semua tanggal sudah ditandai libur sebelumnya', 'info')
+        showHolidayFormModal = false
+      }
+    }
+    
     isSavingHoliday = false
-    if (error) { showToast(error.message?.includes('unique') ? 'Tanggal ini sudah ditandai libur' : 'Gagal menyimpan hari libur', 'error'); return }
-    holidays = [...holidays, h as any as Holiday].sort((a, b) => a.date.localeCompare(b.date))
-    showHolidayFormModal = false
-    showToast('Hari libur berhasil ditambahkan', 'success')
   }
 
   function handleDeleteHoliday(h: Holiday) { selectedHoliday = h; showDeleteHolidayModal = true }

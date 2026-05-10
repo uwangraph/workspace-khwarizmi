@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Holiday, SpecialRule } from '../_types'
-  import { CalendarDays, Plus, Trash2, Settings, X, CalendarCheck, CalendarOff, Calendar, Home, Clock, FileText, ClipboardList, PartyPopper } from 'lucide-svelte'
+  import { CalendarDays, Plus, Trash2, Settings, X, CalendarCheck, CalendarOff, Calendar, Home, Clock, FileText, ClipboardList, PartyPopper, ArrowRight } from 'lucide-svelte'
 
   interface Props {
     holidays: Holiday[]
@@ -14,12 +14,46 @@
 
   const todayISO = new Date().toISOString().split('T')[0]
 
-  let sorted = $derived([...holidays].sort((a, b) => a.date.localeCompare(b.date)))
   let sortedRules = $derived([...specialRules].sort((a, b) => a.date.localeCompare(b.date)))
+
+  // Group consecutive holidays with the same name
+  let groupedHolidays = $derived.by(() => {
+    if (holidays.length === 0) return []
+    const sorted = [...holidays].sort((a, b) => a.date.localeCompare(b.date))
+    const groups: { name: string; dates: string[]; originalHolidays: Holiday[] }[] = []
+    
+    sorted.forEach(h => {
+      const lastGroup = groups[groups.length - 1]
+      if (lastGroup && lastGroup.name === h.name) {
+        const lastDate = new Date(lastGroup.dates[lastGroup.dates.length - 1])
+        const currentDate = new Date(h.date)
+        const diff = Math.round((currentDate.getTime() - lastDate.getTime()) / 86400000)
+        if (diff === 1) {
+          lastGroup.dates.push(h.date)
+          lastGroup.originalHolidays.push(h)
+          return
+        }
+      }
+      groups.push({ name: h.name, dates: [h.date], originalHolidays: [h] })
+    })
+    return groups
+  })
 
   function isUpcoming(date: string) {
     const diff = (new Date(date).getTime() - new Date(todayISO).getTime()) / 86400000
     return diff >= 0 && diff <= 14
+  }
+
+  function formatDisplayDate(dates: string[]) {
+    if (dates.length === 1) {
+      return new Date(dates[0]).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    }
+    const start = new Date(dates[0])
+    const end = new Date(dates[dates.length - 1])
+    
+    const startStr = start.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
+    const endStr = end.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+    return `${startStr} - ${endStr} (${dates.length} hari)`
   }
 
   const TYPE_STYLE: Record<SpecialRule['type'], { label: string; bg: string; text: string; Icon: any }> = {
@@ -28,7 +62,6 @@
     wfa:         { label: 'WFA',         bg: 'bg-blue-100',   text: 'text-blue-700',  Icon: Home },
   }
 
-  // Section active state
   let activeSection = $state<'holidays' | 'thursday'>('holidays')
 </script>
 
@@ -39,7 +72,7 @@
             class="flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
             class:text-white={activeSection === 'holidays'}
             style={activeSection === 'holidays' ? 'background:linear-gradient(135deg,#F97316,#EA580C)' : 'background:transparent; color:#64748B'}>
-      <Calendar size={13} /> Hari Libur ({sorted.length})
+      <Calendar size={13} /> Hari Libur ({holidays.length})
     </button>
     <button onclick={() => activeSection = 'thursday'}
             class="flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
@@ -57,7 +90,7 @@
         <p class="text-[10px] text-slate-400 mt-0.5">Jumat otomatis libur. Di sini untuk libur tambahan/mendadak.</p>
       </div>
       <button onclick={onAddHoliday}
-              class="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold text-white cursor-pointer shadow-sm"
+              class="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold text-white cursor-pointer shadow-sm transition-all active:scale-95"
               style="background:linear-gradient(135deg,#F97316,#EA580C)">
         <Plus size={14} /> Tambah
       </button>
@@ -75,7 +108,7 @@
       </div>
     </div>
 
-    {#if sorted.length === 0}
+    {#if groupedHolidays.length === 0}
       <div class="bg-white rounded-2xl shadow-sm border border-slate-100 py-16 text-center">
         <CalendarOff size={32} class="text-slate-200 mx-auto mb-3" />
         <p class="text-sm font-semibold text-slate-400">Belum ada hari libur tambahan</p>
@@ -89,14 +122,16 @@
     {:else}
       <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-          <span class="text-xs font-bold text-slate-500">{sorted.length} hari libur terdaftar</span>
-          <span class="text-[10px] text-slate-400">{sorted.filter(h => h.date >= todayISO).length} mendatang</span>
+          <span class="text-xs font-bold text-slate-500">{holidays.length} hari libur terdaftar</span>
+          <span class="text-[10px] text-slate-400">{holidays.filter(h => h.date >= todayISO).length} mendatang</span>
         </div>
-        {#each sorted as h}
-          {@const isPast   = h.date < todayISO}
-          {@const isToday  = h.date === todayISO}
-          {@const upcoming = isUpcoming(h.date)}
-          <div class="flex items-center gap-3 px-4 py-3.5 border-b border-slate-50 last:border-0
+        {#each groupedHolidays as group}
+          {@const isRange = group.dates.length > 1}
+          {@const isPast  = group.dates[group.dates.length - 1] < todayISO}
+          {@const isToday = group.dates.includes(todayISO)}
+          {@const upcoming = group.dates.some(d => isUpcoming(d))}
+          
+          <div class="flex items-center gap-3 px-4 py-4 border-b border-slate-50 last:border-0
                       {isToday ? 'bg-amber-50' : isPast ? 'opacity-60' : ''} hover:bg-slate-50 transition-colors">
             <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-white"
                  style="{isToday ? 'background:linear-gradient(135deg,#F59E0B,#D97706)' : isPast ? 'background:#F1F5F9; color:#94A3B8' : 'background:linear-gradient(135deg,#F97316,#EA580C)'}">
@@ -107,22 +142,43 @@
               {/if}
             </div>
             <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2">
-                <p class="text-sm font-semibold text-slate-800 truncate">{h.name}</p>
+              <div class="flex items-center gap-2 flex-wrap">
+                <p class="text-sm font-bold text-slate-800 truncate">{group.name}</p>
                 {#if isToday}
                   <span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 flex-shrink-0">HARI INI</span>
                 {:else if upcoming && !isPast}
                   <span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-orange-50 text-orange-600 flex-shrink-0">SOON</span>
                 {/if}
+                {#if isRange}
+                  <span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 flex-shrink-0 uppercase tracking-tighter">RENTANG</span>
+                {/if}
               </div>
-              <p class="text-[11px] text-slate-400 mt-0.5">
-                {new Date(h.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              <p class="text-[11px] text-slate-500 mt-1 font-medium flex items-center gap-1.5">
+                {formatDisplayDate(group.dates)}
               </p>
             </div>
-            <button onclick={() => onDeleteHoliday(h)}
-                    class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-red-50 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors cursor-pointer flex-shrink-0">
-              <Trash2 size={13} />
-            </button>
+            
+            <div class="flex items-center gap-1">
+              {#if isRange}
+                <!-- If it's a range, we show a count but still allow deleting individual days or maybe just delete the whole group? -->
+                <!-- For now, the user can delete the group one by one, but visually they are grouped. -->
+                <!-- To keep it simple but functional, let's provide a way to delete each day in a small list? No, too complex. -->
+                <!-- Let's just allow deleting the whole group for ease of use. -->
+                <button onclick={() => {
+                  if (confirm(`Hapus seluruh rentang libur "${group.name}"?`)) {
+                    group.originalHolidays.forEach(h => onDeleteHoliday(h))
+                  }
+                }}
+                        class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-red-50 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors cursor-pointer">
+                  <Trash2 size={13} />
+                </button>
+              {:else}
+                <button onclick={() => onDeleteHoliday(group.originalHolidays[0])}
+                        class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-red-50 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors cursor-pointer flex-shrink-0">
+                  <Trash2 size={13} />
+                </button>
+              {/if}
+            </div>
           </div>
         {/each}
       </div>
@@ -136,7 +192,7 @@
         <p class="text-[10px] text-slate-400 mt-0.5">Atur WFA atau Jam Masuk khusus untuk tanggal tertentu (rapat, dsb).</p>
       </div>
       <button onclick={onManageSpecial}
-              class="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold text-white cursor-pointer shadow-sm"
+              class="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold text-white cursor-pointer shadow-sm transition-all active:scale-95"
               style="background:linear-gradient(135deg,#F97316,#EA580C)">
         <Plus size={14} /> Tambah Aturan
       </button>

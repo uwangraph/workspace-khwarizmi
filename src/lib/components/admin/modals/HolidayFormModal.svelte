@@ -1,21 +1,39 @@
 <script lang="ts">
-  import { X } from 'lucide-svelte'
+  import { X, Calendar, ArrowRight } from 'lucide-svelte'
   interface Props {
     isSubmitting?: boolean
-    onSave: (data: { date: string; name: string }) => Promise<void>
+    onSave: (data: { date: string; name: string } | { startDate: string; endDate: string; name: string }) => Promise<void>
     onClose: () => void
   }
   let { isSubmitting = false, onSave, onClose } = $props<Props>()
 
+  let mode = $state<'single' | 'range'>('single')
   let holidayDate = $state('')
+  let startDate = $state('')
+  let endDate = $state('')
   let holidayName = $state('')
 
   const today = new Date().toISOString().split('T')[0]
 
   async function handleSave() {
-    if (!holidayDate || !holidayName.trim()) return
-    await onSave({ date: holidayDate, name: holidayName.trim() })
+    if (!holidayName.trim()) return
+    
+    if (mode === 'single') {
+      if (!holidayDate) return
+      await onSave({ date: holidayDate, name: holidayName.trim() })
+    } else {
+      if (!startDate || !endDate) return
+      if (new Date(endDate) < new Date(startDate)) return
+      await onSave({ startDate, endDate, name: holidayName.trim() })
+    }
   }
+
+  // Auto-sync endDate if it's before startDate
+  $effect(() => {
+    if (startDate && endDate && new Date(endDate) < new Date(startDate)) {
+      endDate = startDate
+    }
+  })
 </script>
 
 <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
@@ -24,40 +42,80 @@
        style="animation:slideUp .3s cubic-bezier(.16,1,.3,1)"
        onclick={e => e.stopPropagation()}>
     <div class="flex justify-center pt-3 pb-1 sm:hidden"><div class="w-10 h-1 rounded-full bg-slate-200"></div></div>
+    
     <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
       <div class="flex items-center gap-2">
         <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:linear-gradient(135deg,#F97316,#EA580C)">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round">
-            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-          </svg>
+          <Calendar size={16} class="text-white" />
         </div>
-        <p class="font-bold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">Tambah Hari Libur</p>
+        <p class="font-bold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">Atur Hari Libur</p>
       </div>
       <button onclick={onClose} class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors cursor-pointer">
         <X size={16} />
       </button>
     </div>
-    <div class="px-6 py-5 flex flex-col gap-4">
-      <div>
-        <label class="text-xs font-bold text-slate-500 block mb-1.5 uppercase tracking-wider">Tanggal <span class="text-red-500">*</span></label>
-        <input type="date" bind:value={holidayDate} min={today}
-               class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+
+    <div class="px-6 py-5 flex flex-col gap-5">
+      <!-- Mode Toggle -->
+      <div class="flex bg-slate-100 p-1 rounded-xl">
+        <button onclick={() => mode = 'single'}
+                class="flex-1 py-2 text-[11px] font-bold rounded-lg transition-all {mode === 'single' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}">
+          SATU HARI
+        </button>
+        <button onclick={() => mode = 'range'}
+                class="flex-1 py-2 text-[11px] font-bold rounded-lg transition-all {mode === 'range' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}">
+          RENTANG TANGGAL
+        </button>
       </div>
-      <div>
-        <label class="text-xs font-bold text-slate-500 block mb-1.5 uppercase tracking-wider">Nama Hari Libur <span class="text-red-500">*</span></label>
-        <input bind:value={holidayName} placeholder="Contoh: Libur Idul Fitri, Libur Mendadak..."
-               class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-400" />
-        <p class="text-[10px] text-slate-400 mt-1.5">Hari ini tidak akan dihitung sebagai hari kerja pada rekap kehadiran.</p>
+
+      <!-- Date Inputs -->
+      <div class="grid grid-cols-1 gap-4">
+        {#if mode === 'single'}
+          <div>
+            <label class="text-[10px] font-black text-slate-400 block mb-1.5 uppercase tracking-widest">Tanggal Libur <span class="text-red-500">*</span></label>
+            <input type="date" bind:value={holidayDate} min={today}
+                   class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          </div>
+        {:else}
+          <div class="grid grid-cols-[1fr_auto_1fr] items-end gap-3">
+            <div>
+              <label class="text-[10px] font-black text-slate-400 block mb-1.5 uppercase tracking-widest">Mulai <span class="text-red-500">*</span></label>
+              <input type="date" bind:value={startDate} min={today}
+                     class="w-full px-3 py-3 rounded-xl border border-slate-200 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            </div>
+            <div class="pb-3.5 text-slate-300">
+              <ArrowRight size={16} />
+            </div>
+            <div>
+              <label class="text-[10px] font-black text-slate-400 block mb-1.5 uppercase tracking-widest">Selesai <span class="text-red-500">*</span></label>
+              <input type="date" bind:value={endDate} min={startDate || today}
+                     class="w-full px-3 py-3 rounded-xl border border-slate-200 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            </div>
+          </div>
+        {/if}
+
+        <div>
+          <label class="text-[10px] font-black text-slate-400 block mb-1.5 uppercase tracking-widest">Nama Hari Libur <span class="text-red-500">*</span></label>
+          <input bind:value={holidayName} placeholder="Contoh: Libur Lebaran, Cuti Bersama..."
+                 class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          <p class="text-[10px] text-slate-400 mt-2 flex items-center gap-1.5">
+            <span class="w-1 h-1 rounded-full bg-orange-400"></span>
+            Libur akan memotong hari kerja di rekap kehadiran.
+          </p>
+        </div>
       </div>
-      <div class="flex gap-3 pt-1 pb-2">
+
+      <!-- Action Buttons -->
+      <div class="flex gap-3 pt-2 pb-1">
         <button onclick={onClose} class="flex-1 py-3 rounded-xl text-sm font-semibold bg-slate-100 text-slate-500 hover:bg-slate-200 cursor-pointer">Batal</button>
-        <button onclick={handleSave} disabled={isSubmitting || !holidayDate || !holidayName.trim()}
-                class="flex-[2] py-3 rounded-xl text-sm font-bold text-white disabled:opacity-60 cursor-pointer"
+        <button onclick={handleSave} disabled={isSubmitting || !holidayName.trim() || (mode === 'single' ? !holidayDate : (!startDate || !endDate))}
+                class="flex-[2] py-3 rounded-xl text-sm font-bold text-white shadow-lg shadow-orange-500/20 disabled:opacity-60 cursor-pointer transition-all active:scale-95"
                 style="background:linear-gradient(135deg,#F97316,#EA580C)">
-          {isSubmitting ? 'Menyimpan...' : 'Simpan Hari Libur'}
+          {isSubmitting ? 'Menyimpan...' : 'Simpan Perubahan'}
         </button>
       </div>
     </div>
   </div>
 </div>
+
 <style>@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }</style>

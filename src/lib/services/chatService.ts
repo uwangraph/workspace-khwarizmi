@@ -73,15 +73,19 @@ export const chatService = {
           .single()
         
         if (participant?.last_read_at) {
+          // Tambahkan buffer 2 detik untuk menghindari race condition milidetik
+          const bufferTime = new Date(new Date(participant.last_read_at).getTime() + 2000).toISOString()
+          
           const { count, error: countErr } = await supabase
             .from('chat_messages')
             .select('*', { count: 'exact', head: true })
             .eq('room_id', room.id)
             .neq('sender_id', userId)
-            .gt('created_at', participant.last_read_at)
+            .gt('created_at', bufferTime)
           
-          if (countErr) console.error('[Chat] Error count:', countErr)
+          if (countErr) console.error(`[Chat] Error count room ${room.id}:`, countErr)
           room.unread_count = count || 0
+          console.log(`[Chat] Room ${room.name} (${room.id}) unread:`, room.unread_count, 'last_read:', participant.last_read_at)
         } else {
           // Jika belum pernah baca, hitung semua pesan dari orang lain
           const { count } = await supabase

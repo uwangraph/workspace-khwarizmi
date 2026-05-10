@@ -163,6 +163,7 @@
     isBulkActing = true
     try {
       await taskService.bulkUpdateStatus(selectedTaskIds, 'done', 100)
+      if (user) await taskService.bulkCompleteAssignments(user.id, selectedTaskIds)
       toast.success(`${selectedTaskIds.length} tugas diselesaikan`)
       selectedTaskIds = []
       confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } })
@@ -206,21 +207,38 @@
     }).replace('.', ':')
   }
 
-  function formatDueDate(iso: string | null) {
+  function formatDueDate(iso: string | null, status?: string, completedAt?: string | null) {
     if (!iso) return null
     const d = new Date(iso)
     const now = new Date()
     
+    // If task is done, compare deadline with completion time instead of now
+    const referenceTime = (status === 'done' && completedAt) ? new Date(completedAt) : now
+    
     const dDate = new Date(d); dDate.setHours(0, 0, 0, 0)
-    const today = new Date(); today.setHours(0, 0, 0, 0)
-    const diff = Math.floor((dDate.getTime() - today.getTime()) / 86400000)
+    const refDate = new Date(referenceTime); refDate.setHours(0, 0, 0, 0)
+    const diff = Math.floor((dDate.getTime() - refDate.getTime()) / 86400000)
     
     const timeStr = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':')
 
-    if (diff < 0) return { label: `Terlambat ${Math.abs(diff)}h`, color: 'text-red-600', urgent: true }
+    if (diff < 0) {
+      return { label: `Terlambat ${Math.abs(diff)}h`, color: 'text-red-600', urgent: true }
+    }
+    
+    if (status === 'done') {
+      // For tasks finished today, we need to check the time
+      if (diff === 0) {
+        const isOverdue = d.getTime() < referenceTime.getTime()
+        if (isOverdue) {
+          return { label: `Terlewat (${timeStr})`, color: 'text-red-700', urgent: true }
+        }
+      }
+      return null // Not late? Hide label
+    }
+
     if (diff === 0) {
       // Check if time has passed
-      const isOverdue = d.getTime() < now.getTime()
+      const isOverdue = d.getTime() < referenceTime.getTime()
       return { 
         label: isOverdue ? `Terlewat (${timeStr})` : `Hari ini, ${timeStr}`, 
         color: isOverdue ? 'text-red-700' : 'text-red-600', 
@@ -660,7 +678,7 @@
                 {#each paginatedTasks as t (t.id)}
                   {@const myA = getUserAssignment(t.id)}
                   <div animate:flip={{ duration: 300 }} transition:fade={{ duration: 200 }}>
-                    <TaskCard task={t} isPending={myA?.status === 'pending'} due={formatDueDate(t.due_date)}
+                    <TaskCard task={t} isPending={myA?.status === 'pending'} due={formatDueDate(t.due_date, t.status, myA?.completed_at)}
                               isPinned={pinnedTaskIds.includes(t.id)}
                               selectionMode={isSelectionMode}
                               isSelected={selectedTaskIds.includes(t.id)}
@@ -724,7 +742,7 @@
                    isPinned={pinnedTaskIds.includes(detailTask.id)}
                    onTogglePin={() => togglePin(detailTask!.id)}
                    onUpdateSubtasks={(subtasks) => updateSubtasks(detailTask!.id, subtasks)}
-                   due={formatDueDate(detailTask.due_date)} {formatDateShort} {getUserName} {getInitials} {getAvatarGradient}
+                   due={formatDueDate(detailTask.due_date, detailTask.status, getUserAssignment(detailTask.id)?.completed_at)} {formatDateShort} {getUserName} {getInitials} {getAvatarGradient}
                    onClose={() => showDetailModal = false} onProgress={() => openProgressModal(detailTask!)}
                    onEdit={() => openEditModal(detailTask!)} onDelete={() => confirmDelete(detailTask!)}
                    onAccept={() => openConfirmActionModal('accept', getUserAssignment(detailTask!.id)!, detailTask!.title)}

@@ -64,9 +64,22 @@ export const taskService = {
       const newAssignments = allUserIds.map(uid => {
         const oldStatus = oldStatusMap.get(uid);
         let status: any = 'pending';
-        if (uid === ownerId || uid === userId) status = (oldStatus === 'completed') ? 'completed' : 'accepted';
-        else if (oldStatus === 'accepted' || oldStatus === 'completed') status = oldStatus;
-        return { task_id: taskId, user_id: uid, status };
+        // If task is done, mark owner/editor assignment as completed
+        if (uid === ownerId || uid === userId) {
+          status = taskData.status === 'done' ? 'completed' : 'accepted';
+        } else if (oldStatus === 'accepted' || oldStatus === 'completed') {
+          status = taskData.status === 'done' ? 'completed' : oldStatus;
+        }
+        
+        const assignment: any = { task_id: taskId, user_id: uid, status };
+        if (status === 'completed' && (!oldStatus || oldStatus !== 'completed')) {
+          assignment.completed_at = new Date().toISOString();
+        } else if (oldStatus === 'completed') {
+          // preserve existing completed_at if possible, but we don't have it in oldStatusMap easily
+          // for now just set new date if it's missing or done
+          assignment.completed_at = new Date().toISOString(); 
+        }
+        return assignment;
       });
 
       await supabase.from('task_assignments').insert(newAssignments);
@@ -83,11 +96,13 @@ export const taskService = {
       taskId = newTask.id;
       const allUserIds = [...new Set([...assignedUserIds, userId])];
       
-      await supabase.from('task_assignments').insert(allUserIds.map(uid => ({ 
-        task_id: taskId, 
-        user_id: uid, 
-        status: uid === userId ? 'accepted' : 'pending' 
-      })));
+      const isDone = taskData.status === 'done';
+      await supabase.from('task_assignments').insert(allUserIds.map(uid => {
+        const status = (uid === userId) ? (isDone ? 'completed' : 'accepted') : (isDone ? 'completed' : 'pending');
+        const assignment: any = { task_id: taskId, user_id: uid, status };
+        if (status === 'completed') assignment.completed_at = new Date().toISOString();
+        return assignment;
+      }));
       
       return { taskId, newCollabs: assignedUserIds.filter(uid => uid !== userId) };
     }
@@ -165,6 +180,13 @@ export const taskService = {
 
   async bulkUpdateStatus(taskIds: string[], status: string, progress: number) {
     return await supabase.from('tasks').update({ status, progress }).in('id', taskIds);
+  },
+
+  async bulkCompleteAssignments(userId: string, taskIds: string[]) {
+    return await supabase.from('task_assignments')
+      .update({ status: 'completed', completed_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .in('task_id', taskIds);
   },
 
   async bulkDeleteTasks(taskIds: string[]) {

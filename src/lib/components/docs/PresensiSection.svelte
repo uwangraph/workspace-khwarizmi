@@ -40,7 +40,7 @@
         color: 'bg-emerald-600'
       }
     ] as step}
-      <div class="relative z-10 p-10 bg-white rounded-[3rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all group">
+      <div class="relative z-10 p-8 bg-white rounded-[3rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all group">
         <div class="w-16 h-16 {step.color} text-white rounded-2xl flex items-center justify-center mb-8 shadow-lg transition-transform group-hover:rotate-6">
           <step.icon size={32} />
         </div>

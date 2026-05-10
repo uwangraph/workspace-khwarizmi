@@ -206,7 +206,7 @@
       onscroll={handleScroll}
       class="flex-1 min-w-0 bg-white lg:bg-transparent overflow-y-auto custom-scrollbar relative"
     >
-      <div class="max-w-[850px] mx-auto px-6 py-12 lg:px-16 lg:py-24 relative z-10">
+      <div class="max-w-[1200px] mx-auto px-6 py-12 lg:px-16 lg:py-24 relative z-10">
         <!-- Article Header Metadata -->
         <div class="flex items-center gap-4 mb-10 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
           <div class="flex items-center gap-2">

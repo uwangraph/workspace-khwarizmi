@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onMount, onDestroy } from 'svelte'
   import { goto } from '$app/navigation'
   import { authService } from '$lib/services/authService'
   import { chatService } from '$lib/services/chatService'
@@ -15,6 +15,7 @@
   let isLoading = $state(true)
   let showNewChatModal = $state(false)
   let searchQuery = $state('')
+  let listChannel: any
 
   let filteredRooms = $derived(
     rooms.filter(r => r.name?.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -31,7 +32,11 @@
       rooms = await chatService.getRooms(authUser.id)
 
       // Subscribe to all messages to update last_message and unread_count in real-time
-      supabase.channel('room-list-updates')
+      const channelName = 'room-list-updates'
+      const existing = supabase.getChannels().find(c => c.name === channelName)
+      if (existing) supabase.removeChannel(existing)
+
+      listChannel = supabase.channel(channelName)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, async (payload) => {
           const newMessage = payload.new
           const roomIdx = rooms.findIndex(r => r.id === newMessage.room_id)
@@ -61,6 +66,10 @@
     } finally {
       isLoading = false
     }
+  })
+
+  onDestroy(() => {
+    if (listChannel) supabase.removeChannel(listChannel)
   })
 
   async function handleNewChat(selectedUsers: Profile[], groupName?: string) {

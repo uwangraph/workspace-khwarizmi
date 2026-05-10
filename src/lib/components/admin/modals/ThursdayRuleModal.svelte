@@ -125,8 +125,8 @@
       <!-- Sesi yang Aktif -->
       <div class="space-y-3">
         <label class="ml-0.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Sesi yang Dibuka</label>
-        <div class="grid grid-cols-2 gap-2">
-          {#each SESSIONS as s}
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {#each SESSIONS.filter(s => s.id !== 4) as s}
             <button onclick={() => toggleSession(s.id)}
                     class="flex items-center gap-2.5 p-3 rounded-2xl border transition-all text-left group"
                     class:border-orange-500={activeSessionIds.includes(s.id)}

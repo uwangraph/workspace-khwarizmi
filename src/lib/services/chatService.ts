@@ -466,33 +466,27 @@ export const chatService = {
 
   // Tandai pesan sebagai dibaca
   async markMessagesAsRead(roomId: string, userId: string) {
-    console.log('[Chat] Menandai pesan sebagai dibaca...', { roomId, userId })
-    const { error } = await supabase
-      .from('chat_participants')
-      .update({ last_read_at: new Date().toISOString() })
-      .eq('room_id', roomId)
-      .eq('user_id', userId)
+    console.log('[Chat] Menandai pesan sebagai dibaca (via RPC)...', { roomId, userId })
+    
+    const { error } = await supabase.rpc('mark_as_read', {
+      p_room_id: roomId,
+      p_user_id: userId
+    })
     
     if (error) {
-      console.error('[Chat] Gagal mark read (chat_participants):', error)
-      return false
+      console.warn('[Chat] Gagal mark read via RPC, mencoba fallback manual:', error.message)
+      // Fallback jika RPC belum dibuat
+      const { error: manualErr } = await supabase
+        .from('chat_participants')
+        .update({ last_read_at: new Date().toISOString() })
+        .eq('room_id', roomId)
+        .eq('user_id', userId)
+      
+      if (manualErr) console.error('[Chat] Fallback manual juga gagal:', manualErr)
+      return !manualErr
     }
 
-    console.log('[Chat] Berhasil update last_read_at')
-
-    // Untuk DM, tandai pesan dari partner sebagai is_read
-    const { error: msgErr } = await supabase
-      .from('chat_messages')
-      .update({ is_read: true })
-      .eq('room_id', roomId)
-      .neq('sender_id', userId)
-      .eq('is_read', false)
-    
-    if (msgErr) {
-      // Ini mungkin gagal jika kolom is_read belum ada, tapi last_read_at sudah sukses
-      console.warn('[Chat] Gagal update is_read (mungkin kolom belum ada):', msgErr.message)
-    }
-
+    console.log('[Chat] Berhasil update status baca via server time')
     return true
   },
 

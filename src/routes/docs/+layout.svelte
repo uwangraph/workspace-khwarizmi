@@ -24,16 +24,19 @@
     { id: 'faq', label: 'FAQ & Tips', href: '/docs/faq', icon: Sparkles }
   ];
 
+  let mainElement: HTMLElement;
+
   function handleScroll() {
-    const currentScrollY = window.scrollY;
+    if (!mainElement) return;
+    const currentScrollY = mainElement.scrollTop;
     isScrollingUp = currentScrollY < lastScrollY || currentScrollY < 100;
     lastScrollY = currentScrollY;
     scrollY = currentScrollY;
   }
 
   onMount(() => {
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    // Scroll handling is now managed by the main element's scroll event
+    return () => {};
   });
 
   // Highlight active link based on current path
@@ -44,13 +47,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 </svelte:head>
 
-<div class="min-h-screen bg-white font-sans selection:bg-orange-100 selection:text-orange-900 overflow-x-hidden">
+<div class="h-screen overflow-hidden bg-white font-sans selection:bg-orange-100 selection:text-orange-900 flex flex-col">
   
-  <!-- Mobile Header (Glassmorphism) -->
+  <!-- Mobile Header (Glassmorphism) - Only visible on mobile -->
   <header 
-    class="lg:hidden fixed top-0 left-0 right-0 z-40 transition-all duration-300
-           {scrollY > 20 ? 'bg-white/80 backdrop-blur-xl border-b border-slate-100 py-3' : 'bg-transparent py-5'}
-           {!isScrollingUp && scrollY > 100 ? '-translate-y-full' : 'translate-y-0'}"
+    class="lg:hidden shrink-0 z-40 transition-all duration-300 bg-white border-b border-slate-100 py-3"
   >
     <div class="px-6 flex items-center justify-between">
       <div class="flex items-center gap-3">
@@ -68,10 +69,10 @@
     </div>
   </header>
 
-  <div class="max-w-[1600px] mx-auto flex">
-    <!-- Desktop Sidebar (Fixed Position) -->
-    <aside class="hidden lg:block sticky top-0 h-screen w-80 border-r border-slate-100 bg-slate-50/30 overflow-y-auto custom-scrollbar flex-shrink-0">
-      <div class="p-10 h-full flex flex-col">
+  <div class="flex-1 flex overflow-hidden max-w-[1600px] mx-auto w-full">
+    <!-- Desktop Sidebar (Independent Scroll) -->
+    <aside class="hidden lg:flex flex-col h-full w-80 border-r border-slate-100 bg-slate-50/30 overflow-y-auto custom-scrollbar flex-shrink-0">
+      <div class="p-10 flex-1 flex flex-col">
         <!-- Logo Area -->
         <a href="/" class="flex items-center gap-3 mb-12 px-2 hover:opacity-80 transition-opacity">
           <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center shadow-xl shadow-orange-600/20">
@@ -102,7 +103,7 @@
           {/each}
         </nav>
 
-        <div class="mt-auto pt-8 border-t border-slate-200/60">
+        <div class="mt-8 pt-8 border-t border-slate-200/60">
           <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 px-4">Bantuan Cepat</p>
           <div class="space-y-2">
             <a href="https://wa.me/xxx" class="flex items-center gap-3 px-4 py-3 text-sm font-semibold text-slate-600 hover:text-orange-600 transition-colors">
@@ -116,7 +117,7 @@
       </div>
     </aside>
 
-    <!-- Mobile Drawer Sidebar -->
+    <!-- Mobile Drawer Sidebar remains the same as it is already an overlay -->
     {#if isSidebarOpen}
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -164,8 +165,12 @@
       </aside>
     {/if}
 
-    <!-- Content Area -->
-    <main class="flex-1 min-w-0 bg-white min-h-screen">
+    <!-- Content Area (Independent Scroll) -->
+    <main 
+      bind:this={mainElement}
+      onscroll={handleScroll}
+      class="flex-1 min-w-0 bg-white overflow-y-auto custom-scrollbar"
+    >
       <div class="max-w-4xl mx-auto px-6 py-24 lg:px-20 lg:py-32">
         <slot />
 

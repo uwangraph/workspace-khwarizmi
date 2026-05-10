@@ -30,6 +30,8 @@
   let isLoading = $state(true)
   let subscription: any
   let partnerStatusChannel: any
+  let initialLastReadAt = $state<string | null>(null)
+  let initialUnreadCount = $state(0)
 
   // Input
   let newMessage = $state('')
@@ -401,6 +403,10 @@
       const rooms = await chatService.getRooms(authUser.id)
       userRooms = rooms
       activeRoom = rooms.find((r: any) => r.id === roomId) || null
+      if (activeRoom) {
+        initialLastReadAt = activeRoom.last_read_at || null
+        initialUnreadCount = activeRoom.unread_count || 0
+      }
       const savedWp = localStorage.getItem('chat_wallpaper')
       const savedColor = localStorage.getItem('chat_wallpaper_color')
       if (savedWp) selectedWallpaper = savedWp
@@ -558,6 +564,20 @@
                 <span class="px-4 py-1.5 bg-slate-100/80 backdrop-blur-sm text-[10px] font-extrabold text-slate-500 rounded-full uppercase tracking-widest border border-slate-200/50 shadow-sm">
                   {new Date(msg.created_at).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })}
                 </span>
+              </div>
+            {/if}
+            {#if initialLastReadAt && i > 0 && 
+                new Date(msg.created_at).getTime() > new Date(initialLastReadAt).getTime() && 
+                new Date(filteredMessages[i-1].created_at).getTime() <= new Date(initialLastReadAt).getTime()}
+              <div class="flex justify-center my-6 animate-in fade-in zoom-in duration-500">
+                <div class="flex items-center gap-4 w-full max-w-md">
+                  <div class="flex-1 h-[1px] bg-orange-100"></div>
+                  <span class="px-4 py-1 bg-orange-50 text-orange-600 text-[10px] font-black rounded-full uppercase tracking-widest border border-orange-100 shadow-sm flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse"></span>
+                    {initialUnreadCount} pesan belum terbaca
+                  </span>
+                  <div class="flex-1 h-[1px] bg-orange-100"></div>
+                </div>
               </div>
             {/if}
 

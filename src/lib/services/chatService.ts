@@ -43,7 +43,90 @@ export const chatService = {
       }
     }
 
+    // Ambil pesan terakhir untuk setiap room
+    const roomIds = rooms.map((r: any) => r.id)
+    if (roomIds.length > 0) {
+      // Ambil pesan terbaru dari setiap room (paling efisien dengan subquery atau fetch terpisah)
+      // Di Supabase/PostgREST, kita bisa pakai .order().limit(1) per room dengan query terpisah untuk kesederhanaan
+      await Promise.all(rooms.map(async (room) => {
+        const { data: latest } = await supabase
+          .from('chat_messages')
+          .select('content, type, created_at')
+          .eq('room_id', room.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single()
+        
+        if (latest) {
+          room.last_message = latest
+          // Update created_at room ke created_at pesan terakhir agar sorting daftar chat benar
+          room.updated_at = latest.created_at
+        } else {
+          room.updated_at = room.created_at
+        }
+      }))
+      
+      // Sortir rooms berdasarkan pesan terbaru
+      rooms.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+    }
+
     return rooms
+  },
+
+  // Ambil detail lengkap sebuah room (termasuk partisipan)
+  async getRoomDetails(roomId: string) {
+    const { data: room, error: roomError } = await supabase
+      .from('chat_rooms')
+      .select('*, profiles!chat_rooms_created_by_fkey(full_name)')
+      .eq('id', roomId)
+      .single()
+    
+    if (roomError) throw roomError
+
+    const { data: participants, error: partError } = await supabase
+      .from('chat_participants')
+      .select('*, profiles(*)')
+      .eq('room_id', roomId)
+    
+    if (partError) throw partError
+
+    return { ...room, participants: participants.map(p => ({ ...p.profiles, joined_at: p.joined_at })) }
+  },
+
+  // Update informasi room (nama, deskripsi, avatar)
+  async updateRoom(roomId: string, updates: { name?: string, description?: string, avatar_url?: string }) {
+    const { data, error } = await supabase
+      .from('chat_rooms')
+      .update(updates)
+      .eq('id', roomId)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  // Tambah peserta ke room
+  async addParticipants(roomId: string, userIds: string[]) {
+    const insertData = userIds.map(uid => ({ room_id: roomId, user_id: uid }))
+    const { error } = await supabase
+      .from('chat_participants')
+      .insert(insertData)
+    
+    if (error) throw error
+    return true
+  },
+
+  // Hapus peserta dari room
+  async removeParticipant(roomId: string, userId: string) {
+    const { error } = await supabase
+      .from('chat_participants')
+      .delete()
+      .eq('room_id', roomId)
+      .eq('user_id', userId)
+    
+    if (error) throw error
+    return true
   },
 
   // Ambil riwayat pesan untuk sebuah room
@@ -60,20 +143,72 @@ export const chatService = {
   },
 
   // Kirim pesan teks
-  async sendTextMessage(roomId: string, senderId: string, content: string) {
+  async sendTextMessage(roomId: string, senderId: string, content: string, metadata: any = {}) {
+    const insertData: any = {
+      room_id: roomId,
+      sender_id: senderId,
+      type: 'text',
+      content
+    }
+    // Hanya simpan metadata jika ada isinya (misal reply_to)
+    if (Object.keys(metadata).length > 0 && Object.values(metadata).some(v => v != null)) {
+      insertData.metadata = metadata
+    }
+
     const { data, error } = await supabase
       .from('chat_messages')
-      .insert({
-        room_id: roomId,
-        sender_id: senderId,
-        type: 'text',
-        content
-      })
+      .insert(insertData)
       .select()
       .single()
     
     if (error) throw error
     return data as ChatMessage
+  },
+
+  // Edit pesan
+  async editMessage(messageId: string, userId: string, newContent: string) {
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .update({ content: newContent, metadata: { edited: true } })
+      .eq('id', messageId)
+      .eq('sender_id', userId)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data as ChatMessage
+  },
+
+  // Perbarui metadata pesan (untuk reaksi, bintang, dll)
+  async updateMessageMetadata(messageId: string, metadata: any) {
+    const { error } = await supabase
+      .from('chat_messages')
+      .update({ metadata })
+      .eq('id', messageId)
+    
+    if (error) throw error
+  },
+
+  // Teruskan pesan ke room lain
+  async forwardMessage(roomId: string, senderId: string, originalMsg: ChatMessage) {
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .insert({
+        room_id: roomId,
+        sender_id: senderId,
+        type: originalMsg.type,
+        content: originalMsg.content,
+        metadata: { 
+          ...originalMsg.metadata, 
+          forwarded: true,
+          original_sender: originalMsg.sender_id 
+        }
+      })
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
   },
 
   // Kirim VN/File/Image
@@ -99,9 +234,11 @@ export const chatService = {
         room_id: roomId,
         sender_id: senderId,
         type,
-        content: file.name,
+        // Gunakan caption jika ada, jika tidak gunakan nama file
+        content: metadata.caption || file.name,
         metadata: {
           ...metadata,
+          originalName: file.name,
           url: publicUrlData.publicUrl,
           size: file.size
         }
@@ -111,6 +248,45 @@ export const chatService = {
     
     if (error) throw error
     return data as ChatMessage
+  },
+
+  // Hapus Pesan & Media
+  async deleteMessage(messageId: string, userId: string) {
+    // 1. Ambil info pesan dulu untuk cek apakah ada media
+    const { data: msg } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('id', messageId)
+      .single()
+
+    if (!msg) return
+
+    // 2. Jika ada media, hapus dari storage
+    if (['image', 'audio', 'file'].includes(msg.type) && msg.metadata?.url) {
+      try {
+        // Ekstrak path dari URL atau simpan path di metadata (lebih aman ambil dari URL publik)
+        // Format path di bucket biasanya: {roomId}/{fileName}
+        // Tapi kita bisa ambil dari URL: .../storage/v1/object/public/chat_media/{path}
+        const urlParts = msg.metadata.url.split('/chat_media/')
+        if (urlParts.length > 1) {
+          const filePath = urlParts[1]
+          await supabase.storage.from('chat_media').remove([filePath])
+        }
+      } catch (err) {
+        console.error('[Storage Delete Error]', err)
+        // Lanjutkan hapus pesan DB meskipun storage gagal (opsional)
+      }
+    }
+
+    // 3. Hapus dari DB
+    const { error } = await supabase
+      .from('chat_messages')
+      .delete()
+      .eq('id', messageId)
+      .eq('sender_id', userId)
+    
+    if (error) throw error
+    return true
   },
 
   // Buat Grup Baru
@@ -180,15 +356,126 @@ export const chatService = {
     return newRoom as ChatRoom
   },
 
-  // Subscribe ke pesan baru
-  subscribeToMessages(roomId: string, callback: (payload: any) => void) {
-    return supabase
-      .channel(`chat_${roomId}`)
-      .on(
+  // Kirim Polling
+  async sendPollMessage(roomId: string, senderId: string, question: string, options: string[]) {
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .insert({
+        room_id: roomId,
+        sender_id: senderId,
+        type: 'poll',
+        content: question,
+        metadata: { options: options.map((opt, i) => ({ id: `opt_${i}`, text: opt })) }
+      })
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data as ChatMessage
+  },
+
+  // Ambil Vote Polling
+  async getPollVotes(messageId: string) {
+    const { data, error } = await supabase
+      .from('chat_poll_votes')
+      .select('*')
+      .eq('message_id', messageId)
+    
+    if (error) throw error
+    return data as ChatPollVote[]
+  },
+
+  // Vote Polling
+  async votePoll(messageId: string, userId: string, optionId: string) {
+    const { data, error } = await supabase
+      .from('chat_poll_votes')
+      .upsert({
+        message_id: messageId,
+        user_id: userId,
+        option_id: optionId
+      }, { onConflict: 'message_id,user_id' })
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  // Tandai pesan sebagai dibaca (Gunakan metadata karena kolom is_read belum ada)
+  async markMessagesAsRead(roomId: string, userId: string) {
+    // Karena kita tidak bisa melakukan update deep json secara langsung dengan eq sederhana di Supabase Client
+    // Untuk saat ini kita lewatkan dulu agar tidak error 400, 
+    // atau kamu bisa tambahkan kolom is_read (boolean) di tabel chat_messages via Supabase Dashboard.
+    return true
+  },
+
+  // Subscribe ke pesan baru & vote polling
+  subscribeToMessages(roomId: string, onMessage: (payload: any) => void, onVote?: (payload: any) => void) {
+    const channelName = `chat_${roomId}`
+    // Pastikan channel lama dihapus agar tidak error "after subscribe"
+    const existing = supabase.getChannels().find(c => c.name === channelName)
+    if (existing) supabase.removeChannel(existing)
+    
+    const channel = supabase.channel(channelName)
+    
+    channel.on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` },
+      onMessage
+    )
+
+    if (onVote) {
+      channel.on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` },
-        callback
+        { event: '*', schema: 'public', table: 'chat_poll_votes' },
+        onVote
       )
+    }
+
+    // Subscribe ke penghapusan pesan
+    channel.on(
+      'postgres_changes',
+      { event: 'DELETE', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` },
+      (payload) => onMessage({ ...payload, eventType: 'DELETE' })
+    )
+
+    // Subscribe ke update pesan (untuk edit)
+    channel.on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` },
+      (payload) => onMessage({ ...payload, eventType: 'UPDATE' })
+    )
+
+    return channel.subscribe()
+  },
+
+  // Broadcast sedang mengetik
+  broadcastTyping(roomId: string, userId: string, userName: string, isTyping: boolean) {
+    const channelName = `typing_${roomId}`
+    const existing = supabase.getChannels().find(c => c.name === channelName)
+    if (existing) supabase.removeChannel(existing)
+    
+    const channel = supabase.channel(channelName)
+    channel.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await channel.send({
+          type: 'broadcast',
+          event: 'typing',
+          payload: { userId, userName, isTyping }
+        })
+      }
+    })
+  },
+
+  // Subscribe status mengetik
+  subscribeToTyping(roomId: string, onTyping: (payload: any) => void) {
+    const channelName = `typing_listen_${roomId}`
+    const existing = supabase.getChannels().find(c => c.name === channelName)
+    if (existing) supabase.removeChannel(existing)
+    
+    const channel = supabase.channel(channelName)
+    return channel
+      .on('broadcast', { event: 'typing' }, ({ payload }) => onTyping(payload))
       .subscribe()
   }
 }

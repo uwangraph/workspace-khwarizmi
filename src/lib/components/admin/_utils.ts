@@ -154,12 +154,20 @@ export function getMonthlyAttendanceStat(
     if (dayRecords.some(r => r.late)) totalLate++
   })
 
+  // Calculate Overtime (Session 4)
+  const overtimeRecords = records.filter(r => r.session_id === 4 && r.clock_in && r.clock_out)
+  let totalOvertimeMs = 0
+  overtimeRecords.forEach(r => {
+    totalOvertimeMs += new Date(r.clock_out!).getTime() - new Date(r.clock_in!).getTime()
+  })
+  const totalOvertimeHours = Math.round((totalOvertimeMs / (1000 * 60 * 60)) * 10) / 10
+
   const totalWorkingDays = getWorkingDays(period, holidays)
   const presentRate = totalWorkingDays > 0
     ? Math.round((totalPresentDays / totalWorkingDays) * 100)
     : 0
 
-  return { totalPresentDays, totalLate, totalWorkingDays, presentRate }
+  return { totalPresentDays, totalLate, totalWorkingDays, presentRate, totalOvertimeHours }
 }
 
 /**

@@ -2,7 +2,7 @@
   import type { Profile, Task, TaskAssignment, AttendanceRecord, Holiday } from '$lib/components/admin/_types'
   import { STATUS_LABEL, STATUS_STYLE, PRIORITY_DOT, PRIORITY_LABEL, getInitials, formatDate, getMonthlyAttendanceStat, getUserPerformanceStats } from '$lib/components/admin/_utils'
   import type { RekapSubTab } from '$lib/components/admin/_types'
-  import { AlertTriangle, CheckCircle2, Target, Users, ClipboardList, Calendar, Download, Trophy, Clock, FileText } from 'lucide-svelte'
+  import { AlertTriangle, CheckCircle2, Target, Users, ClipboardList, Calendar, Download, Trophy, Clock, FileText, Moon } from 'lucide-svelte'
   import { jsPDF } from 'jspdf'
   import autoTable from 'jspdf-autotable'
 
@@ -92,7 +92,7 @@
     doc.line(14, 45, 196, 45)
 
     const headers = [
-      ['NAMA', 'POSISI', 'TASKS', 'DONE', 'RATE %', 'HADIR', 'TELAT', 'SKOR']
+      ['NAMA', 'POSISI', 'TASKS', 'DONE', 'RATE %', 'HADIR', 'TELAT', 'LEMBUR', 'SKOR']
     ]
     
     const rows = userStats.map(s => [
@@ -103,6 +103,7 @@
       s.task.completionRate + '%',
       s.att.totalPresentDays,
       s.att.totalLate,
+      s.att.totalOvertimeHours + ' jam',
       s.totalScore
     ])
 
@@ -325,14 +326,15 @@
     {/if}
 
     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-      <div class="grid grid-cols-[1fr_auto_auto_auto] px-4 py-2.5 bg-slate-50 border-b border-slate-100">
+      <div class="grid grid-cols-[1fr_auto_auto_auto_auto] px-4 py-2.5 bg-slate-50 border-b border-slate-100">
         <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Pengguna</span>
-        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center w-16">Hadir</span>
-        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center w-16">Telat</span>
-        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center w-16">Rate</span>
+        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center w-14">Hadir</span>
+        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center w-14">Telat</span>
+        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center w-16">Lembur</span>
+        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center w-14">Rate</span>
       </div>
       {#each attendStats as s}
-        <div class="grid grid-cols-[1fr_auto_auto_auto] items-center px-4 py-3 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
+        <div class="grid grid-cols-[1fr_auto_auto_auto_auto] items-center px-4 py-3 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
           <div class="flex items-center gap-2 min-w-0">
             <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-[9px] font-bold text-white overflow-hidden"
                  style="background:linear-gradient(135deg,#F97316,#EA580C)">
@@ -343,9 +345,10 @@
               <p class="text-[9px] text-slate-400">{s.user.position || 'Anggota'}</p>
             </div>
           </div>
-          <span class="text-sm font-bold text-slate-700 text-center w-16">{s.totalPresentDays}<span class="text-[9px] text-slate-400">/{s.totalWorkingDays}</span></span>
-          <span class="text-sm font-bold text-center w-16 {s.totalLate > 0 ? 'text-red-500' : 'text-slate-300'}">{s.totalLate}</span>
-          <div class="w-16 flex flex-col items-center">
+          <span class="text-sm font-bold text-slate-700 text-center w-14">{s.totalPresentDays}<span class="text-[9px] text-slate-400">/{s.totalWorkingDays}</span></span>
+          <span class="text-sm font-bold text-center w-14 {s.totalLate > 0 ? 'text-red-500' : 'text-slate-300'}">{s.totalLate}</span>
+          <span class="text-sm font-bold text-center w-16 {s.totalOvertimeHours > 0 ? 'text-indigo-600' : 'text-slate-300'}">{s.totalOvertimeHours}<span class="text-[8px] font-medium opacity-60 ml-0.5">jam</span></span>
+          <div class="w-14 flex flex-col items-center">
             <span class="text-xs font-black {s.presentRate>=80?'text-green-500':s.presentRate>=50?'text-amber-500':'text-red-500'}">{s.presentRate}%</span>
             <div class="w-10 h-1 bg-slate-100 rounded-full overflow-hidden mt-0.5">
               <div class="h-full rounded-full" style="width:{Math.min(s.presentRate,100)}%; background:{s.presentRate>=80?'#22C55E':s.presentRate>=50?'#F59E0B':'#EF4444'}"></div>
@@ -433,18 +436,22 @@
             </div>
           </div>
           <!-- Stats row -->
-          <div class="grid grid-cols-3 gap-2">
+          <div class="grid grid-cols-4 gap-2">
             <div class="text-center bg-slate-50 rounded-xl py-2">
-              <p class="text-lg font-black text-orange-500">{s.task.performanceScore}</p>
-              <p class="text-[9px] text-slate-400 font-medium">Performance pts</p>
+              <p class="text-base font-black text-orange-500">{s.task.performanceScore}</p>
+              <p class="text-[8px] text-slate-400 font-medium">Points</p>
             </div>
             <div class="text-center bg-slate-50 rounded-xl py-2">
-              <p class="text-lg font-black {s.att.presentRate>=80?'text-green-500':s.att.presentRate>=50?'text-amber-500':'text-red-500'}">{s.att.presentRate}%</p>
-              <p class="text-[9px] text-slate-400 font-medium">Hadir</p>
+              <p class="text-base font-black {s.att.presentRate>=80?'text-green-500':s.att.presentRate>=50?'text-amber-500':'text-red-500'}">{s.att.presentRate}%</p>
+              <p class="text-[8px] text-slate-400 font-medium">Hadir</p>
             </div>
             <div class="text-center bg-slate-50 rounded-xl py-2">
-              <p class="text-lg font-black {s.task.overdue>0?'text-red-500':'text-slate-300'}">{s.task.overdue}</p>
-              <p class="text-[9px] text-slate-400 font-medium">Overdue</p>
+              <p class="text-base font-black {s.att.totalOvertimeHours > 0 ? 'text-indigo-600' : 'text-slate-300'}">{s.att.totalOvertimeHours}</p>
+              <p class="text-[8px] text-slate-400 font-medium">Lembur</p>
+            </div>
+            <div class="text-center bg-slate-50 rounded-xl py-2">
+              <p class="text-base font-black {s.task.overdue>0?'text-red-500':'text-slate-300'}">{s.task.overdue}</p>
+              <p class="text-[8px] text-slate-400 font-medium">Overdue</p>
             </div>
           </div>
         </div>

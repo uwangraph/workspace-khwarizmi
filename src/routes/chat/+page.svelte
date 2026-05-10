@@ -54,8 +54,12 @@
             updatedRoom.last_message = newMessage
             updatedRoom.updated_at = newMessage.created_at
             
-            // Increment unread count if sender is not me AND room hasn't been read yet
-            if (newMessage.sender_id !== user.id && !get(readRoomIds).has(newMessage.room_id)) {
+            // Jika ada pesan baru, hapus dari "sudah dibaca" agar badge muncul lagi
+            if (newMessage.sender_id !== user.id) {
+              readRoomIds.update(set => {
+                set.delete(newMessage.room_id);
+                return new Set(set);
+              });
               updatedRoom.unread_count = (updatedRoom.unread_count || 0) + 1
             }
             

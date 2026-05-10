@@ -18,7 +18,11 @@
 
     // ── Constants & Layout ──────────────────────────────
     const hiddenNavRoutes = ['/auth', '/login', '/register', '/admin', '/notifications', '/panduan'];
-    const showNav = $derived(!hiddenNavRoutes.some((route) => $page.url.pathname.startsWith(route)));
+    const showNav = $derived(
+        !hiddenNavRoutes.some((route) => $page.url.pathname.startsWith(route)) &&
+        // Sembunyikan nav hanya di dalam ruang chat (sub-route), bukan di halaman daftar /chat
+        !($page.url.pathname.startsWith('/chat/') && $page.url.pathname.length > 6)
+    );
 
     const fullWidthRoutes = ['/admin', '/auth', '/login', '/register'];
     const isFullWidthLayout = $derived(

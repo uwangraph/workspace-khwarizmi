@@ -59,11 +59,13 @@
           errorMsg = 'Email atau password salah'
         } else if (e.message.includes('Email not confirmed')) {
           errorMsg = 'Email belum dikonfirmasi. Cek inbox Anda.'
+        } else if (e.name === 'TypeError' && e.message === 'Failed to fetch') {
+          errorMsg = 'Gagal terhubung ke server. Periksa koneksi internet atau status project Supabase Anda.'
         } else {
           errorMsg = e.message
         }
       } else {
-        errorMsg = 'Terjadi kesalahan'
+        errorMsg = 'Terjadi kesalahan tidak terduga'
       }
     } finally {
       isLoading = false

@@ -153,7 +153,7 @@
   {:else}
     <div class="flex-1 divide-y divide-slate-50">
       {#each filteredRooms as room}
-        <button onclick={() => goto(`/chat/${room.id}`)}
+        <button onclick={() => openRoom(room)}
                 class="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-slate-50 transition-colors text-left">
           
           {#if room.type === 'group'}
@@ -177,8 +177,11 @@
             <div class="flex items-center justify-between gap-2">
               <p class="text-[11px] text-slate-500 truncate leading-tight flex-1">
                 {#if room.last_message}
-                {#if room.last_message.type === 'text'}
-                  {room.last_message.content}
+                  {#if room.unread_count > 0}
+                    <span class="text-orange-600 font-bold">Pesan baru: </span>
+                  {/if}
+                  {#if room.last_message.type === 'text'}
+                    {room.last_message.content}
                 {:else if room.last_message.type === 'image'}
                   <span class="flex items-center gap-1">📷 Foto</span>
                 {:else if room.last_message.type === 'audio'}

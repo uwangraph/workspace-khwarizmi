@@ -25,7 +25,7 @@
         !($page.url.pathname.startsWith('/chat/') && $page.url.pathname.length > 6)
     );
 
-    const fullWidthRoutes = ['/admin', '/auth', '/login', '/register'];
+    const fullWidthRoutes = ['/admin', '/auth', '/login', '/register', '/panduan'];
     const isFullWidthLayout = $derived(
         fullWidthRoutes.some((route) => $page.url.pathname.startsWith(route))
     );

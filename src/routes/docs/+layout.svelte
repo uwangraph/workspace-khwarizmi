@@ -156,28 +156,33 @@
           </button>
         </div>
         
-        <div class="flex-1 overflow-y-auto p-8 space-y-3">
+        <div class="flex-1 overflow-y-auto p-6 space-y-2">
           {#each sections as section}
             <a
               href={section.href}
               onclick={() => isSidebarOpen = false}
-              class="w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all
+              class="w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all border-l-4
                      {activeHref === section.href 
-                       ? 'bg-orange-600 text-white shadow-xl shadow-orange-600/20' 
-                       : 'bg-slate-50 text-slate-600 active:bg-orange-50'}"
+                       ? 'bg-white text-slate-900 shadow-lg shadow-slate-200/60 border-orange-600' 
+                       : 'bg-transparent text-slate-500 border-transparent active:bg-slate-50'}"
             >
-              <section.icon size={20} />
-              <span class="font-bold">{section.label}</span>
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center transition-all
+                          {activeHref === section.href 
+                            ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/20' 
+                            : 'bg-slate-100 text-slate-400'}">
+                <section.icon size={18} />
+              </div>
+              <span class="font-bold text-sm tracking-tight">{section.label}</span>
               {#if activeHref === section.href}
-                <ChevronRight size={16} class="ml-auto" />
+                <ChevronRight size={16} class="ml-auto text-orange-600" />
               {/if}
             </a>
           {/each}
         </div>
 
-        <div class="p-8 bg-slate-50 mt-auto">
-          <a href="/" class="flex items-center justify-center gap-3 w-full py-5 bg-slate-900 text-white rounded-[2rem] font-bold shadow-xl shadow-slate-900/20">
-            <ArrowLeft size={18} /> Kembali ke Aplikasi
+        <div class="p-6 bg-slate-50/50 border-t border-slate-100 mt-auto">
+          <a href="/" class="flex items-center justify-center gap-3 w-full py-4 bg-slate-900 text-white rounded-2xl font-bold shadow-xl shadow-slate-900/20 active:scale-95 transition-all text-sm">
+            <ArrowLeft size={16} /> Kembali ke Aplikasi
           </a>
         </div>
       </aside>

@@ -5,11 +5,12 @@
     progressValue: number
     initialProgress: number
     isUpdating: boolean
-    onUpdate: () => void
+    onUpdate: (manualDate?: string) => void
     onClose: () => void
     onSetValue: (v: number) => void
   }
   let { taskTitle, progressValue, initialProgress, isUpdating, onUpdate, onClose, onSetValue }: Props = $props()
+  let manualCompletedAt = $state('')
 
   let stateLabel = $derived.by(() => {
     if (progressValue === 0) return { label: 'Belum dimulai', color: '#94A3B8' }
@@ -94,13 +95,25 @@
             {:else}Status akan berubah menjadi <strong>sedang dikerjakan</strong>.{/if}
           </p>
         </div>
+
+        {#if progressValue === 100}
+          <div class="mb-6 space-y-2 animate-slideDown">
+            <div class="flex items-center justify-between px-0.5">
+              <label class="text-[11px] font-semibold text-emerald-600">Tanggal Selesai (Opsional)</label>
+              <span class="text-[9px] font-bold text-slate-400">Default: Sekarang</span>
+            </div>
+            <input type="datetime-local" 
+                   bind:value={manualCompletedAt}
+                   class="w-full rounded-xl border border-emerald-100 bg-emerald-50/20 px-3 py-2.5 text-xs font-medium text-emerald-700 outline-none focus:border-emerald-500 transition-all" />
+          </div>
+        {/if}
       {/if}
 
       <div class="flex gap-3">
         <button onclick={onClose} class="flex-1 py-3.5 rounded-xl text-sm font-semibold bg-slate-50 border border-slate-100 text-slate-500 hover:bg-slate-100 cursor-pointer transition-colors">
           Batal
         </button>
-        <button onclick={onUpdate} disabled={isUpdating || progressValue === initialProgress}
+        <button onclick={() => onUpdate(manualCompletedAt)} disabled={isUpdating || progressValue === initialProgress}
                 class="flex-[2] py-3.5 rounded-xl text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                 style="background: linear-gradient(to right, #F97316, #EA580C);">
           {#if isUpdating}

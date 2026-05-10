@@ -22,6 +22,7 @@
 		formProgress: number;
 		formStartDate: string;
 		formDueDate: string;
+		formCompletedAt: string;
 		formAssignedUsers: string[];
 		formError: string;
 		formFieldErrors: FormErrors;
@@ -35,6 +36,7 @@
 		onProgressChange: (v: number) => void;
 		onStartDateChange: (v: string) => void;
 		onDueDateChange: (v: string) => void;
+		onCompletedAtChange: (v: string) => void;
 		onAssignChange: (id: string, checked: boolean) => void;
 		getInitials: (n: string) => string;
 	}
@@ -49,6 +51,7 @@
 		formProgress,
 		formStartDate,
 		formDueDate,
+		formCompletedAt,
 		formAssignedUsers,
 		formError,
 		formFieldErrors,
@@ -62,6 +65,7 @@
 		onProgressChange,
 		onStartDateChange,
 		onDueDateChange,
+		onCompletedAtChange,
 		onAssignChange,
 		getInitials
 	}: Props = $props();
@@ -252,6 +256,18 @@
 							   class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-medium text-slate-700 focus:border-orange-500 transition-all {formFieldErrors.dueDate ? 'border-red-200' : ''}" />
 					</div>
 				</div>
+
+				{#if formStatus === 'done'}
+					<div class="space-y-1.5 animate-slideDown">
+						<div class="flex items-center justify-between px-0.5">
+							<label class="text-[11px] font-semibold text-emerald-600">Tanggal Selesai (Manual)</label>
+							<span class="text-[9px] font-bold text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded">OPSIONAL</span>
+						</div>
+						<input type="datetime-local" value={formCompletedAt} onchange={(e) => onCompletedAtChange((e.target as HTMLInputElement).value)}
+							   class="w-full rounded-xl border border-emerald-100 bg-emerald-50/30 px-3 py-2.5 text-xs font-medium text-emerald-700 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all" />
+						<p class="text-[9px] text-slate-400 ml-1 leading-relaxed italic">Atur tanggal ke masa lalu agar tidak terhitung terlambat jika memang sudah selesai dari kemarin.</p>
+					</div>
+				{/if}
 			</div>
 
 			{#if formError}

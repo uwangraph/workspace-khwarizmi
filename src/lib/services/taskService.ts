@@ -48,10 +48,11 @@ export const taskService = {
   async saveTask(taskData: Partial<Task>, assignedUserIds: string[], userId: string, isEditing: boolean, editingTaskId?: string | null) {
     await checkDeletionStatus();
     let taskId: string;
+    const { completed_at, ...taskFields } = taskData;
     
     if (isEditing && editingTaskId) {
       const { data: currentTask } = await supabase.from('tasks').select('created_by').eq('id', editingTaskId).single();
-      await supabase.from('tasks').update(taskData).eq('id', editingTaskId);
+      await supabase.from('tasks').update(taskFields).eq('id', editingTaskId);
       taskId = editingTaskId;
       
       const { data: oldAssignments } = await supabase.from('task_assignments').select('user_id, status').eq('task_id', taskId);
@@ -72,12 +73,15 @@ export const taskService = {
         }
         
         const assignment: any = { task_id: taskId, user_id: uid, status };
-        if (status === 'completed' && (!oldStatus || oldStatus !== 'completed')) {
-          assignment.completed_at = new Date().toISOString();
-        } else if (oldStatus === 'completed') {
-          // preserve existing completed_at if possible, but we don't have it in oldStatusMap easily
-          // for now just set new date if it's missing or done
-          assignment.completed_at = new Date().toISOString(); 
+        if (status === 'completed') {
+          // If status is completed, use manual completed_at if provided, or current time
+          if (!oldStatus || oldStatus !== 'completed' || completed_at) {
+            assignment.completed_at = completed_at || new Date().toISOString();
+          } else {
+            // preserve existing? we don't have it easily here, so just use current or keep if we could.
+            // but since we deleted all assignments, we need a value.
+            assignment.completed_at = new Date().toISOString();
+          }
         }
         return assignment;
       });
@@ -91,7 +95,7 @@ export const taskService = {
 
       return { taskId, newCollabs };
     } else {
-      const { data: newTask, error: insertError } = await supabase.from('tasks').insert({ ...taskData, created_by: userId }).select().single();
+      const { data: newTask, error: insertError } = await supabase.from('tasks').insert({ ...taskFields, created_by: userId }).select().single();
       if (insertError || !newTask) throw new Error(insertError?.message || 'Gagal membuat tugas');
       taskId = newTask.id;
       const allUserIds = [...new Set([...assignedUserIds, userId])];
@@ -100,7 +104,9 @@ export const taskService = {
       await supabase.from('task_assignments').insert(allUserIds.map(uid => {
         const status = (uid === userId) ? (isDone ? 'completed' : 'accepted') : (isDone ? 'completed' : 'pending');
         const assignment: any = { task_id: taskId, user_id: uid, status };
-        if (status === 'completed') assignment.completed_at = new Date().toISOString();
+        if (status === 'completed') {
+          assignment.completed_at = completed_at || new Date().toISOString();
+        }
         return assignment;
       }));
       
@@ -131,7 +137,7 @@ export const taskService = {
     }
   },
 
-  async updateProgress(taskId: string, progress: number, status: string, _note?: string | null) {
+  async updateProgress(taskId: string, progress: number, status: string, _note?: string | null, manualDate?: string | null) {
     await checkDeletionStatus();
     const updateData: any = { progress, status };
     const result = await supabase.from('tasks').update(updateData).eq('id', taskId);

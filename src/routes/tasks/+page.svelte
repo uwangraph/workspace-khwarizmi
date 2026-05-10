@@ -68,6 +68,7 @@
   let formProgress = $state(0)
   let formStartDate = $state('')
   let formDueDate = $state('')
+  let formCompletedAt = $state('')
   let formAssignedUsers = $state<string[]>([])
 
   let detailTask = $state<Task | null>(null)
@@ -411,7 +412,7 @@
     return valid
   }
 
-  function openCreateModal() { isEditing = false; editingTaskId = null; formTitle = ''; formDescription = ''; formStatus = 'not_started'; formPriority = 'medium'; formProgress = 0; formStartDate = ''; formDueDate = ''; formAssignedUsers = []; formError = ''; formFieldErrors = {}; showTaskModal = true }
+  function openCreateModal() { isEditing = false; editingTaskId = null; formTitle = ''; formDescription = ''; formStatus = 'not_started'; formPriority = 'medium'; formProgress = 0; formStartDate = ''; formDueDate = ''; formCompletedAt = ''; formAssignedUsers = []; formError = ''; formFieldErrors = {}; showTaskModal = true }
   
   function openEditModal(task: Task) {
     if (!canEditTask(task)) { toast.error('Anda tidak memiliki akses untuk mengedit tugas ini'); return }
@@ -424,6 +425,8 @@
     formProgress = task.progress; 
     formStartDate = formatForInput(task.start_date); 
     formDueDate = formatForInput(task.due_date); 
+    const myA = getUserAssignment(task.id);
+    formCompletedAt = myA?.completed_at ? new Date(myA.completed_at).toISOString().slice(0, 16) : '';
     formError = ''; 
     formFieldErrors = {}
     // Load current assignees using allAssignments already in memory (faster, no extra query)
@@ -437,7 +440,13 @@
     if (!validateForm()) return
     isSubmitting = true; formError = ''
     try {
-      const taskData = { title: formTitle.trim(), description: formDescription.trim(), status: formStatus, priority: formPriority, progress: formProgress, start_date: formStartDate, due_date: formDueDate }
+      const taskData = { 
+        title: formTitle.trim(), description: formDescription.trim(), 
+        status: formStatus as any, priority: formPriority as any, 
+        progress: formProgress, start_date: formStartDate || null, 
+        due_date: formDueDate || null,
+        completed_at: formCompletedAt || null
+      }
       const creatorName = getUserName(user!.id)
       
       const { taskId, newCollabs } = await taskService.saveTask(taskData, formAssignedUsers, user!.id, isEditing, editingTaskId)
@@ -488,24 +497,21 @@
     showProgressModal = true 
   }
   
-  async function updateProgress() {
-    if (!progressTaskId) { showProgressModal = false; return }
-    // Only check progress value change
-    const isNoChange = progressValue === initialProgressValue
-    if (isNoChange) { showProgressModal = false; return }
-    
+  async function updateProgress(manualDate?: string) {
+    if (!progressTaskId) return
     isUpdatingProgress = true
     try {
-      const newStatus = getStatusByProgress(progressValue)
-      await taskService.updateProgress(progressTaskId, progressValue, newStatus)
+      const status = progressValue === 100 ? 'done' : (progressValue === 0 ? 'not_started' : (progressValue >= 80 ? 'review' : 'in_progress'))
+      await taskService.updateProgress(progressTaskId, progressValue, status, null, manualDate)
       
       const task = tasks.find(t => t.id === progressTaskId)
       const updaterName = getUserName(user!.id)
       
       if (progressValue === 100 && task) {
         const myA = assignments.find(a => a.task_id === progressTaskId)
-        if (myA && myA.status === 'accepted') {
-          await taskService.updateAssignmentStatus(myA.id, 'completed', new Date().toISOString())
+        if (myA && (myA.status === 'accepted' || manualDate)) {
+          const compDate = manualDate ? new Date(manualDate).toISOString() : new Date().toISOString()
+          await taskService.updateAssignmentStatus(myA.id, 'completed', compDate)
         }
         
         if (task.created_by !== user!.id) {
@@ -753,7 +759,7 @@
 
 {#if showTaskModal}
   <TaskFormModal {isEditing} currentUserId={user?.id || ''} {users} {formTitle} {formDescription} {formStatus} {formPriority}
-                 {formProgress} {formStartDate} {formDueDate} {formAssignedUsers} {formError} {formFieldErrors} {isSubmitting}
+                 {formProgress} {formStartDate} {formDueDate} {formCompletedAt} {formAssignedUsers} {formError} {formFieldErrors} {isSubmitting}
                  onClose={() => showTaskModal = false} onSave={saveTask}
                  onTitleChange={(v) => formTitle = v} onDescChange={(v) => formDescription = v}
                  onStatusChange={(v) => {
@@ -769,6 +775,7 @@
                  }} 
                  onStartDateChange={(v) => formStartDate = v}
                  onDueDateChange={(v) => formDueDate = v}
+                 onCompletedAtChange={(v) => formCompletedAt = v}
                  onAssignChange={(id, checked) => { if (checked) formAssignedUsers = [...formAssignedUsers, id]; else formAssignedUsers = formAssignedUsers.filter(uid => uid !== id) }}
                  {getInitials} />
 {/if}
@@ -779,7 +786,7 @@
     progressValue={progressValue}
     initialProgress={initialProgressValue}
     isUpdating={isUpdatingProgress}
-    onUpdate={updateProgress}
+    onUpdate={(manualDate) => updateProgress(manualDate)}
     onClose={() => showProgressModal = false}
     onSetValue={(v) => progressValue = v}
   />

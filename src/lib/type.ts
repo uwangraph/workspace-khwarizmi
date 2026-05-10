@@ -26,6 +26,7 @@ export interface Task {
   created_at: string
   subtasks?: any[]
   attachments?: TaskAttachment[]
+  completed_at?: string | null
 }
 
 export interface TaskAttachment {

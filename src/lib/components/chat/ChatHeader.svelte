@@ -17,6 +17,7 @@
     wallpapers,
     onWallpaperUpload,
     onColorSelect,
+    onInfo,
     getStatusText
   }: {
     activeRoom: ChatRoom | null,

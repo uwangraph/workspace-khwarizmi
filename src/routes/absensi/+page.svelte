@@ -58,23 +58,29 @@
   let activeSessions = $derived.by(() => {
     if (isTodayFriday) return []
     
+    let result: Session[] = []
+    
     // If special rule defines specific active sessions, use them
     if (specialRule && specialRule.active_sessions) {
-      return SESSIONS.filter(s => specialRule.active_sessions?.includes(s.id))
-    }
-    
-    let baseSessions = (isTodayThursday && !specialRule) ? SESSIONS.slice(0, 1) : SESSIONS
-    
-    if (todayHoliday) {
-      // On holiday, only allow Overtime (Lembur), and it starts early
-      return SESSIONS.filter(s => s.id === 4).map(s => ({
+      result = SESSIONS.filter(s => specialRule.active_sessions?.includes(s.id))
+    } else if (todayHoliday) {
+      // On holiday, only allow Overtime (Lembur) by default, and it starts early
+      result = SESSIONS.filter(s => s.id === 4).map(s => ({
         ...s,
         start: '06:00',
         unlockAt: '06:00'
       }))
+    } else {
+      result = (isTodayThursday && !specialRule) ? SESSIONS.slice(0, 1) : SESSIONS
+    }
+
+    // Always ensure Lembur (ID 4) is included
+    if (!result.find(s => s.id === 4)) {
+      const lembur = SESSIONS.find(s => s.id === 4)
+      if (lembur) result.push(lembur)
     }
     
-    return baseSessions
+    return result.sort((a, b) => a.id - b.id)
   })
   let isWfa = $derived(specialRule?.type === 'wfa')
 

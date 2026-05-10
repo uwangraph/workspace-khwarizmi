@@ -140,7 +140,7 @@
   <header class="lg:hidden sticky top-0 left-0 right-0 z-40 bg-white/90 dark:bg-[#0B0E14]/90 backdrop-blur border-b border-slate-100 dark:border-slate-800 py-4 px-6 flex items-center justify-between">
     <div class="flex items-center gap-2">
       <img src="/logo-khwarizmi.png" alt="Logo" class="w-9 h-9 rounded-xl shadow-sm p-1 bg-white border border-orange-200 object-contain" />
-      <span class="font-bold text-slate-900 tracking-tight">Khwarizmi Workspace Docs</span>
+      <span class="font-bold text-slate-900 dark:text-white tracking-tight">Khwarizmi Workspace Docs</span>
     </div>
     <div class="flex items-center gap-4">
       <button onclick={toggleTheme} class="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
@@ -285,23 +285,23 @@
   <!-- Mobile Drawer -->
   {#if isSidebarOpen}
     <aside 
-      class="fixed inset-0 z-[100] bg-white lg:hidden flex flex-col"
+      class="fixed inset-0 z-[100] bg-white dark:bg-[#0B0E14] lg:hidden flex flex-col transition-colors duration-300"
       transition:fly={{ y: 50, duration: 400, easing: cubicOut }}
     >
-      <div class="p-6 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
+      <div class="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between sticky top-0 bg-white dark:bg-[#0B0E14] z-10 transition-colors duration-300">
         <div class="flex items-center gap-2">
           <img src="/logo-khwarizmi.png" alt="Logo" class="w-9 h-9 rounded-xl shadow-sm p-1 bg-white border border-orange-200 object-contain" />
-          <span class="font-bold text-slate-900">Khwarizmi Workspace Docs</span>
+          <span class="font-bold text-slate-900 dark:text-white">Khwarizmi Workspace Docs</span>
         </div>
-        <button onclick={() => toggleSidebar(false)} class="p-2 text-slate-500">
+        <button onclick={() => toggleSidebar(false)} class="p-2 text-slate-500 dark:text-slate-400">
           <ArrowLeft size={24} />
         </button>
       </div>
       
-      <div class="flex-1 overflow-y-auto p-8 space-y-10">
+      <div class="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar">
         {#each navigation as group}
           <div>
-            <h5 class="text-[11px] font-bold text-slate-900 uppercase tracking-widest mb-4">{group.group}</h5>
+            <h5 class="text-[11px] font-bold text-slate-900 dark:text-slate-100 uppercase tracking-widest mb-4">{group.group}</h5>
             <ul class="space-y-4">
               {#each group.items as item}
                 <li>

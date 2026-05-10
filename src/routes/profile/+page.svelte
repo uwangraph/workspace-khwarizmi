@@ -438,10 +438,10 @@
 					{
 						Icon: BookOpen,
 						label: 'Panduan Pengguna',
-						href: '/panduan',
+						href: '/docs/intro',
 						bg: 'bg-blue-50/50',
 						iconColor: 'text-blue-500',
-						onClick: () => location.assign('/panduan')
+						onClick: () => location.assign('/docs/intro')
 					},
 					{
 						Icon: ClipboardList,

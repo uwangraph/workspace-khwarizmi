@@ -269,15 +269,22 @@
   async function addHoliday(data: any) {
     isSavingHoliday = true
     
-    if (data.date) {
-      // Single date
-      const { data: h, error } = await adminService.saveHoliday({ date: data.date, name: data.name, created_by: profile?.id })
+    if (data.id || data.date) {
+      // Single date (Create or Update)
+      const { data: h, error } = await adminService.saveHoliday({ id: data.id, date: data.date, name: data.name, created_by: profile?.id })
       if (error) { 
         showToast(error.message?.includes('unique') ? `Tanggal ${data.date} sudah ditandai libur` : 'Gagal menyimpan hari libur', 'error')
       } else {
-        holidays = [...holidays, h as any as Holiday].sort((a, b) => a.date.localeCompare(b.date))
+        const updated = h as any as Holiday
+        if (data.id) {
+          holidays = holidays.map(x => x.id === updated.id ? updated : x).sort((a, b) => a.date.localeCompare(b.date))
+          showToast('Hari libur diperbarui', 'success')
+        } else {
+          holidays = [...holidays, updated].sort((a, b) => a.date.localeCompare(b.date))
+          showToast('Hari libur berhasil ditambahkan', 'success')
+        }
         showHolidayFormModal = false
-        showToast('Hari libur berhasil ditambahkan', 'success')
+        selectedHoliday = null
       }
     } else if (data.startDate && data.endDate) {
       // Range
@@ -314,6 +321,7 @@
   }
 
   function handleDeleteHoliday(h: Holiday) { selectedHoliday = h; showDeleteHolidayModal = true }
+  function handleEditHoliday(h: Holiday) { selectedHoliday = h; showHolidayFormModal = true }
 
   async function deleteHoliday() {
     if (!selectedHoliday) return
@@ -349,6 +357,7 @@
   }
 
   function handleDeleteSpecialRule(r: SpecialRule) { selectedSpecial = r; showDeleteSpecialModal = true }
+  function handleManageSpecial(r?: SpecialRule) { selectedSpecial = r || null; showSpecialRuleModal = true }
 
   async function deleteSpecialRule() {
     if (!selectedSpecial) return
@@ -529,9 +538,10 @@
 
       {:else if activeTab === 'holidays'}
         <HolidaysTab {holidays} {specialRules}
-                     onAddHoliday={() => showHolidayFormModal = true}
+                     onAddHoliday={() => { selectedHoliday = null; showHolidayFormModal = true }}
+                     onEditHoliday={handleEditHoliday}
                      onDeleteHoliday={handleDeleteHoliday}
-                     onManageSpecial={() => showSpecialRuleModal = true}
+                     onManageSpecial={handleManageSpecial}
                      onDeleteSpecialRule={handleDeleteSpecialRule} />
 
       {:else if activeTab === 'settings'}
@@ -606,8 +616,8 @@
 {/if}
 
 {#if showHolidayFormModal}
-  <HolidayFormModal isSubmitting={isSavingHoliday}
-                    onSave={addHoliday} onClose={() => showHolidayFormModal = false} />
+  <HolidayFormModal holiday={selectedHoliday} isSubmitting={isSavingHoliday}
+                    onSave={addHoliday} onClose={() => { showHolidayFormModal = false; selectedHoliday = null }} />
 {/if}
 
 {#if showDeleteHolidayModal && selectedHoliday}
@@ -620,8 +630,8 @@
 {/if}
 
 {#if showSpecialRuleModal}
-  <ThursdayRuleModal {specialRules} isSubmitting={isSavingSpecial}
-                     onSave={saveSpecialRule} onClose={() => showSpecialRuleModal = false} />
+  <ThursdayRuleModal {specialRules} initialRule={selectedSpecial} isSubmitting={isSavingSpecial}
+                     onSave={saveSpecialRule} onClose={() => { showSpecialRuleModal = false; selectedSpecial = null }} />
 {/if}
 
 {#if showDeleteSpecialModal && selectedSpecial}

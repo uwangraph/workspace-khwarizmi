@@ -1,24 +1,31 @@
 <script lang="ts">
   import { X, Calendar, ArrowRight } from 'lucide-svelte'
+  import type { Holiday } from '$lib/components/admin/_types'
+
   interface Props {
+    holiday?: Holiday | null
     isSubmitting?: boolean
-    onSave: (data: { date: string; name: string } | { startDate: string; endDate: string; name: string }) => Promise<void>
+    onSave: (data: { id?: string; date: string; name: string } | { startDate: string; endDate: string; name: string }) => Promise<void>
     onClose: () => void
   }
-  let { isSubmitting = false, onSave, onClose } = $props<Props>()
+  let { holiday = null, isSubmitting = false, onSave, onClose } = $props<Props>()
 
   let mode = $state<'single' | 'range'>('single')
-  let holidayDate = $state('')
+  let holidayDate = $state(holiday?.date || '')
   let startDate = $state('')
   let endDate = $state('')
-  let holidayName = $state('')
+  let holidayName = $state(holiday?.name || '')
 
   const today = new Date().toISOString().split('T')[0]
 
   async function handleSave() {
     if (!holidayName.trim()) return
     
-    if (mode === 'single') {
+    if (holiday) {
+      // Edit mode (always single)
+      if (!holidayDate) return
+      await onSave({ id: holiday.id, date: holidayDate, name: holidayName.trim() })
+    } else if (mode === 'single') {
       if (!holidayDate) return
       await onSave({ date: holidayDate, name: holidayName.trim() })
     } else {
@@ -48,7 +55,7 @@
         <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:linear-gradient(135deg,#F97316,#EA580C)">
           <Calendar size={16} class="text-white" />
         </div>
-        <p class="font-bold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">Atur Hari Libur</p>
+        <p class="font-bold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">{holiday ? 'Edit Hari Libur' : 'Atur Hari Libur'}</p>
       </div>
       <button onclick={onClose} class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors cursor-pointer">
         <X size={16} />
@@ -56,24 +63,26 @@
     </div>
 
     <div class="px-6 py-5 flex flex-col gap-5">
-      <!-- Mode Toggle -->
-      <div class="flex bg-slate-100 p-1 rounded-xl">
-        <button onclick={() => mode = 'single'}
-                class="flex-1 py-2 text-[11px] font-bold rounded-lg transition-all {mode === 'single' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}">
-          SATU HARI
-        </button>
-        <button onclick={() => mode = 'range'}
-                class="flex-1 py-2 text-[11px] font-bold rounded-lg transition-all {mode === 'range' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}">
-          RENTANG TANGGAL
-        </button>
-      </div>
+      <!-- Mode Toggle (Only if not editing) -->
+      {#if !holiday}
+        <div class="flex bg-slate-100 p-1 rounded-xl">
+          <button onclick={() => mode = 'single'}
+                  class="flex-1 py-2 text-[11px] font-bold rounded-lg transition-all {mode === 'single' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}">
+            SATU HARI
+          </button>
+          <button onclick={() => mode = 'range'}
+                  class="flex-1 py-2 text-[11px] font-bold rounded-lg transition-all {mode === 'range' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}">
+            RENTANG TANGGAL
+          </button>
+        </div>
+      {/if}
 
       <!-- Date Inputs -->
       <div class="grid grid-cols-1 gap-4">
-        {#if mode === 'single'}
+        {#if holiday || mode === 'single'}
           <div>
             <label class="text-[10px] font-black text-slate-400 block mb-1.5 uppercase tracking-widest">Tanggal Libur <span class="text-red-500">*</span></label>
-            <input type="date" bind:value={holidayDate} min={today}
+            <input type="date" bind:value={holidayDate} min={holiday ? '' : today}
                    class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-400" />
           </div>
         {:else}
@@ -98,20 +107,16 @@
           <label class="text-[10px] font-black text-slate-400 block mb-1.5 uppercase tracking-widest">Nama Hari Libur <span class="text-red-500">*</span></label>
           <input bind:value={holidayName} placeholder="Contoh: Libur Lebaran, Cuti Bersama..."
                  class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-400" />
-          <p class="text-[10px] text-slate-400 mt-2 flex items-center gap-1.5">
-            <span class="w-1 h-1 rounded-full bg-orange-400"></span>
-            Libur akan memotong hari kerja di rekap kehadiran.
-          </p>
         </div>
       </div>
 
       <!-- Action Buttons -->
       <div class="flex gap-3 pt-2 pb-1">
         <button onclick={onClose} class="flex-1 py-3 rounded-xl text-sm font-semibold bg-slate-100 text-slate-500 hover:bg-slate-200 cursor-pointer">Batal</button>
-        <button onclick={handleSave} disabled={isSubmitting || !holidayName.trim() || (mode === 'single' ? !holidayDate : (!startDate || !endDate))}
+        <button onclick={handleSave} disabled={isSubmitting || !holidayName.trim() || (holiday ? !holidayDate : (mode === 'single' ? !holidayDate : (!startDate || !endDate)))}
                 class="flex-[2] py-3 rounded-xl text-sm font-bold text-white shadow-lg shadow-orange-500/20 disabled:opacity-60 cursor-pointer transition-all active:scale-95"
                 style="background:linear-gradient(135deg,#F97316,#EA580C)">
-          {isSubmitting ? 'Menyimpan...' : 'Simpan Perubahan'}
+          {isSubmitting ? 'Menyimpan...' : holiday ? 'Update Perubahan' : 'Simpan Perubahan'}
         </button>
       </div>
     </div>

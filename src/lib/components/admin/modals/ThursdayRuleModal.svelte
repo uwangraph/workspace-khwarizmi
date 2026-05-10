@@ -5,14 +5,15 @@
 
   interface Props {
     specialRules: SpecialRule[]
+    initialRule?: SpecialRule | null
     isSubmitting?: boolean
     onSave: (data: { date: string; type: SpecialRule['type']; start_time: string | null; active_sessions: number[] | null; note: string | null }) => Promise<void>
     onClose: () => void
   }
-  let { specialRules, isSubmitting = false, onSave, onClose } = $props<Props>()
+  let { specialRules, initialRule = null, isSubmitting = false, onSave, onClose } = $props<Props>()
 
   // Pre-fill jika tanggal sudah punya rule
-  let selectedDate = $state(new Date().toISOString().split('T')[0])
+  let selectedDate = $state(initialRule?.date || new Date().toISOString().split('T')[0])
   let ruleType     = $state<SpecialRule['type']>('normal')
   let startTime    = $state('09:00')
   let activeSessionIds = $state<number[]>([1, 2, 3])

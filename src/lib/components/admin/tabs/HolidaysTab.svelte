@@ -1,16 +1,17 @@
 <script lang="ts">
   import type { Holiday, SpecialRule } from '../_types'
-  import { CalendarDays, Plus, Trash2, Settings, X, CalendarCheck, CalendarOff, Calendar, Home, Clock, FileText, ClipboardList, PartyPopper, ArrowRight } from 'lucide-svelte'
+  import { CalendarDays, Plus, Trash2, Settings, X, CalendarCheck, CalendarOff, Calendar, Home, Clock, FileText, ClipboardList, PartyPopper, ArrowRight, Edit3 } from 'lucide-svelte'
 
   interface Props {
     holidays: Holiday[]
     specialRules: SpecialRule[]
     onAddHoliday: () => void
+    onEditHoliday: (h: Holiday) => void
     onDeleteHoliday: (h: Holiday) => void
-    onManageSpecial: () => void
+    onManageSpecial: (rule?: SpecialRule) => void
     onDeleteSpecialRule: (r: SpecialRule) => void
   }
-  let { holidays, specialRules, onAddHoliday, onDeleteHoliday, onManageSpecial, onDeleteSpecialRule } = $props<Props>()
+  let { holidays, specialRules, onAddHoliday, onEditHoliday, onDeleteHoliday, onManageSpecial, onDeleteSpecialRule } = $props<Props>()
 
   const todayISO = new Date().toISOString().split('T')[0]
 
@@ -158,12 +159,15 @@
               </p>
             </div>
             
-            <div class="flex items-center gap-1">
+            <div class="flex items-center gap-1.5">
+              {#if !isRange}
+                <button onclick={() => onEditHoliday(group.originalHolidays[0])}
+                        class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-orange-50 flex items-center justify-center text-slate-400 hover:text-orange-500 transition-colors cursor-pointer">
+                  <Edit3 size={13} />
+                </button>
+              {/if}
+              
               {#if isRange}
-                <!-- If it's a range, we show a count but still allow deleting individual days or maybe just delete the whole group? -->
-                <!-- For now, the user can delete the group one by one, but visually they are grouped. -->
-                <!-- To keep it simple but functional, let's provide a way to delete each day in a small list? No, too complex. -->
-                <!-- Let's just allow deleting the whole group for ease of use. -->
                 <button onclick={() => {
                   if (confirm(`Hapus seluruh rentang libur "${group.name}"?`)) {
                     group.originalHolidays.forEach(h => onDeleteHoliday(h))
@@ -191,7 +195,7 @@
         <p class="text-sm font-bold text-slate-700" style="font-family:'Plus Jakarta Sans',sans-serif;">Aturan Jadwal Khusus</p>
         <p class="text-[10px] text-slate-400 mt-0.5">Atur WFA atau Jam Masuk khusus untuk tanggal tertentu (rapat, dsb).</p>
       </div>
-      <button onclick={onManageSpecial}
+      <button onclick={() => onManageSpecial()}
               class="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold text-white cursor-pointer shadow-sm transition-all active:scale-95"
               style="background:linear-gradient(135deg,#F97316,#EA580C)">
         <Plus size={14} /> Tambah Aturan
@@ -225,7 +229,7 @@
         <Home size={32} class="text-slate-200 mx-auto mb-3" />
         <p class="text-sm font-semibold text-slate-400">Belum ada aturan jadwal khusus</p>
         <p class="text-xs text-slate-300 mt-1">Semua hari mengikuti jadwal normal</p>
-        <button onclick={onManageSpecial}
+        <button onclick={() => onManageSpecial()}
                 class="mt-4 px-5 py-2.5 rounded-xl text-sm font-bold text-white cursor-pointer"
                 style="background:linear-gradient(135deg,#F97316,#EA580C)">
           + Buat Aturan Baru
@@ -268,10 +272,17 @@
                 </p>
               {/if}
             </div>
-            <button onclick={() => onDeleteSpecialRule(rule)}
-                    class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-red-50 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors cursor-pointer flex-shrink-0">
-              <Trash2 size={13} />
-            </button>
+            
+            <div class="flex items-center gap-1.5">
+              <button onclick={() => onManageSpecial(rule)}
+                      class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-orange-50 flex items-center justify-center text-slate-400 hover:text-orange-500 transition-colors cursor-pointer">
+                <Edit3 size={13} />
+              </button>
+              <button onclick={() => onDeleteSpecialRule(rule)}
+                      class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-red-50 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors cursor-pointer flex-shrink-0">
+                <Trash2 size={13} />
+              </button>
+            </div>
           </div>
         {/each}
       </div>

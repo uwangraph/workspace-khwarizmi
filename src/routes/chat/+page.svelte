@@ -195,11 +195,8 @@
               <span class="text-[10px] font-semibold text-slate-400 shrink-0 ml-2">{formatTime(room.updated_at || room.created_at)}</span>
             </div>
             <div class="flex items-center justify-between gap-2">
-              <p class="text-[11px] text-slate-500 truncate leading-tight flex-1">
+              <p class="text-[11px] {room.unread_count > 0 ? 'text-slate-900 font-bold' : 'text-slate-500'} truncate leading-tight flex-1">
                 {#if room.last_message}
-                  {#if room.unread_count > 0}
-                    <span class="text-orange-600 font-bold">Pesan baru: </span>
-                  {/if}
                   {#if room.last_message.type === 'text'}
                     {room.last_message.content}
                 {:else if room.last_message.type === 'image'}

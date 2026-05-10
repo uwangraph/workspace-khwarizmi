@@ -6,7 +6,7 @@ export const chatService = {
   async getRooms(userId: string) {
     const { data, error } = await supabase
       .from('chat_participants')
-      .select(`room_id, chat_rooms (id, name, type, created_at)`)
+      .select(`room_id, chat_rooms (id, name, type, description, avatar_url, created_at)`)
       .eq('user_id', userId)
     
     if (error) throw error
@@ -77,33 +77,69 @@ export const chatService = {
   async getRoomDetails(roomId: string) {
     const { data: room, error: roomError } = await supabase
       .from('chat_rooms')
-      .select('*, profiles!chat_rooms_created_by_fkey(full_name)')
+      .select('*')
       .eq('id', roomId)
       .single()
     
     if (roomError) throw roomError
 
+    // Ambil info pembuat secara terpisah karena relasi tidak langsung
+    if (room.created_by) {
+      const { data: creator } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', room.created_by)
+        .single()
+      if (creator) room.profiles = creator
+    }
+
     const { data: participants, error: partError } = await supabase
       .from('chat_participants')
-      .select('*, profiles(*)')
+      .select('user_id, joined_at')
       .eq('room_id', roomId)
     
     if (partError) throw partError
 
-    return { ...room, participants: participants.map(p => ({ ...p.profiles, joined_at: p.joined_at })) }
+    // Ambil profil partisipan secara massal
+    if (participants && participants.length > 0) {
+      const userIds = participants.map(p => p.user_id)
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('id', userIds)
+      
+      room.participants = participants.map(p => {
+        const prof = profiles?.find(pr => pr.id === p.user_id)
+        return { ...prof, joined_at: p.joined_at }
+      })
+    } else {
+      room.participants = []
+    }
+
+    return room
   },
 
   // Update informasi room (nama, deskripsi, avatar)
   async updateRoom(roomId: string, updates: { name?: string, description?: string, avatar_url?: string }) {
+    // Coba update dan ambil datanya kembali
     const { data, error } = await supabase
       .from('chat_rooms')
       .update(updates)
       .eq('id', roomId)
       .select()
-      .single()
     
-    if (error) throw error
-    return data
+    // Jika gagal dengan select (misal RLS atau 406), coba update saja tanpa select
+    if (error) {
+      const { error: retryError } = await supabase
+        .from('chat_rooms')
+        .update(updates)
+        .eq('id', roomId)
+      
+      if (retryError) throw retryError
+      return { id: roomId, ...updates }
+    }
+
+    return data[0]
   },
 
   // Tambah peserta ke room

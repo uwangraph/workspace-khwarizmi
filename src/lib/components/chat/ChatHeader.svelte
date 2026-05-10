@@ -55,9 +55,13 @@
     </div>
   {:else}
     {#if activeRoom?.type === 'group'}
-      <div class="w-10 h-10 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center shrink-0">
-        <Hash size={18} strokeWidth={2.5} />
-      </div>
+      {#if activeRoom?.avatar_url}
+        <img src={activeRoom.avatar_url} alt={activeRoom.name} class="w-10 h-10 rounded-full object-cover shrink-0 shadow-sm" />
+      {:else}
+        <div class="w-10 h-10 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center shrink-0">
+          <Hash size={18} strokeWidth={2.5} />
+        </div>
+      {/if}
     {:else}
       <img src={partnerProfile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeRoom?.name || 'U')}&background=random&color=fff&size=80`}
            alt={activeRoom?.name} class="w-10 h-10 rounded-full object-cover shrink-0 shadow-sm" />

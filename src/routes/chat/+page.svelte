@@ -121,9 +121,13 @@
                 class="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-slate-50 transition-colors text-left">
           
           {#if room.type === 'group'}
-            <div class="w-12 h-12 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center shrink-0">
-              <Hash size={20} strokeWidth={2.5} />
-            </div>
+            {#if room.avatar_url}
+              <img src={room.avatar_url} alt={room.name} class="w-12 h-12 rounded-full object-cover shrink-0 shadow-sm bg-slate-100" />
+            {:else}
+              <div class="w-12 h-12 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center shrink-0">
+                <Hash size={20} strokeWidth={2.5} />
+              </div>
+            {/if}
           {:else}
             <img src={room.partner_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(room.name || 'U')}&background=random&color=fff&size=80`}
                  alt={room.name} class="w-12 h-12 rounded-full object-cover shrink-0 shadow-sm bg-slate-100" />

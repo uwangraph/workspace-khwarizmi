@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation'
   import { authService } from '$lib/services/authService'
   import { chatService } from '$lib/services/chatService'
+  import { supabase } from '$lib/supabase'
   import type { Profile } from '$lib/type'
   import NewChatModal from '$lib/components/chat/NewChatModal.svelte'
   import { MessageSquare, Search, Plus, Hash } from 'lucide-svelte'
@@ -28,6 +29,32 @@
 
     try {
       rooms = await chatService.getRooms(authUser.id)
+
+      // Subscribe to all messages to update last_message and unread_count in real-time
+      supabase.channel('room-list-updates')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, async (payload) => {
+          const newMessage = payload.new
+          const roomIdx = rooms.findIndex(r => r.id === newMessage.room_id)
+          
+          if (roomIdx >= 0) {
+            const updatedRoom = { ...rooms[roomIdx] }
+            updatedRoom.last_message = newMessage
+            updatedRoom.updated_at = newMessage.created_at
+            
+            // Increment unread count if sender is not me
+            if (newMessage.sender_id !== user.id) {
+              updatedRoom.unread_count = (updatedRoom.unread_count || 0) + 1
+            }
+            
+            // Move to top and update
+            rooms = [updatedRoom, ...rooms.filter(r => r.id !== newMessage.room_id)]
+          } else {
+            // If it's a new room for this user, just refresh the list
+            rooms = await chatService.getRooms(user.id)
+          }
+        })
+        .subscribe()
+
     } catch (err: any) {
       console.error('[Chat] Load error:', err)
       toast.error('Gagal memuat obrolan')
@@ -138,8 +165,9 @@
               <h3 class="text-sm font-bold text-slate-800 truncate">{room.name || 'Obrolan'}</h3>
               <span class="text-[10px] font-semibold text-slate-400 shrink-0 ml-2">{formatTime(room.updated_at || room.created_at)}</span>
             </div>
-            <p class="text-[11px] text-slate-500 truncate leading-tight">
-              {#if room.last_message}
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-[11px] text-slate-500 truncate leading-tight flex-1">
+                {#if room.last_message}
                 {#if room.last_message.type === 'text'}
                   {room.last_message.content}
                 {:else if room.last_message.type === 'image'}
@@ -155,6 +183,11 @@
                 <span class="italic text-slate-400">Belum ada pesan</span>
               {/if}
             </p>
+            {#if room.unread_count > 0}
+              <div class="min-w-[18px] h-[18px] px-1 bg-orange-500 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-lg shadow-orange-500/20 animate-in zoom-in duration-300 shrink-0">
+                {room.unread_count > 99 ? '99+' : room.unread_count}
+              </div>
+            {/if}
           </div>
         </button>
       {/each}

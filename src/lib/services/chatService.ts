@@ -43,12 +43,11 @@ export const chatService = {
       }
     }
 
-    // Ambil pesan terakhir untuk setiap room
+    // Ambil pesan terakhir & unread count untuk setiap room
     const roomIds = rooms.map((r: any) => r.id)
     if (roomIds.length > 0) {
-      // Ambil pesan terbaru dari setiap room (paling efisien dengan subquery atau fetch terpisah)
-      // Di Supabase/PostgREST, kita bisa pakai .order().limit(1) per room dengan query terpisah untuk kesederhanaan
       await Promise.all(rooms.map(async (room) => {
+        // 1. Ambil pesan terakhir
         const { data: latest } = await supabase
           .from('chat_messages')
           .select('content, type, created_at')
@@ -59,10 +58,31 @@ export const chatService = {
         
         if (latest) {
           room.last_message = latest
-          // Update created_at room ke created_at pesan terakhir agar sorting daftar chat benar
           room.updated_at = latest.created_at
         } else {
           room.updated_at = room.created_at
+        }
+
+        // 2. Ambil unread count
+        // Ambil waktu terakhir user membaca room ini
+        const { data: participant } = await supabase
+          .from('chat_participants')
+          .select('last_read_at')
+          .eq('room_id', room.id)
+          .eq('user_id', userId)
+          .single()
+        
+        if (participant?.last_read_at) {
+          const { count } = await supabase
+            .from('chat_messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('room_id', room.id)
+            .neq('sender_id', userId)
+            .gt('created_at', participant.last_read_at)
+          
+          room.unread_count = count || 0
+        } else {
+          room.unread_count = 0
         }
       }))
       
@@ -437,11 +457,27 @@ export const chatService = {
     return data
   },
 
-  // Tandai pesan sebagai dibaca (Gunakan metadata karena kolom is_read belum ada)
+  // Tandai pesan sebagai dibaca
   async markMessagesAsRead(roomId: string, userId: string) {
-    // Karena kita tidak bisa melakukan update deep json secara langsung dengan eq sederhana di Supabase Client
-    // Untuk saat ini kita lewatkan dulu agar tidak error 400, 
-    // atau kamu bisa tambahkan kolom is_read (boolean) di tabel chat_messages via Supabase Dashboard.
+    const { error } = await supabase
+      .from('chat_participants')
+      .update({ last_read_at: new Date().toISOString() })
+      .eq('room_id', roomId)
+      .eq('user_id', userId)
+    
+    if (error) {
+      console.error('[Chat] Gagal mark read:', error)
+      return false
+    }
+
+    // Untuk DM, tandai pesan dari partner sebagai is_read
+    await supabase
+      .from('chat_messages')
+      .update({ is_read: true })
+      .eq('room_id', roomId)
+      .neq('sender_id', userId)
+      .eq('is_read', false)
+
     return true
   },
 

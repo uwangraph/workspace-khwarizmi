@@ -18,14 +18,14 @@
     import { X, AlertTriangle, RefreshCw } from 'lucide-svelte';
 
     // ── Constants & Layout ──────────────────────────────
-    const hiddenNavRoutes = ['/auth', '/login', '/register', '/admin', '/notifications', '/panduan'];
+    const hiddenNavRoutes = ['/auth', '/login', '/register', '/admin', '/notifications', '/docs'];
     const showNav = $derived(
         !hiddenNavRoutes.some((route) => $page.url.pathname.startsWith(route)) &&
         // Sembunyikan nav hanya di dalam ruang chat (sub-route), bukan di halaman daftar /chat
         !($page.url.pathname.startsWith('/chat/') && $page.url.pathname.length > 6)
     );
 
-    const fullWidthRoutes = ['/admin', '/auth', '/login', '/register', '/panduan'];
+    const fullWidthRoutes = ['/admin', '/auth', '/login', '/register', '/docs'];
     const isFullWidthLayout = $derived(
         fullWidthRoutes.some((route) => $page.url.pathname.startsWith(route))
     );

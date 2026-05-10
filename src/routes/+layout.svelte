@@ -59,10 +59,10 @@
         if (user) {
             // Update immediately
             authService.updateLastSeen(user.id);
-            // Update every 60 seconds
+            // Update every 30 seconds
             interval = setInterval(() => {
                 authService.updateLastSeen(user.id);
-            }, 60000);
+            }, 30000);
         }
         return () => {
             if (interval) clearInterval(interval);
@@ -224,7 +224,7 @@
                 deletionStore.set(true);
                 import('$lib/stores/notificationStore').then(m => m.unreadCount.set(0));
                 updateTimeLeft(settings.deletion_scheduled_at);
-                setInterval(() => updateTimeLeft(settings.deletion_scheduled_at), 60000);
+                setInterval(() => updateTimeLeft(settings.deletion_scheduled_at), 30000);
             }
         }
     }

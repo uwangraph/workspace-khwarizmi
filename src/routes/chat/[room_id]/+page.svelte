@@ -489,7 +489,15 @@
   function formatRecordingTime(s: number) { const m = Math.floor(s / 60); const sec = s % 60; return `${m}:${sec.toString().padStart(2, '0')}` }
   function getUrlPreview(text: string) { const match = text.match(/https?:\/\/[^\s]+/); return match ? match[0] : null }
   function highlightText(text: string, q: string) { if (!q.trim()) return text; const regex = new RegExp(`(${q})`, 'gi'); return text.replace(regex, '<mark class="bg-yellow-200 text-slate-800 p-0.5 rounded">$1</mark>') }
-  function getStatusText(p: Profile | null) { if (!p) return 'Offline'; if (p.last_seen) { const diff = Date.now() - new Date(p.last_seen).getTime(); if (diff < 60000) return 'Online'; return `Terakhir dilihat ${new Date(p.last_seen).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}` } return 'Offline' }
+  function getStatusText(p: Profile | null) { 
+    if (!p) return 'Offline'; 
+    if (p.last_seen) { 
+      const diff = Date.now() - new Date(p.last_seen).getTime(); 
+      if (diff < 120000) return 'Online'; 
+      return `Terakhir dilihat ${new Date(p.last_seen).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}` 
+    } 
+    return 'Offline' 
+  }
 </script>
 
 <div class="h-screen bg-slate-50 flex flex-col overflow-hidden font-sans relative" 

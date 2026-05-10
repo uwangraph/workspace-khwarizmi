@@ -335,12 +335,13 @@
   }
 
   // ── Special Rule Actions ──────────────────────────────────────────────────
-  async function saveSpecialRule(data: { date: string; type: SpecialRule['type']; start_time: string | null; note: string | null }) {
+  async function saveSpecialRule(data: { date: string; type: SpecialRule['type']; start_time: string | null; active_sessions: number[] | null; note: string | null }) {
     isSavingSpecial = true
     const { data: r, error } = await adminService.saveSpecialRule({ 
       date: data.date, 
       type: data.type, 
       start_time: data.start_time, 
+      active_sessions: data.active_sessions,
       note: data.note, 
       created_by: profile?.id 
     })

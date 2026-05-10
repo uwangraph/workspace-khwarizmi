@@ -139,9 +139,7 @@
   <!-- Mobile Header -->
   <header class="lg:hidden sticky top-0 left-0 right-0 z-40 bg-white/90 dark:bg-[#0B0E14]/90 backdrop-blur border-b border-slate-100 dark:border-slate-800 py-4 px-6 flex items-center justify-between">
     <div class="flex items-center gap-2">
-      <div class="w-8 h-8 bg-orange-600 rounded-lg flex items-center justify-center">
-        <BookOpen size={16} class="text-white" />
-      </div>
+      <img src="/logo-khwarizmi.png" alt="Logo" class="w-9 h-9 rounded-xl shadow-sm p-1 bg-white border border-orange-200 object-contain" />
       <span class="font-bold text-slate-900 tracking-tight">Khwarizmi Workspace Docs</span>
     </div>
     <div class="flex items-center gap-4">
@@ -161,9 +159,7 @@
         <!-- Header -->
         <div class="flex items-center justify-between mb-12">
           <a href="/" class="flex items-center gap-3">
-            <div class="w-9 h-9 bg-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-600/20">
-              <BookOpen size={18} class="text-white" />
-            </div>
+            <img src="/logo-khwarizmi.png" alt="Logo" class="w-9 h-9 rounded-xl shadow-sm p-1 bg-white border border-orange-200 object-contain" />
             <span class="font-black text-slate-900 dark:text-white text-xl tracking-tight">Khwarizmi Workspace</span>
           </a>
           <button onclick={toggleTheme} class="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-slate-800 rounded-xl transition-all active:scale-90">
@@ -294,9 +290,7 @@
     >
       <div class="p-6 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
         <div class="flex items-center gap-2">
-          <div class="w-8 h-8 bg-orange-600 rounded-lg flex items-center justify-center">
-            <BookOpen size={16} class="text-white" />
-          </div>
+          <img src="/logo-khwarizmi.png" alt="Logo" class="w-9 h-9 rounded-xl shadow-sm p-1 bg-white border border-orange-200 object-contain" />
           <span class="font-bold text-slate-900">Khwarizmi Workspace Docs</span>
         </div>
         <button onclick={() => toggleSidebar(false)} class="p-2 text-slate-500">

@@ -407,20 +407,23 @@
       if (!authUser) { goto('/auth'); return }
       user = authUser
       
-      // Mark as read IMMEDIATELY when entering
-      markRoomAsRead(roomId)
-      chatService.markMessagesAsRead(roomId, authUser.id)
-      
       const pr = await authService.getProfile(authUser.id)
       profile = pr.data
+      
+      // Ambil data room DULU sebelum ditandai sebagai dibaca
       const rooms = await chatService.getRooms(authUser.id)
       userRooms = rooms
       activeRoom = rooms.find((r: any) => r.id === roomId) || null
+      
       if (activeRoom) {
         initialLastReadAt = activeRoom.last_read_at || null
         initialUnreadCount = activeRoom.unread_count || 0
         
-        // Clear divider after 5 seconds
+        // Baru setelah dapet angkanya, tandai sebagai dibaca di database & store
+        markRoomAsRead(roomId)
+        chatService.markMessagesAsRead(roomId, authUser.id)
+        
+        // Hapus pembatas setelah 5 detik agar layar bersih
         if (initialUnreadCount > 0) {
           setTimeout(() => {
             initialUnreadCount = 0

@@ -377,6 +377,18 @@
     } catch { toast.error('Gagal pin') }
   }
 
+  async function openRoomInfo() {
+    if (!activeRoom) return
+    const t = toast.loading('Mengambil info...')
+    try {
+      activeRoomDetails = await chatService.getRoomDetails(roomId)
+      showSidebar = true
+      toast.dismiss(t)
+    } catch {
+      toast.error('Gagal mengambil detail grup', { id: t })
+    }
+  }
+
   onMount(async () => {
     try {
       const authUser = await authService.getUser()

@@ -52,6 +52,23 @@
     setContext('deletionStore', deletionStore);
 
     // ── Effects (Realtime & PWA) ───────────────────────
+    // ── Global Heartbeat (Online Status) ────────────────
+    import { authService } from '$lib/services/authService';
+    $effect(() => {
+        let interval: any;
+        if (user) {
+            // Update immediately
+            authService.updateLastSeen(user.id);
+            // Update every 60 seconds
+            interval = setInterval(() => {
+                authService.updateLastSeen(user.id);
+            }, 60000);
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    });
+
     $effect(() => {
         let unsubscribeRealtime = () => {};
 

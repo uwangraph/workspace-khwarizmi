@@ -24,6 +24,10 @@ export const authService = {
     return await supabase.from('profiles').update(data).eq('id', userId);
   },
 
+  async updateLastSeen(userId: string) {
+    return await supabase.from('profiles').update({ last_seen: new Date().toISOString() }).eq('id', userId);
+  },
+
   async uploadAvatar(userId: string, blob: Blob) {
     const path = `${userId}/${Date.now()}.jpg`;
     const { error: uploadError } = await supabase.storage.from('avatars').upload(path, blob, { 

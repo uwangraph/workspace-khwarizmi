@@ -29,6 +29,7 @@
   let messages = $state<ChatMessage[]>([])
   let isLoading = $state(true)
   let subscription: any
+  let partnerStatusChannel: any
 
   // Input
   let newMessage = $state('')
@@ -125,6 +126,7 @@
 
   onDestroy(() => {
     if (statusInterval) clearInterval(statusInterval)
+    if (partnerStatusChannel) supabase.removeChannel(partnerStatusChannel)
   })
 
   let filteredProfiles = $derived(
@@ -404,16 +406,18 @@
       if (savedWp) selectedWallpaper = savedWp
       if (savedColor) customBgColor = savedColor
       if (activeRoom?.type === 'direct') {
-        const { data: part } = await supabase.from('chat_participants').select('user_id').eq('room_id', roomId).neq('user_id', authUser.id).single()
+        const { data: part } = await supabase.from('chat_participants').select('user_id').eq('room_id', roomId).neq('user_id', authUser.id).maybeSingle()
         if (part) {
-          const { data: p } = await supabase.from('profiles').select('*').eq('id', part.user_id).single()
+          const { data: p } = await supabase.from('profiles').select('*').eq('id', part.user_id).maybeSingle()
           if (p) partnerProfile = p
+
+          // Realtime subscription for partner status
+          partnerStatusChannel = supabase.channel(`partner_status_${part.user_id}`)
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${part.user_id}` }, (payload) => {
+              partnerProfile = payload.new as Profile
+            })
+            .subscribe()
         }
-        statusInterval = setInterval(async () => {
-          if (!partnerProfile) return
-          const { data: p } = await supabase.from('profiles').select('*').eq('id', partnerProfile.id).single()
-          if (p) partnerProfile = p
-        }, 30000)
       }
       if (!activeRoom) { toast.error('Ruang chat tidak ditemukan'); goto('/chat'); return }
       const fMsgs = await chatService.getMessages(roomId)

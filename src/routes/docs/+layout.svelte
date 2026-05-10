@@ -34,9 +34,31 @@
     scrollY = currentScrollY;
   }
 
+  function toggleSidebar(open: boolean) {
+    if (open && !isSidebarOpen) {
+      isSidebarOpen = true;
+      history.pushState({ drawerOpen: true }, '');
+    } else if (!open && isSidebarOpen) {
+      history.back();
+    }
+  }
+
+  function handlePopState(event: PopStateEvent) {
+    isSidebarOpen = false;
+  }
+
   onMount(() => {
-    // Scroll handling is now managed by the main element's scroll event
-    return () => {};
+    window.addEventListener('popstate', handlePopState);
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isSidebarOpen) isSidebarOpen = false;
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   });
 
   // Highlight active link based on current path
@@ -68,7 +90,7 @@
         <span class="font-extrabold text-slate-900 tracking-tight text-lg">Docs</span>
       </div>
       <button 
-        onclick={() => isSidebarOpen = true}
+        onclick={() => toggleSidebar(true)}
         class="p-2.5 bg-slate-100 rounded-xl text-slate-600 hover:bg-orange-100 hover:text-orange-600 transition-all active:scale-90"
       >
         <Menu size={20} />
@@ -144,8 +166,8 @@
             </div>
             <span class="font-black text-slate-900 uppercase tracking-widest text-xs">Navigasi Panduan</span>
           </div>
-          <button onclick={() => isSidebarOpen = false} class="p-2.5 bg-slate-100 rounded-xl text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all">
-            <X size={20} />
+          <button onclick={() => toggleSidebar(false)} class="p-2.5 bg-slate-100 rounded-xl text-slate-500 hover:bg-orange-50 hover:text-orange-600 transition-all">
+            <ArrowLeft size={20} />
           </button>
         </div>
         
@@ -154,7 +176,7 @@
           {#each sections as section}
             <a
               href={section.href}
-              onclick={() => isSidebarOpen = false}
+              onclick={() => toggleSidebar(false)}
               class="w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all border-l-4
                      {activeHref === section.href 
                        ? 'bg-slate-50 text-slate-900 border-orange-600' 

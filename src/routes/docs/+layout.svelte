@@ -47,108 +47,126 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 </svelte:head>
 
-<div class="h-screen overflow-hidden bg-white font-sans selection:bg-orange-100 selection:text-orange-900 flex flex-col">
+<div class="h-screen overflow-hidden bg-white font-sans selection:bg-orange-100 selection:text-orange-900 flex flex-col relative">
   
-  <!-- Mobile Header (Glassmorphism) - Only visible on mobile -->
+  <!-- Abstract Background Glows (Decorative) -->
+  <div class="fixed top-0 left-0 w-full h-full pointer-events-none overflow-hidden z-0 opacity-40">
+    <div class="absolute -top-[10%] -right-[5%] w-[40%] h-[40%] bg-orange-200/40 rounded-full blur-[120px] animate-pulse"></div>
+    <div class="absolute top-[20%] -left-[10%] w-[30%] h-[30%] bg-blue-100/50 rounded-full blur-[100px]"></div>
+    <div class="absolute bottom-[-10%] right-[10%] w-[35%] h-[35%] bg-emerald-50/60 rounded-full blur-[130px]"></div>
+  </div>
+
+  <!-- Mobile Header (Glassmorphism) -->
   <header 
-    class="lg:hidden shrink-0 z-40 transition-all duration-300 bg-white border-b border-slate-100 py-3"
+    class="lg:hidden shrink-0 z-40 bg-white/70 backdrop-blur-xl border-b border-slate-100 py-3"
   >
     <div class="px-6 flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <div class="w-8 h-8 bg-orange-600 rounded-lg flex items-center justify-center shadow-lg shadow-orange-600/20">
-          <BookOpen size={16} class="text-white" />
+        <div class="w-9 h-9 bg-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-600/30">
+          <BookOpen size={18} class="text-white" />
         </div>
-        <span class="font-bold text-slate-900 tracking-tight">Dokumentasi</span>
+        <span class="font-extrabold text-slate-900 tracking-tight text-lg">Docs</span>
       </div>
       <button 
         onclick={() => isSidebarOpen = true}
-        class="p-2 bg-slate-100 rounded-xl text-slate-600 hover:bg-orange-100 hover:text-orange-600 transition-all"
+        class="p-2.5 bg-slate-100 rounded-xl text-slate-600 hover:bg-orange-100 hover:text-orange-600 transition-all active:scale-90"
       >
         <Menu size={20} />
       </button>
     </div>
   </header>
 
-  <div class="flex-1 flex overflow-hidden max-w-[1600px] mx-auto w-full">
-    <!-- Desktop Sidebar (Independent Scroll) -->
-    <aside class="hidden lg:flex flex-col h-full w-80 border-r border-slate-100 bg-slate-50/30 overflow-y-auto custom-scrollbar flex-shrink-0">
+  <div class="flex-1 flex overflow-hidden max-w-[1600px] mx-auto w-full relative z-10">
+    <!-- Desktop Sidebar -->
+    <aside class="hidden lg:flex flex-col h-full w-80 border-r border-slate-100 bg-white/40 backdrop-blur-sm overflow-y-auto custom-scrollbar flex-shrink-0">
       <div class="p-10 flex-1 flex flex-col">
         <!-- Logo Area -->
-        <a href="/" class="flex items-center gap-3 mb-12 px-2 hover:opacity-80 transition-opacity">
-          <div class="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center shadow-xl shadow-orange-600/20">
-            <BookOpen size={22} class="text-white" />
+        <a href="/" class="flex items-center gap-4 mb-14 px-2 hover:opacity-80 transition-all group">
+          <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-700 rounded-2xl flex items-center justify-center shadow-xl shadow-orange-600/30 group-hover:rotate-6 transition-transform">
+            <BookOpen size={24} class="text-white" />
           </div>
           <div>
-            <h1 class="font-extrabold text-slate-900 leading-none text-xl">Khwarizmi</h1>
-            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1.5">User Manual</p>
+            <h1 class="font-black text-slate-900 leading-none text-2xl tracking-tighter">Khwarizmi</h1>
+            <p class="text-[10px] font-black text-orange-600 uppercase tracking-[0.2em] mt-1.5">User Manual</p>
           </div>
         </a>
 
         <!-- Navigation Links -->
-        <nav class="space-y-1.5 flex-1">
+        <nav class="space-y-2 flex-1">
           {#each sections as section}
             <a
               href={section.href}
-              class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 group relative
+              class="w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl transition-all duration-300 group relative border-l-4
                      {activeHref === section.href 
-                       ? 'bg-white text-orange-600 shadow-sm border border-slate-100' 
-                       : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100/50'}"
+                       ? 'bg-white text-slate-900 shadow-xl shadow-slate-200/50 border-orange-600' 
+                       : 'text-slate-500 hover:text-slate-900 hover:bg-white/60 border-transparent'}"
             >
-              {#if activeHref === section.href}
-                <div class="absolute left-0 w-1 h-6 bg-orange-600 rounded-r-full" in:fade></div>
-              {/if}
-              <section.icon size={18} class={activeHref === section.href ? 'text-orange-600' : 'text-slate-400 group-hover:text-slate-600'} />
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300
+                          {activeHref === section.href 
+                            ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/20' 
+                            : 'bg-slate-50 text-slate-400 group-hover:bg-orange-50 group-hover:text-orange-600'}">
+                <section.icon size={18} />
+              </div>
               <span class="text-sm font-bold tracking-tight">{section.label}</span>
+              {#if activeHref !== section.href}
+                <ChevronRight size={14} class="ml-auto opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+              {/if}
             </a>
           {/each}
         </nav>
 
-        <div class="mt-8 pt-8 border-t border-slate-200/60">
-          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 px-4">Bantuan Cepat</p>
-          <div class="space-y-2">
-            <a href="https://wa.me/xxx" class="flex items-center gap-3 px-4 py-3 text-sm font-semibold text-slate-600 hover:text-orange-600 transition-colors">
-              <MessageSquare size={16} /> WhatsApp Admin
-            </a>
-            <a href="/" class="flex items-center gap-3 px-4 py-3 text-sm font-semibold text-slate-600 hover:text-orange-600 transition-colors">
-              <ArrowLeft size={16} /> Dashboard
+        <div class="mt-8 pt-10 border-t border-slate-100">
+          <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-[2rem] p-6 text-white relative overflow-hidden group">
+            <div class="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-125 transition-transform duration-700">
+              <MessageSquare size={80} />
+            </div>
+            <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Butuh Bantuan?</p>
+            <h4 class="font-bold text-sm mb-4 leading-relaxed">Admin kami siap membantu Anda 24/7.</h4>
+            <a href="https://wa.me/xxx" class="flex items-center justify-center gap-2 w-full py-3 bg-orange-600 hover:bg-orange-700 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-lg shadow-orange-600/20">
+              <MessageSquare size={14} /> Chat WhatsApp
             </a>
           </div>
         </div>
       </div>
     </aside>
 
-    <!-- Mobile Drawer Sidebar remains the same as it is already an overlay -->
+    <!-- Mobile Drawer Sidebar -->
     {#if isSidebarOpen}
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div 
-        class="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm lg:hidden"
+        class="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-md lg:hidden"
         onclick={() => isSidebarOpen = false}
         transition:fade={{ duration: 300 }}
       ></div>
       
       <aside 
         class="fixed inset-y-0 right-0 z-[70] w-[85%] max-w-sm bg-white shadow-2xl lg:hidden flex flex-col"
-        transition:fly={{ x: 300, duration: 400, easing: cubicOut }}
+        transition:fly={{ x: 300, duration: 500, easing: cubicOut }}
       >
-        <div class="p-6 border-b border-slate-100 flex items-center justify-between">
-          <span class="font-black text-slate-900 uppercase tracking-widest text-xs">Navigasi Panduan</span>
-          <button onclick={() => isSidebarOpen = false} class="p-2 bg-slate-50 rounded-xl text-slate-500">
+        <div class="p-8 border-b border-slate-100 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-orange-600 rounded-lg flex items-center justify-center">
+              <BookOpen size={16} class="text-white" />
+            </div>
+            <span class="font-black text-slate-900 uppercase tracking-widest text-xs">Navigasi</span>
+          </div>
+          <button onclick={() => isSidebarOpen = false} class="p-2.5 bg-slate-50 rounded-xl text-slate-500">
             <X size={20} />
           </button>
         </div>
         
-        <div class="flex-1 overflow-y-auto p-6 space-y-2">
+        <div class="flex-1 overflow-y-auto p-8 space-y-3">
           {#each sections as section}
             <a
               href={section.href}
               onclick={() => isSidebarOpen = false}
               class="w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all
                      {activeHref === section.href 
-                       ? 'bg-orange-50 text-orange-600' 
-                       : 'text-slate-600 active:bg-slate-50'}"
+                       ? 'bg-orange-600 text-white shadow-xl shadow-orange-600/20' 
+                       : 'bg-slate-50 text-slate-600 active:bg-orange-50'}"
             >
-              <section.icon size={20} class={activeHref === section.href ? 'text-orange-600' : 'text-slate-400'} />
+              <section.icon size={20} />
               <span class="font-bold">{section.label}</span>
               {#if activeHref === section.href}
                 <ChevronRight size={16} class="ml-auto" />
@@ -158,32 +176,36 @@
         </div>
 
         <div class="p-8 bg-slate-50 mt-auto">
-          <a href="/" class="flex items-center justify-center gap-3 w-full py-4 bg-slate-900 text-white rounded-2xl font-bold shadow-lg shadow-slate-900/20">
+          <a href="/" class="flex items-center justify-center gap-3 w-full py-5 bg-slate-900 text-white rounded-[2rem] font-bold shadow-xl shadow-slate-900/20">
             <ArrowLeft size={18} /> Kembali ke Aplikasi
           </a>
         </div>
       </aside>
     {/if}
 
-    <!-- Content Area (Independent Scroll) -->
+    <!-- Content Area -->
     <main 
       bind:this={mainElement}
       onscroll={handleScroll}
-      class="flex-1 min-w-0 bg-white overflow-y-auto custom-scrollbar"
+      class="flex-1 min-w-0 bg-transparent overflow-y-auto custom-scrollbar relative"
     >
-      <div class="max-w-4xl mx-auto px-6 py-24 lg:px-20 lg:py-32">
+      <div class="max-w-4xl mx-auto px-6 py-24 lg:px-20 lg:py-32 relative z-10">
         <slot />
 
-        <!-- Footer (Common) -->
-        <footer class="mt-24 text-center pb-20">
-          <div class="p-12 bg-slate-50 rounded-[4rem] border border-slate-100">
-            <h4 class="font-extrabold text-slate-900 text-2xl mb-4">Masih ada pertanyaan?</h4>
-            <p class="text-slate-500 mb-8 max-w-sm mx-auto">Tim support kami siap membantu Anda kapan saja melalui WhatsApp resmi.</p>
-            <a href="https://wa.me/xxx" class="inline-flex items-center gap-3 px-8 py-4 bg-emerald-500 text-white rounded-3xl font-bold text-sm shadow-2xl shadow-emerald-500/30 hover:scale-105 transition-all active:scale-95">
-              <MessageSquare size={18} /> Chat Support Sekarang
+        <!-- Footer -->
+        <footer class="mt-40 text-center pb-20">
+          <div class="p-12 md:p-16 bg-white/40 backdrop-blur-xl rounded-[4rem] border border-white/60 shadow-2xl shadow-slate-200/50 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-orange-100/30 rounded-full blur-3xl"></div>
+            <h4 class="font-black text-slate-900 text-3xl mb-4 tracking-tight">Masih ada pertanyaan?</h4>
+            <p class="text-slate-500 mb-10 max-w-sm mx-auto font-medium">Tim support kami siap membantu Anda kapan saja melalui WhatsApp resmi.</p>
+            <a href="https://wa.me/xxx" class="inline-flex items-center gap-3 px-10 py-5 bg-emerald-500 text-white rounded-[2rem] font-bold text-sm shadow-2xl shadow-emerald-500/30 hover:scale-105 transition-all active:scale-95">
+              <MessageSquare size={20} /> Chat Support Sekarang
             </a>
           </div>
-          <p class="mt-20 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">Workspace Khwarizmi &bull; 2024</p>
+          <div class="mt-24 space-y-4">
+            <div class="w-12 h-1 bg-orange-100 mx-auto rounded-full"></div>
+            <p class="text-[10px] font-black text-slate-300 uppercase tracking-[0.5em]">Workspace Khwarizmi &bull; 2024</p>
+          </div>
         </footer>
       </div>
     </main>
@@ -192,10 +214,10 @@
   <!-- Mobile Floating Nav Button -->
   <button 
     onclick={() => isSidebarOpen = true}
-    class="lg:hidden fixed bottom-8 right-6 z-50 w-14 h-14 bg-slate-900 text-white rounded-2xl shadow-2xl flex items-center justify-center active:scale-90 transition-transform 
+    class="lg:hidden fixed bottom-8 right-6 z-50 w-16 h-16 bg-slate-900 text-white rounded-3xl shadow-2xl flex items-center justify-center active:scale-90 transition-transform 
            {scrollY > 300 ? 'translate-y-0 opacity-100' : 'translate-y-24 opacity-0'}"
   >
-    <List size={24} />
+    <List size={26} />
   </button>
 </div>
 

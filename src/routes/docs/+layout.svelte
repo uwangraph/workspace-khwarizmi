@@ -2,7 +2,8 @@
   import { page } from '$app/state';
   import { 
     ArrowLeft, ArrowRight, BookOpen, MessageSquare, ChevronRight, Menu, X, List,
-    LogIn, LayoutDashboard, CalendarCheck, CheckSquare, Shield, Sparkles
+    LogIn, LayoutDashboard, CalendarCheck, CheckSquare, Shield, Sparkles,
+    Sun, Moon
   } from 'lucide-svelte';
   import { fade, fly } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
@@ -13,6 +14,21 @@
   let searchQuery = $state('');
   let scrollProgress = $state(0);
   let activeSection = $state('overview');
+  let isDark = $state(false);
+  let scrollY = $state(0);
+  let isScrollingUp = $state(true);
+  let lastScrollY = 0;
+
+  function toggleTheme() {
+    isDark = !isDark;
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }
 
   function handleScroll() {
     if (!mainElement) return;
@@ -89,6 +105,14 @@
 
   onMount(() => {
     window.addEventListener('popstate', handlePopState);
+
+    // Initial Theme Check
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      isDark = true;
+      document.documentElement.classList.add('dark');
+    }
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isSidebarOpen) isSidebarOpen = false;
       if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
@@ -110,32 +134,42 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </svelte:head>
 
-<div class="h-screen overflow-hidden bg-white font-sans selection:bg-orange-100 selection:text-orange-900 flex flex-col relative">
+<div class="h-screen overflow-hidden bg-white dark:bg-[#0B0E14] text-slate-900 dark:text-slate-100 font-sans selection:bg-orange-100 selection:text-orange-900 dark:selection:bg-orange-900 dark:selection:text-orange-100 flex flex-col relative transition-colors duration-300">
   
   <!-- Mobile Header -->
-  <header class="lg:hidden sticky top-0 left-0 right-0 z-40 bg-white/90 backdrop-blur border-b border-slate-100 py-4 px-6 flex items-center justify-between">
+  <header class="lg:hidden sticky top-0 left-0 right-0 z-40 bg-white/90 dark:bg-[#0B0E14]/90 backdrop-blur border-b border-slate-100 dark:border-slate-800 py-4 px-6 flex items-center justify-between">
     <div class="flex items-center gap-2">
       <div class="w-8 h-8 bg-orange-600 rounded-lg flex items-center justify-center">
         <BookOpen size={16} class="text-white" />
       </div>
       <span class="font-bold text-slate-900 tracking-tight">Khwarizmi Docs</span>
     </div>
-    <button onclick={() => toggleSidebar(true)} class="p-2 text-slate-500">
-      <Menu size={24} />
-    </button>
+    <div class="flex items-center gap-4">
+      <button onclick={toggleTheme} class="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+        {#if isDark} <Sun size={20} /> {:else} <Moon size={20} /> {/if}
+      </button>
+      <button onclick={() => toggleSidebar(true)} class="p-2 text-slate-500">
+        <Menu size={24} />
+      </button>
+    </div>
   </header>
 
   <div class="flex-1 flex overflow-hidden w-full max-w-[1440px] mx-auto">
     <!-- Desktop Left Sidebar (Navigation) -->
-    <aside class="hidden lg:flex flex-col h-full w-72 border-r border-slate-100 bg-white flex-shrink-0 sticky top-0">
+    <aside class="hidden lg:flex flex-col h-full w-72 border-r border-slate-100 dark:border-slate-800 bg-white dark:bg-[#0B0E14] flex-shrink-0 sticky top-0 transition-colors duration-300">
       <div class="px-8 py-10 flex flex-col h-full overflow-y-auto custom-scrollbar">
-        <!-- Logo -->
-        <a href="/" class="flex items-center gap-3 mb-12">
-          <div class="w-9 h-9 bg-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-600/20">
-            <BookOpen size={18} class="text-white" />
-          </div>
-          <span class="font-black text-slate-900 text-xl tracking-tight">Khwarizmi</span>
-        </a>
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-12">
+          <a href="/" class="flex items-center gap-3">
+            <div class="w-9 h-9 bg-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-600/20">
+              <BookOpen size={18} class="text-white" />
+            </div>
+            <span class="font-black text-slate-900 dark:text-white text-xl tracking-tight">Khwarizmi</span>
+          </a>
+          <button onclick={toggleTheme} class="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-slate-800 rounded-xl transition-all active:scale-90">
+            {#if isDark} <Sun size={18} /> {:else} <Moon size={18} /> {/if}
+          </button>
+        </div>
 
         <!-- Search Bar -->
         <div class="relative mb-10 group">
@@ -147,7 +181,7 @@
             type="text" 
             bind:value={searchQuery}
             placeholder="Search docs... (⌘K)"
-            class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-all font-medium"
+            class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-all font-medium dark:text-slate-200"
           />
         </div>
 
@@ -155,16 +189,16 @@
         <nav class="space-y-10 flex-1">
           {#each filteredNavigation as group}
             <div>
-              <h5 class="text-[11px] font-bold text-slate-900 uppercase tracking-widest mb-4 px-1">{group.group}</h5>
-              <ul class="space-y-1 border-l border-slate-100">
+              <h5 class="text-[11px] font-bold text-slate-900 dark:text-slate-100 uppercase tracking-widest mb-4 px-1">{group.group}</h5>
+              <ul class="space-y-1 border-l border-slate-100 dark:border-slate-800">
                 {#each group.items as item}
                   <li>
                     <a
                       href={item.href}
                       class="block px-4 py-2 text-[13px] transition-all border-l -ml-[1px]
                              {activeHref === item.href 
-                               ? 'border-orange-500 text-orange-600 font-bold' 
-                               : 'border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300'}"
+                               ? 'border-orange-500 text-orange-600 dark:text-orange-400 font-bold' 
+                               : 'border-transparent text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-700'}"
                     >
                       {item.label}
                     </a>
@@ -181,26 +215,26 @@
     <main 
       bind:this={mainElement}
       onscroll={handleScroll}
-      class="flex-1 min-w-0 overflow-y-auto custom-scrollbar"
+      class="flex-1 min-w-0 overflow-y-auto custom-scrollbar bg-white dark:bg-[#0B0E14] transition-colors duration-300"
     >
       <div class="flex gap-16 px-8 lg:px-16 py-12 lg:py-20 max-w-[1100px] mx-auto">
         <!-- Center Content -->
         <article class="flex-1 min-w-0">
           <!-- Breadcrumbs -->
-          <div class="flex items-center gap-2 text-[11px] font-medium text-slate-400 mb-8 uppercase tracking-widest">
+          <div class="flex items-center gap-2 text-[11px] font-medium text-slate-400 dark:text-slate-500 mb-8 uppercase tracking-widest">
             <span>Docs</span>
             <ChevronRight size={10} />
-            <span class="text-slate-900">Current Page</span>
+            <span class="text-slate-900 dark:text-slate-200">Current Page</span>
           </div>
 
           <slot />
 
           <!-- Page Navigation (Prev/Next) -->
-          <div class="mt-24 pt-10 border-t border-slate-100 flex items-center justify-between">
+          <div class="mt-24 pt-10 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
             {#if prevItem}
               <a href={prevItem.href} class="flex flex-col gap-2 group">
-                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-widest group-hover:text-orange-500 transition-colors">Previous</span>
-                <span class="text-sm font-bold text-slate-900 group-hover:text-orange-600 flex items-center gap-2 transition-colors">
+                <span class="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest group-hover:text-orange-500 transition-colors">Previous</span>
+                <span class="text-sm font-bold text-slate-900 dark:text-slate-100 group-hover:text-orange-600 flex items-center gap-2 transition-colors">
                   <ArrowLeft size={16} /> {prevItem.label}
                 </span>
               </a>
@@ -210,8 +244,8 @@
 
             {#if nextItem}
               <a href={nextItem.href} class="flex flex-col gap-2 group text-right">
-                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-widest group-hover:text-orange-500 transition-colors">Next</span>
-                <span class="text-sm font-bold text-slate-900 group-hover:text-orange-600 flex items-center gap-2 transition-colors">
+                <span class="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest group-hover:text-orange-500 transition-colors">Next</span>
+                <span class="text-sm font-bold text-slate-900 dark:text-slate-100 group-hover:text-orange-600 flex items-center gap-2 transition-colors">
                   {nextItem.label} <ChevronRight size={16} />
                 </span>
               </a>
@@ -221,8 +255,8 @@
 
         <!-- Right Sidebar (On This Page) -->
         <aside class="hidden xl:block w-56 flex-shrink-0 sticky top-0 h-fit">
-          <p class="text-[11px] font-bold text-slate-900 uppercase tracking-widest mb-6">On this page</p>
-          <nav class="space-y-4 border-l border-slate-100">
+          <p class="text-[11px] font-bold text-slate-900 dark:text-slate-100 uppercase tracking-widest mb-6">On this page</p>
+          <nav class="space-y-4 border-l border-slate-100 dark:border-slate-800">
             {#each [
               { id: 'intro', label: 'Overview' },
               { id: 'features', label: 'Key Features' },
@@ -234,16 +268,16 @@
                 class="block pl-4 text-xs font-medium transition-all border-l -ml-[1px]
                        {activeSection === section.id 
                          ? 'border-orange-500 text-orange-600 font-bold' 
-                         : 'border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300'}"
+                         : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-700'}"
               >
                 {section.label}
               </a>
             {/each}
           </nav>
 
-          <div class="mt-12 p-6 bg-slate-50 rounded-2xl border border-slate-100">
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Need help?</p>
-            <a href="https://wa.me/xxx" class="text-xs font-bold text-slate-900 hover:text-orange-600 transition-colors flex items-center gap-2">
+          <div class="mt-12 p-6 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+            <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Need help?</p>
+            <a href="https://wa.me/xxx" class="text-xs font-bold text-slate-900 dark:text-slate-200 hover:text-orange-600 transition-colors flex items-center gap-2">
               Contact support <ArrowRight size={12} />
             </a>
           </div>
@@ -281,7 +315,7 @@
                     href={item.href}
                     onclick={() => toggleSidebar(false)}
                     class="text-base font-medium transition-all
-                           {activeHref === item.href ? 'text-orange-600 font-bold' : 'text-slate-500'}"
+                           {activeHref === item.href ? 'text-orange-600 dark:text-orange-400 font-bold' : 'text-slate-500 dark:text-slate-300'}"
                   >
                     {item.label}
                   </a>
@@ -320,6 +354,9 @@
     color: #0f172a;
     letter-spacing: -0.03em;
   }
+  :global(.dark article h1) {
+    color: #f8fafc;
+  }
 
   :global(article h2) {
     font-size: 1.875rem;
@@ -332,12 +369,19 @@
     border-bottom: 1px solid #f1f5f9;
     padding-bottom: 0.5rem;
   }
+  :global(.dark article h2) {
+    color: #f1f5f9;
+    border-color: #1e293b;
+  }
 
   :global(article p) {
     font-size: 1.125rem;
     line-height: 1.75;
     color: #475569;
     margin-bottom: 1.5rem;
+  }
+  :global(.dark article p) {
+    color: #94a3b8;
   }
 
   @media (max-width: 768px) {

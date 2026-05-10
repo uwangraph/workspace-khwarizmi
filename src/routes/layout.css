@@ -1,6 +1,8 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
 
+@variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-body-bg: #e2e8f0;
 }

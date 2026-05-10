@@ -416,7 +416,3 @@
     box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.35);
   }
 </style>
-s-serif;
-    }
-  }
-</style>

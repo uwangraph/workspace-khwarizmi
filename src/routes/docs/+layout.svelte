@@ -152,58 +152,6 @@
       </div>
     </aside>
 
-    <!-- Mobile Drawer Sidebar (Full Width for zero overlap) -->
-    {#if isSidebarOpen}
-      <aside 
-        class="fixed inset-0 z-[100] bg-white lg:hidden flex flex-col"
-        transition:fly={{ y: 50, duration: 400, easing: cubicOut }}
-      >
-        <!-- Drawer Header -->
-        <div class="p-6 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
-          <div class="flex items-center gap-3">
-            <div class="w-9 h-9 bg-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-600/20">
-              <BookOpen size={18} class="text-white" />
-            </div>
-            <span class="font-black text-slate-900 uppercase tracking-widest text-xs">Navigasi Panduan</span>
-          </div>
-          <button onclick={() => toggleSidebar(false)} class="p-2.5 bg-slate-100 rounded-xl text-slate-500 hover:bg-orange-50 hover:text-orange-600 transition-all">
-            <ArrowLeft size={20} />
-          </button>
-        </div>
-        
-        <!-- Drawer Links -->
-        <div class="flex-1 overflow-y-auto p-6 space-y-2">
-          {#each sections as section}
-            <a
-              href={section.href}
-              onclick={() => toggleSidebar(false)}
-              class="w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all border-l-4
-                     {activeHref === section.href 
-                       ? 'bg-slate-50 text-slate-900 border-orange-600' 
-                       : 'bg-transparent text-slate-500 border-transparent active:bg-slate-50'}"
-            >
-              <div class="w-10 h-10 rounded-xl flex items-center justify-center transition-all
-                          {activeHref === section.href 
-                            ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/20' 
-                            : 'bg-slate-100 text-slate-400'}">
-                <section.icon size={18} />
-              </div>
-              <span class="font-bold text-sm tracking-tight">{section.label}</span>
-              {#if activeHref === section.href}
-                <ChevronRight size={16} class="ml-auto text-orange-600" />
-              {/if}
-            </a>
-          {/each}
-        </div>
-
-        <!-- Drawer Footer -->
-        <div class="p-8 bg-slate-50 border-t border-slate-100">
-          <a href="/" class="flex items-center justify-center gap-3 w-full py-5 bg-slate-900 text-white rounded-[2rem] font-bold shadow-xl shadow-slate-900/20 active:scale-95 transition-all">
-            <ArrowLeft size={18} /> Kembali ke Aplikasi
-          </a>
-        </div>
-      </aside>
-    {/if}
 
     <!-- Content Area (with pt for fixed header) -->
     <main 
@@ -233,9 +181,62 @@
     </main>
   </div>
 
+  <!-- Mobile Drawer Sidebar (Full Width for zero overlap) -->
+  {#if isSidebarOpen}
+    <aside 
+      class="fixed inset-0 z-[100] bg-white lg:hidden flex flex-col"
+      transition:fly={{ y: 50, duration: 400, easing: cubicOut }}
+    >
+      <!-- Drawer Header -->
+      <div class="p-6 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 bg-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-600/20">
+            <BookOpen size={18} class="text-white" />
+          </div>
+          <span class="font-black text-slate-900 uppercase tracking-widest text-xs">Navigasi Panduan</span>
+        </div>
+        <button onclick={() => toggleSidebar(false)} class="p-2.5 bg-slate-100 rounded-xl text-slate-500 hover:bg-orange-50 hover:text-orange-600 transition-all">
+          <ArrowLeft size={20} />
+        </button>
+      </div>
+      
+      <!-- Drawer Links -->
+      <div class="flex-1 overflow-y-auto p-6 space-y-2">
+        {#each sections as section}
+          <a
+            href={section.href}
+            onclick={() => toggleSidebar(false)}
+            class="w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all border-l-4
+                   {activeHref === section.href 
+                     ? 'bg-slate-50 text-slate-900 border-orange-600' 
+                     : 'bg-transparent text-slate-500 border-transparent active:bg-slate-50'}"
+          >
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center transition-all
+                        {activeHref === section.href 
+                          ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/20' 
+                          : 'bg-slate-100 text-slate-400'}">
+              <section.icon size={18} />
+            </div>
+            <span class="font-bold text-sm tracking-tight">{section.label}</span>
+            {#if activeHref === section.href}
+              <ChevronRight size={16} class="ml-auto text-orange-600" />
+            {/if}
+          </a>
+        {/each}
+      </div>
+
+      <!-- Drawer Footer -->
+      <div class="p-8 bg-slate-50 border-t border-slate-100">
+        <a href="/" class="flex items-center justify-center gap-3 w-full py-5 bg-slate-900 text-white rounded-[2rem] font-bold shadow-xl shadow-slate-900/20 active:scale-95 transition-all">
+          <ArrowLeft size={18} /> Kembali ke Aplikasi
+        </a>
+      </div>
+    </aside>
+  {/if}
+
   <!-- Mobile Floating Nav Button -->
   <button 
-    onclick={() => isSidebarOpen = true}
+    onclick={() => toggleSidebar(true)}
     class="lg:hidden fixed bottom-8 right-6 z-50 w-16 h-16 bg-slate-900 text-white rounded-3xl shadow-2xl flex items-center justify-center active:scale-90 transition-transform 
            {scrollY > 300 ? 'translate-y-0 opacity-100' : 'translate-y-24 opacity-0'}"
   >

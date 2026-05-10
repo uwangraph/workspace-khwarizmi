@@ -12,6 +12,21 @@
   let scrollY = $state(0);
   let isScrollingUp = $state(true);
   let lastScrollY = 0;
+  
+  let mainElement: HTMLElement;
+  let searchQuery = $state('');
+  let scrollProgress = $state(0);
+
+  function handleScroll() {
+    if (!mainElement) return;
+    const currentScrollY = mainElement.scrollTop;
+    const totalHeight = mainElement.scrollHeight - mainElement.clientHeight;
+    scrollProgress = (currentScrollY / totalHeight) * 100;
+    
+    isScrollingUp = currentScrollY < lastScrollY || currentScrollY < 100;
+    lastScrollY = currentScrollY;
+    scrollY = currentScrollY;
+  }
 
   // Categorized sections
   const navigation = [
@@ -325,17 +340,41 @@
   }
 
   :global(article h1) {
-    font-size: 3rem;
+    font-size: 4rem;
     font-weight: 900;
+    line-height: 0.95;
+    margin-bottom: 2.5rem;
+    color: #0f172a;
+    letter-spacing: -0.05em;
+  }
+
+  :global(article h2) {
+    font-size: 2.5rem;
+    font-weight: 800;
     line-height: 1.1;
+    margin-top: 5rem;
     margin-bottom: 2rem;
     color: #0f172a;
-    letter-spacing: -0.04em;
+    letter-spacing: -0.03em;
+  }
+
+  :global(article p) {
+    font-size: 1.25rem;
+    line-height: 1.8;
+    color: #475569;
+    margin-bottom: 2rem;
+    font-weight: 500;
   }
 
   @media (max-width: 768px) {
     :global(article h1) {
-      font-size: 2.25rem;
+      font-size: 2.75rem;
+    }
+    :global(article h2) {
+      font-size: 1.875rem;
+    }
+    :global(article p) {
+      font-size: 1.125rem;
     }
   }
 </style>

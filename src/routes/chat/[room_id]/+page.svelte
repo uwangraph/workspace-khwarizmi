@@ -135,6 +135,7 @@
   onDestroy(() => {
     if (statusInterval) clearInterval(statusInterval)
     if (partnerStatusChannel) supabase.removeChannel(partnerStatusChannel)
+    if (user?.id) chatService.markMessagesAsRead(roomId, user.id)
   })
 
   let filteredProfiles = $derived(
@@ -404,6 +405,10 @@
       const authUser = await authService.getUser()
       if (!authUser) { goto('/auth'); return }
       user = authUser
+      
+      // Mark as read IMMEDIATELY when entering
+      chatService.markMessagesAsRead(roomId, authUser.id)
+      
       const pr = await authService.getProfile(authUser.id)
       profile = pr.data
       const rooms = await chatService.getRooms(authUser.id)
@@ -444,7 +449,6 @@
       starredMessages = fMsgs.filter(m => m.metadata?.is_starred).map(m => m.id)
       pinnedMessage = fMsgs.find(m => m.metadata?.is_pinned) || null
       scrollToBottom()
-      chatService.markMessagesAsRead(roomId, authUser.id)
       const { data: profs } = await supabase.from('profiles').select('*')
       if (profs) allProfiles = (profs as Profile[]).filter(p => p.id !== authUser.id)
       const pollMsgs = fMsgs.filter(m => m.type === 'poll')

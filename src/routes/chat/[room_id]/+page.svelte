@@ -32,6 +32,12 @@
   let partnerStatusChannel: any
   let initialLastReadAt = $state<string | null>(null)
   let initialUnreadCount = $state(0)
+  
+  let firstUnreadIndex = $derived.by(() => {
+    if (initialUnreadCount <= 0) return -1;
+    // Jika ada unread count, pesan unread adalah N pesan terakhir
+    return Math.max(0, filteredMessages.length - initialUnreadCount);
+  });
 
   // Input
   let newMessage = $state('')
@@ -566,9 +572,7 @@
                 </span>
               </div>
             {/if}
-            {#if initialLastReadAt && i > 0 && 
-                new Date(msg.created_at).getTime() > new Date(initialLastReadAt).getTime() && 
-                new Date(filteredMessages[i-1].created_at).getTime() <= new Date(initialLastReadAt).getTime()}
+            {#if i === firstUnreadIndex}
               <div class="flex justify-center my-6 animate-in fade-in zoom-in duration-500">
                 <div class="flex items-center gap-4 w-full max-w-md">
                   <div class="flex-1 h-[1px] bg-orange-100"></div>

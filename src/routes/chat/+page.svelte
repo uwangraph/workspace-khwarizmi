@@ -8,13 +8,14 @@
   import NewChatModal from '$lib/components/chat/NewChatModal.svelte'
   import { MessageSquare, Search, Plus, Hash } from 'lucide-svelte'
   import toast from 'svelte-french-toast'
-  import { globalRooms, isChatLoaded, initGlobalChat } from '$lib/stores/globalChatStore'
+  import { globalRooms, isChatLoaded, initGlobalChat, refreshGlobalChat, isRealtimeConnected } from '$lib/stores/globalChatStore'
 
   let user: any = $state(null)
   let profile = $state<Profile | null>(null)
   let showNewChatModal = $state(false)
   let searchQuery = $state('')
   let isLoading = $derived(!$isChatLoaded)
+  let pollTimer: any
 
   let filteredRooms = $derived(
     $globalRooms.filter(r => r.name?.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -30,11 +31,24 @@
     try {
       if (!$isChatLoaded) {
         await initGlobalChat(authUser.id)
+      } else {
+        await refreshGlobalChat(authUser.id)
       }
     } catch (err: any) {
       console.error('[Chat] Load error:', err)
       toast.error('Gagal memuat obrolan')
     }
+
+    // Polling fallback: refresh setiap 15 detik jika realtime belum connect
+    pollTimer = setInterval(async () => {
+      if (!$isRealtimeConnected) {
+        await refreshGlobalChat(authUser.id)
+      }
+    }, 15000)
+  })
+
+  onDestroy(() => {
+    if (pollTimer) clearInterval(pollTimer)
   })
 
   function openRoom(room: any) {
@@ -53,7 +67,7 @@
         const selectedUser = selectedUsers[0]
         const newRoom = await chatService.getOrCreateDirectMessage(user.id, selectedUser.id)
         newRoom.name = selectedUser.full_name
-        newRoom.partner_avatar = selectedUser.avatar_url
+        ;(newRoom as any).partner_avatar = selectedUser.avatar_url
         goto(`/chat/${newRoom.id}`)
       }
     } catch (err: any) {
@@ -66,6 +80,23 @@
   function formatTime(iso: string) {
     const d = new Date(iso)
     return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+  }
+
+  function getRoomPreview(room: any) {
+    if (!room.last_message) return 'Belum ada pesan'
+    const senderName =
+      room.type === 'group' && room.last_message?.sender?.full_name
+        ? `${room.last_message.sender.full_name}: `
+        : ''
+
+    if (room.last_message.type === 'text') {
+      return `${senderName}${room.last_message.content || ''}`
+    }
+    if (room.last_message.type === 'image') return `${senderName}Foto`
+    if (room.last_message.type === 'audio') return `${senderName}Pesan suara`
+    if (room.last_message.type === 'file') return `${senderName}Berkas`
+    if (room.last_message.type === 'poll') return `${senderName}Polling: ${room.last_message.content}`
+    return `${senderName}Pesan baru`
   }
 </script>
 
@@ -144,27 +175,14 @@
             </div>
             <div class="flex items-center justify-between gap-2">
               <p class="text-[11px] {room.unread_count > 0 ? 'text-slate-900 font-bold' : 'text-slate-500'} truncate leading-tight flex-1">
-                {#if room.last_message}
-                  {#if room.last_message.type === 'text'}
-                    {room.last_message.content}
-                {:else if room.last_message.type === 'image'}
-                  <span class="flex items-center gap-1">📷 Foto</span>
-                {:else if room.last_message.type === 'audio'}
-                  <span class="flex items-center gap-1">🎤 Pesan suara</span>
-                {:else if room.last_message.type === 'file'}
-                  <span class="flex items-center gap-1">📎 Berkas</span>
-                {:else if room.last_message.type === 'poll'}
-                  <span class="flex items-center gap-1">📊 Polling: {room.last_message.content}</span>
-                {/if}
-              {:else}
-                <span class="italic text-slate-400">Belum ada pesan</span>
+                {getRoomPreview(room)}
+              </p>
+              {#if room.unread_count > 0}
+                <div class="min-w-[18px] h-[18px] px-1 bg-orange-500 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-lg shadow-orange-500/20 animate-in zoom-in duration-300 shrink-0">
+                  {room.unread_count > 99 ? '99+' : room.unread_count}
+                </div>
               {/if}
-            </p>
-            {#if room.unread_count > 0}
-              <div class="min-w-[18px] h-[18px] px-1 bg-orange-500 text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-lg shadow-orange-500/20 animate-in zoom-in duration-300 shrink-0">
-                {room.unread_count > 99 ? '99+' : room.unread_count}
-              </div>
-            {/if}
+            </div>
           </div>
         </button>
       {/each}

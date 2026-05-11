@@ -167,15 +167,55 @@ is_read     boolean default false
 created_at  timestamptz
 ```
 
+### Tabel `chat_rooms`
+```sql
+id          uuid PK
+name        text | null
+type        text ('direct' | 'group')
+description text | null
+avatar_url  text | null
+created_by  uuid | null FK → profiles
+created_at  timestamptz
+```
+
+### Tabel `chat_participants`
+```sql
+room_id       uuid PK, FK → chat_rooms
+user_id       uuid PK, FK → profiles
+joined_at     timestamptz
+last_read_at  timestamptz | null
+```
+
+### Tabel `chat_messages`
+```sql
+id          uuid PK
+room_id     uuid FK → chat_rooms
+sender_id   uuid | null FK → profiles
+type        text ('text'|'image'|'audio'|'file'|'poll'|'system')
+content     text
+metadata    jsonb | null (reactions, forward_info, file_url, etc)
+created_at  timestamptz
+```
+
+### Tabel `chat_poll_votes`
+```sql
+message_id  uuid PK, FK → chat_messages
+user_id     uuid PK, FK → profiles
+option_id   text
+created_at  timestamptz
+```
+
 ### Supabase Storage Buckets
 | Bucket | Isi | Path Pattern |
 |---|---|---|
 | `selfies` | Foto absensi | `{user_id}/{timestamp}_{in|out}.jpg` |
 | `avatars` | Foto profil | `{user_id}/{timestamp}.jpg` |
+| `chat_media` | Gambar/File chat | `{room_id}/{timestamp}-{random}.ext` |
 
 ### RPC Functions
-- **`send_notification`** — SECURITY DEFINER, bypass RLS untuk insert notifikasi antar user
-  - Params: `p_user_id`, `p_type`, `p_title`, `p_message`, `p_data`
+- **`send_notification`** — SECURITY DEFINER, bypass RLS untuk insert notifikasi antar user.
+- **`get_rooms_with_unread`** — Query optimized untuk mendapatkan list room chat beserta unread count, last message, dan data partner DM.
+- **`mark_as_read`** — Memperbarui `last_read_at` pada `chat_participants` untuk mereset counter badge chat.
 
 ---
 
@@ -273,6 +313,34 @@ Karena aplikasi dikonfigurasi sebagai **Static SPA** (`adapter-static`), *Backen
 const storageKey = `deadline_notified_${user.id}_${todayISO}`
 const alreadyNotified: string[] = JSON.parse(localStorage.getItem(storageKey) || '[]')
 ```
+
+---
+
+## 💬 Chat System & Realtime
+
+### Arsitektur Service & Store
+- **Chat Service (`src/lib/services/chatService.ts`)**:
+  - `getRooms` (RPC optimized `get_rooms_with_unread` or fallback to manual query).
+  - Mengirim pesan teks, media (disimpan di bucket `chat_media`), dan *Voice Note* (via `MediaRecorder` API).
+  - Fitur Polling (pesan tipe `poll` dan relasi tabel `chat_poll_votes`).
+  - Fitur Delete (otomatis menghapus blob file dari storage jika pesan bertipe media dihapus).
+- **Global Chat Store (`src/lib/stores/globalChatStore.ts`)**:
+  - Menyimpan array `globalRooms`, `globalUnreadChatCount`, dan mendeteksi `latestIncomingChat` untuk pop-up *toast* kustom di layout.
+  - **Arsitektur Multiplexing**: Untuk mencegah bentrokan listener (*silent failure*), channel global dibuat menggunakan pola 1-channel-per-room (`global-chat-{uid}-{roomId}`) dengan filter `eq`. Ini menggantikan filter array `in.()` yang rentan terhadap batas limit karakter Supabase Realtime, dan menghindari bug channel bentrok (unfiltered vs filtered) pada sisi *client multiplexer*.
+- **Chat Interface & Gestures (`src/lib/components/chat/...`)**:
+  - Integrasi fitur *Voice Note* dengan efek *audio waveform* beranimasi (berbasis Svelte reactivity).
+  - Fitur aksi pada pesan (Balas, Teruskan, Salin, Hapus) dipicu menggunakan event **`oncontextmenu`** (*native long-press* pada mobile dan *right-click* pada desktop). Ini menghindari ketergantungan pada *library gesture swipe/press* eksternal.
+
+---
+
+## 🧹 Global Deletion Scheduler
+
+Fitur penjadwalan pembersihan data otomatis oleh Admin. 
+Aplikasi membaca jadwal dari Admin dan mendistribusikannya via global store di layout:
+1. `deletionStore` diinisialisasi di `+layout.svelte` via `setContext`.
+2. Listener realtime memantau event `DELETE` di `profiles` atau status `app_settings.deletion_scheduled_at`.
+3. Modal peringatan dengan *countdown timer* akan muncul secara global menginterupsi aktivitas semua user.
+4. Setelah timer habis, aplikasi akan dipaksa reload untuk memuat ulang state kosong.
 
 ---
 

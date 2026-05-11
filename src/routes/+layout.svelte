@@ -2,12 +2,13 @@
     import { onMount } from 'svelte';
     import './layout.css';
     import { page } from '$app/stores';
-    import { Toaster, toast, ToastBar } from 'svelte-french-toast';
+    import { Toaster, toast } from 'svelte-french-toast';
     import { notificationService } from '$lib/services/notificationService';
     import { fetchUnreadCount, incrementUnread } from '$lib/stores/notificationStore';
     import { fade } from 'svelte/transition';
     import BottomNav from '$lib/components/BottomNav.svelte';
-    import { initGlobalChat, globalUnreadChatCount } from '$lib/stores/globalChatStore';
+    import { chatService } from '$lib/services/chatService';
+    import { dismissIncomingChat, initGlobalChat, latestIncomingChat } from '$lib/stores/globalChatStore';
 
     // Ambil data session yang sudah di-load oleh +layout.ts
     let { data, children } = $props();
@@ -47,6 +48,8 @@
     let deletionTimeLeft = $state('');
     let userRole = $state('user');
     let isCancelingDeletion = $state(false);
+    let chatReplyText = $state('');
+    let isReplyingChat = $state(false);
 
     // Provide deletion state to all pages
     const deletionStore = writable(false);
@@ -55,6 +58,8 @@
     // ── Effects (Realtime & PWA) ───────────────────────
     // ── Global Heartbeat (Online Status) ────────────────
     import { authService } from '$lib/services/authService';
+    import { refreshGlobalChat } from '$lib/stores/globalChatStore';
+
     $effect(() => {
         let interval: any;
         if (user) {
@@ -68,6 +73,19 @@
         return () => {
             if (interval) clearInterval(interval);
         };
+    });
+
+    // Refresh chat saat user kembali ke tab (fallback jika realtime terputus)
+    $effect(() => {
+        if (!user) return;
+        const uid = user.id;
+        const onVisible = () => {
+            if (document.visibilityState === 'visible') {
+                refreshGlobalChat(uid);
+            }
+        };
+        document.addEventListener('visibilitychange', onVisible);
+        return () => document.removeEventListener('visibilitychange', onVisible);
     });
 
     $effect(() => {
@@ -154,6 +172,13 @@
             unsubscribeRealtime();
         };
     });
+
+    let shouldShowChatPopup = $derived(
+        !!$latestIncomingChat &&
+        !!user &&
+        $latestIncomingChat.message?.sender_id !== user.id &&
+        $page.url.pathname !== `/chat/${$latestIncomingChat.room?.id}`
+    );
 
     // Check session on route change
     $effect(() => {
@@ -247,13 +272,41 @@
 
     async function handleCancelDeletion() {
         isCancelingDeletion = true;
-        await adminService.cancelDeletion();
+        const { error } = await adminService.cancelDeletion();
+        if (error) {
+            toast.error(error);
+            isCancelingDeletion = false;
+            return;
+        }
         toast.success('Penghapusan data dibatalkan!');
         isDeletionScheduled = false;
         showDeletionWarning = false;
         deletionStore.set(false);
         isCancelingDeletion = false;
         setTimeout(() => location.reload(), 1000); // Reload to fetch data again
+    }
+
+    function openIncomingChat() {
+        const roomId = $latestIncomingChat?.room?.id;
+        dismissIncomingChat();
+        chatReplyText = '';
+        if (roomId) window.location.href = `/chat/${roomId}`;
+    }
+
+    async function replyIncomingChat() {
+        const incoming = $latestIncomingChat;
+        if (!incoming?.room?.id || !user || !chatReplyText.trim()) return;
+        isReplyingChat = true;
+        try {
+            await chatService.sendTextMessage(incoming.room.id, user.id, chatReplyText.trim());
+            toast.success('Balasan terkirim');
+            chatReplyText = '';
+            dismissIncomingChat();
+        } catch {
+            toast.error('Gagal membalas pesan');
+        } finally {
+            isReplyingChat = false;
+        }
     }
 
     // ── Actions ────────────────────────────────────────
@@ -278,6 +331,60 @@
 		? 'relative min-h-screen bg-slate-50 pt-[env(safe-area-inset-top)]'
 		: 'relative mx-auto min-h-screen max-w-xl overflow-hidden bg-white pt-[env(safe-area-inset-top)] shadow-2xl sm:border-x sm:border-slate-200'}
 >
+    {#if shouldShowChatPopup}
+        <div class="fixed inset-x-4 top-[calc(env(safe-area-inset-top)+14px)] z-[130] sm:left-auto sm:right-6 sm:w-[360px]" transition:fade>
+            <div class="overflow-hidden rounded-[28px] border border-orange-100 bg-white/95 shadow-2xl backdrop-blur-xl">
+                <div class="flex items-start gap-3 px-4 py-4 hover:bg-orange-50/60 transition-colors">
+                    <img
+                        src={$latestIncomingChat.message?.sender?.avatar_url || $latestIncomingChat.room?.partner_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent($latestIncomingChat.message?.sender?.full_name || $latestIncomingChat.room?.name || 'C')}&background=random&color=fff&size=80`}
+                        alt="Sender"
+                        class="h-11 w-11 shrink-0 rounded-2xl object-cover bg-slate-100"
+                    />
+                    <button onclick={openIncomingChat} class="min-w-0 flex-1 text-left">
+                        <p class="text-[11px] font-black uppercase tracking-wide text-orange-500">Pesan Masuk</p>
+                        <p class="truncate text-sm font-bold text-slate-800">
+                            {$latestIncomingChat.room?.type === 'group'
+                                ? `${$latestIncomingChat.message?.sender?.full_name || 'Anggota'} · ${$latestIncomingChat.room?.name || 'Grup'}`
+                                : $latestIncomingChat.room?.name || $latestIncomingChat.message?.sender?.full_name || 'Obrolan'}
+                        </p>
+                        <p class="mt-1 line-clamp-2 text-xs text-slate-500">
+                            {$latestIncomingChat.message?.type === 'text'
+                                ? $latestIncomingChat.message?.content
+                                : $latestIncomingChat.message?.type === 'image'
+                                    ? 'Mengirim foto'
+                                    : $latestIncomingChat.message?.type === 'audio'
+                                        ? 'Mengirim pesan suara'
+                                        : $latestIncomingChat.message?.type === 'file'
+                                            ? 'Mengirim berkas'
+                                            : 'Mengirim pesan'}
+                        </p>
+                    </button>
+                    <button onclick={() => { dismissIncomingChat(); chatReplyText = ''; }} class="rounded-full p-2 text-slate-300 hover:bg-slate-100 hover:text-slate-500">
+                        <X size={16} />
+                    </button>
+                </div>
+
+                <div class="border-t border-slate-100 px-4 py-3">
+                    <input
+                        type="text"
+                        bind:value={chatReplyText}
+                        placeholder="Balas cepat..."
+                        onkeydown={(e) => e.key === 'Enter' && replyIncomingChat()}
+                        class="mb-3 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700 outline-none focus:border-orange-400 focus:bg-white"
+                    />
+                    <div class="flex items-center gap-2">
+                        <button onclick={openIncomingChat} class="flex-1 rounded-2xl bg-slate-100 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-200">
+                            Baca
+                        </button>
+                        <button onclick={replyIncomingChat} disabled={isReplyingChat || !chatReplyText.trim()} class="flex-1 rounded-2xl bg-orange-500 px-4 py-2.5 text-xs font-bold text-white hover:bg-orange-600 disabled:opacity-50">
+                            {isReplyingChat ? 'Mengirim...' : 'Balas'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {/if}
+
     {#if showDeletionWarning && $page.url.pathname !== '/auth'}
         <div class="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-sm transition-all duration-300">
             <div class="w-full max-w-sm bg-white rounded-3xl p-8 text-center shadow-2xl border-2 border-red-100 relative">
@@ -316,28 +423,9 @@
 		position="bottom-center"
 		toastOptions={{
 			style:
-				"font-family:'Inter',sans-serif; font-size:13px; font-weight:500; border-radius:16px; padding:6px 6px 6px 16px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.05);"
+				"font-family:'Inter',sans-serif; font-size:13px; font-weight:500; border-radius:16px; padding:10px 16px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.05);"
 		}}
-	>
-		{#snippet children({ toast: t })}
-			<ToastBar toast={t}>
-				{#snippet children({ icon, message })}
-					<div class="flex items-center gap-2">
-						{icon}
-						<div class="flex-1">{message}</div>
-						{#if t.type !== 'loading'}
-							<button 
-								onclick={(e) => { e.stopPropagation(); toast.dismiss(t.id); }} 
-								class="ml-2 p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-							>
-								<X size={14} />
-							</button>
-						{/if}
-					</div>
-				{/snippet}
-			</ToastBar>
-		{/snippet}
-	</Toaster>
+	/>
 
 	{#if showInstallBanner}
 		<div class="fixed bottom-24 left-1/2 z-[100] w-[90%] max-w-sm -translate-x-1/2" transition:fade>
@@ -382,10 +470,11 @@
 							<p class="text-[10px] text-slate-600">Gunakan Safari untuk fitur ini</p>
 						</div>
 					</div>
-					<button
-						onclick={() => (showIOSInstallBanner = false)}
-						class="p-1 text-slate-400 hover:text-slate-900"
-					>
+						<button
+                            aria-label="Tutup banner iPhone"
+							onclick={() => (showIOSInstallBanner = false)}
+							class="p-1 text-slate-400 hover:text-slate-900"
+						>
 						<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"
 							><path
 								stroke-linecap="round"

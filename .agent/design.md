@@ -227,6 +227,21 @@ gap-2   /* 8px — antar elemen kecil */
 </div>
 ```
 
+### Deletion Warning Alert (Global)
+```html
+<div class="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-sm">
+  <div class="w-full max-w-sm bg-white rounded-3xl p-8 text-center shadow-2xl border-2 border-red-100 relative">
+    <div class="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-5 animate-pulse">
+      <AlertTriangle size={40} class="text-red-600" />
+    </div>
+    <h2 class="text-xl font-black text-slate-900 mb-2">Pembersihan Dijadwalkan</h2>
+    <div class="bg-red-50 text-red-600 font-black text-2xl py-3 rounded-2xl mb-6 border border-red-100 tracking-wider">
+      {deletionTimeLeft}
+    </div>
+  </div>
+</div>
+```
+
 ---
 
 ## 🏷️ Badge / Tag System
@@ -259,6 +274,13 @@ gap-2   /* 8px — antar elemen kecil */
 <!-- Batang vertikal di sisi kiri card task -->
 <div class="w-1.5 h-6 rounded-full" style="background: {PRIORITY_DOT[task.priority]}">
   <!-- low: #94A3B8 | medium: #F59E0B | high: #EF4444 -->
+```
+
+### Chat Unread Badge
+```html
+<span class="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-orange-500 px-1.5 text-[10px] font-bold text-white ring-2 ring-white">
+  {unreadCount > 99 ? '99+' : unreadCount}
+</span>
 ```
 
 ---
@@ -317,6 +339,29 @@ hover: text-slate-600 bg-slate-50;
 ### Header Sticky
 ```html
 <header class="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-orange-100 px-5 py-4">
+```
+
+### Floating Chat Notification (In-App Popup)
+```html
+<div class="fixed inset-x-4 top-[calc(env(safe-area-inset-top)+14px)] z-[130] sm:left-auto sm:right-6 sm:w-[360px]">
+  <div class="overflow-hidden rounded-[28px] border border-orange-100 bg-white/95 shadow-2xl backdrop-blur-xl">
+    <div class="flex items-start gap-3 px-4 py-4 hover:bg-orange-50/60 transition-colors">
+      <!-- Avatar & Info Pesan Masuk -->
+    </div>
+    <div class="border-t border-slate-100 px-4 py-3">
+      <!-- Quick Reply Input -->
+    </div>
+  </div>
+</div>
+```
+
+### PWA Install Banner
+```html
+<div class="fixed bottom-24 left-1/2 z-[100] w-[90%] max-w-sm -translate-x-1/2">
+  <div class="flex items-center gap-4 rounded-2xl border border-white/20 bg-white/40 p-4 shadow-2xl backdrop-blur-xl">
+    <!-- Logo & Text -->
+  </div>
+</div>
 ```
 
 ---
@@ -435,6 +480,15 @@ hover:-translate-y-0.5 hover:shadow-lg
     {getInitials(user.full_name)}
   {/if}
 </div>
+```
+
+### Fallback Avatar Eksternal (UI-Avatars)
+Digunakan di Chat Popup / Notifikasi jika gambar tidak ada dan tidak memakai komponen custom:
+```html
+<img
+  src={avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff&size=80`}
+  class="h-11 w-11 rounded-2xl object-cover bg-slate-100"
+/>
 ```
 
 ### Helper `getInitials`

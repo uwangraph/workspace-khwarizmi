@@ -1,6 +1,6 @@
 <script lang="ts">
   import { fade, slide } from 'svelte/transition'
-  import { X, ArrowLeft, Camera, Edit2, Plus, UserMinus, UserPlus, Info, Calendar, ShieldCheck, Mail, Hash } from 'lucide-svelte'
+  import { X, ArrowLeft, Camera, Plus, UserMinus, UserPlus, Calendar, ShieldCheck, Hash, ImageIcon, FileText, ExternalLink, Play, Pause, Mic, Download } from 'lucide-svelte'
   import type { ChatRoom, Profile } from '$lib/type'
   import { chatService } from '$lib/services/chatService'
   import { supabase } from '$lib/supabase'
@@ -11,12 +11,20 @@
     room,
     currentUser,
     allProfiles = [],
+    messages = [],
+    chatImages = [],
+    chatFiles = [],
+    onImagePreview,
     onUpdateRoom
   }: {
     show: boolean,
     room: any,
     currentUser: any,
     allProfiles: Profile[],
+    messages: any[],
+    chatImages: any[],
+    chatFiles: any[],
+    onImagePreview: (url: string) => void,
     onUpdateRoom: (updated: any) => void
   } = $props()
 
@@ -27,6 +35,21 @@
   let showAddMember = $state(false)
   let searchUserQuery = $state('')
   let avatarInputRef = $state<HTMLInputElement | null>(null)
+  let activeTab = $state<'media' | 'docs' | 'links'>('media')
+  let previewImageUrl = $state<string | null>(null)
+  let playingAudioId = $state<string | null>(null)
+  let audioPlayerEl = $state<HTMLAudioElement | null>(null)
+
+  function toggleAudio(id: string, url: string) {
+    if (playingAudioId === id) {
+      audioPlayerEl?.pause()
+      playingAudioId = null
+    } else {
+      if (audioPlayerEl) audioPlayerEl.pause()
+      playingAudioId = id
+      // The audio element with bind:src will auto-play via autoplay attr
+    }
+  }
 
   let filteredUsers = $derived(
     searchUserQuery.trim() === '' 
@@ -109,6 +132,27 @@
   }
 
   const isCreator = $derived(room?.created_by === currentUser?.id)
+  const imageItems = $derived((chatImages || []).slice().reverse())
+  const fileItems = $derived((chatFiles || []).slice().reverse())
+  const urlRegex = /https?:\/\/[^\s]+/g
+  const linkItems = $derived(
+    [...(messages || [])]
+      .flatMap((message: any) => {
+        const content = typeof message?.content === 'string' ? message.content : ''
+        const urls = content.match(urlRegex) || []
+        return urls.map((url: string) => ({ id: `${message.id}-${url}`, url, message }))
+      })
+  )
+
+  async function downloadFile(url: string, filename: string) {
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    link.target = '_blank'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
 </script>
 
 {#if show}
@@ -159,13 +203,15 @@
           {#if isEditing}
             <div class="mt-8 w-full space-y-4 animate-in fade-in slide-in-from-top-4 duration-300" in:slide>
               <div class="space-y-1.5">
-                <label class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest px-1">Nama Grup</label>
+                <label for="group-name" class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest px-1">Nama Grup</label>
                 <input bind:value={editedName} 
+                       id="group-name"
                        class="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold focus:border-orange-400 outline-none transition-all" />
               </div>
               <div class="space-y-1.5">
-                <label class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest px-1">Deskripsi Grup</label>
+                <label for="group-description" class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest px-1">Deskripsi Grup</label>
                 <textarea bind:value={editedDesc} rows="3"
+                          id="group-description"
                           class="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-medium focus:border-orange-400 outline-none transition-all resize-none"
                           placeholder="Tambahkan deskripsi grup..."></textarea>
               </div>
@@ -177,8 +223,8 @@
           {:else}
             <h1 class="mt-6 text-2xl font-extrabold text-slate-800 tracking-tight">{room?.name}</h1>
             <p class="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">
-              {room?.type === 'group' ? 'Grup Publik' : 'Pesan Langsung'} 
-              {#if room?.participants}
+              {room?.type === 'group' ? 'Grup Publik' : 'Kontak Pribadi'} 
+              {#if room?.type === 'group' && room?.participants}
                 • {room.participants.length} Anggota
               {/if}
             </p>
@@ -279,6 +325,139 @@
           </div>
         {/if}
 
+        <div>
+          <div class="mb-4 flex items-center justify-between px-2">
+            <h3 class="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">Media, Tautan, dan Dokumen</h3>
+            <span class="text-[10px] font-black text-slate-500">{imageItems.length + fileItems.length + linkItems.length}</span>
+          </div>
+
+          <div class="mb-4 flex gap-2 overflow-x-auto px-2">
+            <button onclick={() => activeTab = 'media'} class="rounded-full px-3 py-1.5 text-[11px] font-black {activeTab === 'media' ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-500'}">
+              Media ({imageItems.length})
+            </button>
+            <button onclick={() => activeTab = 'docs'} class="rounded-full px-3 py-1.5 text-[11px] font-black {activeTab === 'docs' ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-500'}">
+              Dokumen ({fileItems.length})
+            </button>
+            <button onclick={() => activeTab = 'links'} class="rounded-full px-3 py-1.5 text-[11px] font-black {activeTab === 'links' ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-500'}">
+              Tautan ({linkItems.length})
+            </button>
+          </div>
+
+          {#if activeTab === 'media'}
+            {#if imageItems.length > 0}
+              <div class="mb-4 grid grid-cols-3 gap-2">
+                {#each imageItems as media}
+                  {#if media.type === 'image'}
+                    <div class="overflow-hidden rounded-2xl border border-slate-100 bg-slate-50">
+                      <button onclick={() => previewImageUrl = media.metadata?.url} class="aspect-square w-full overflow-hidden relative group">
+                        <img src={media.metadata?.url} alt="Media chat" class="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                        <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <ImageIcon size={20} class="text-white" />
+                        </div>
+                      </button>
+                      <button onclick={() => downloadFile(media.metadata?.url, media.metadata?.originalName || 'media-chat')} class="w-full border-t border-slate-100 bg-white px-2 py-2 text-[10px] font-black text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-1">
+                        <Download size={10} /> Unduh
+                      </button>
+                    </div>
+                  {:else if media.type === 'audio'}
+                    <div class="overflow-hidden rounded-2xl border border-slate-100 bg-slate-50">
+                      <button onclick={() => toggleAudio(media.id, media.metadata?.url)} class="aspect-square w-full flex flex-col items-center justify-center gap-2 bg-orange-50 hover:bg-orange-100 transition-colors">
+                        <div class="w-10 h-10 rounded-full bg-orange-500 text-white flex items-center justify-center shadow-md">
+                          {#if playingAudioId === media.id}
+                            <Pause size={18} fill="currentColor" />
+                          {:else}
+                            <Play size={18} class="ml-0.5" fill="currentColor" />
+                          {/if}
+                        </div>
+                        <Mic size={12} class="text-orange-400" />
+                        <span class="text-[9px] font-bold text-orange-700">{media.metadata?.duration || 'Audio'}</span>
+                      </button>
+                      <button onclick={() => downloadFile(media.metadata?.url, media.metadata?.originalName || 'audio.webm')} class="w-full border-t border-slate-100 bg-white px-2 py-2 text-[10px] font-black text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-1">
+                        <Download size={10} /> Unduh
+                      </button>
+                    </div>
+                  {/if}
+                {/each}
+              </div>
+
+              {#if playingAudioId}
+                {@const playingItem = imageItems.find(m => m.id === playingAudioId)}
+                {#if playingItem}
+                  <audio
+                    src={playingItem.metadata?.url}
+                    autoplay
+                    bind:this={audioPlayerEl}
+                    onended={() => playingAudioId = null}
+                    class="hidden"
+                  ></audio>
+                {/if}
+              {/if}
+            {:else}
+              <div class="rounded-[28px] border border-dashed border-slate-200 bg-slate-50 px-6 py-8 text-center">
+                <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-slate-300 shadow-sm">
+                  <ImageIcon size={22} />
+                </div>
+                <p class="text-xs font-bold text-slate-500">Belum ada media yang dibagikan</p>
+              </div>
+            {/if}
+          {/if}
+
+          {#if activeTab === 'docs'}
+            {#if fileItems.length > 0}
+              <div class="space-y-2">
+                {#each fileItems as file}
+                  <div class="rounded-2xl border border-slate-100 bg-white">
+                    <a href={file.metadata?.url} target="_blank" class="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors">
+                      <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-500">
+                        <FileText size={18} />
+                      </div>
+                      <div class="min-w-0 flex-1">
+                        <p class="truncate text-xs font-bold text-slate-700">{file.metadata?.originalName || file.content}</p>
+                        <p class="text-[10px] text-slate-400">Dokumen chat</p>
+                      </div>
+                      <ExternalLink size={14} class="text-slate-300" />
+                    </a>
+                    <button onclick={() => downloadFile(file.metadata?.url, file.metadata?.originalName || 'dokumen-chat')} class="w-full border-t border-slate-100 bg-slate-50 px-4 py-2 text-[10px] font-black text-slate-600 hover:bg-slate-100">
+                      Download File
+                    </button>
+                  </div>
+                {/each}
+              </div>
+            {:else}
+              <div class="rounded-[28px] border border-dashed border-slate-200 bg-slate-50 px-6 py-8 text-center">
+                <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-slate-300 shadow-sm">
+                  <FileText size={22} />
+                </div>
+                <p class="text-xs font-bold text-slate-500">Belum ada dokumen yang dibagikan</p>
+              </div>
+            {/if}
+          {/if}
+
+          {#if activeTab === 'links'}
+            {#if linkItems.length > 0}
+              <div class="space-y-2">
+                {#each linkItems as item}
+                  <a href={item.url} target="_blank" class="block rounded-2xl border border-slate-100 bg-white px-4 py-3 hover:bg-slate-50 transition-colors">
+                    <div class="mb-1 flex items-center gap-2">
+                      <ExternalLink size={14} class="text-orange-500" />
+                      <span class="truncate text-[10px] font-black text-slate-400">{new URL(item.url).hostname}</span>
+                    </div>
+                    <p class="truncate text-xs font-bold text-slate-700">{item.url}</p>
+                    <p class="mt-1 text-[10px] text-slate-400">Dibagikan dalam chat</p>
+                  </a>
+                {/each}
+              </div>
+            {:else}
+              <div class="rounded-[28px] border border-dashed border-slate-200 bg-slate-50 px-6 py-8 text-center">
+                <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-slate-300 shadow-sm">
+                  <ExternalLink size={22} />
+                </div>
+                <p class="text-xs font-bold text-slate-500">Belum ada tautan yang dibagikan</p>
+              </div>
+            {/if}
+          {/if}
+        </div>
+
         <!-- Other Info -->
         <div class="space-y-4">
            <div class="flex items-center justify-between px-2">
@@ -306,4 +485,19 @@
       </div>
     </div>
   </div>
+
+  {#if previewImageUrl}
+    <div class="fixed inset-0 z-[500] bg-black/95 flex flex-col items-center justify-center p-4 backdrop-blur-sm" transition:fade onclick={() => previewImageUrl = null}>
+      <div class="absolute top-0 left-0 right-0 p-5 flex justify-between items-center z-10 bg-linear-to-b from-black/50 to-transparent">
+        <p class="text-white/80 text-xs font-bold">Pratinjau Gambar</p>
+        <button onclick={() => previewImageUrl = null} class="p-2.5 bg-white/10 text-white rounded-full hover:bg-white/20 transition-all">
+          <X size={20} />
+        </button>
+      </div>
+      <img src={previewImageUrl} alt="Pratinjau" class="max-w-full max-h-[80vh] object-contain shadow-2xl rounded-xl" onclick={(e) => e.stopPropagation()} />
+      <button onclick={() => downloadFile(previewImageUrl!, 'media-chat')} class="mt-4 px-6 py-2.5 bg-white/10 text-white rounded-full text-xs font-bold hover:bg-white/20 transition-all flex items-center gap-2">
+        <Download size={14} /> Unduh Gambar
+      </button>
+    </div>
+  {/if}
 {/if}

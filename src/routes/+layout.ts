@@ -8,8 +8,8 @@ export const load: LayoutLoad = async ({ url }) => {
   const { data: { session } } = await supabase.auth.getSession()
   const isAuthPage = url.pathname.startsWith('/auth')
 
-  if (!session && !isAuthPage) redirect(303, '/auth')
-  if (session && isAuthPage) redirect(303, '/')
+  if (!session && !isAuthPage) throw redirect(303, '/auth')
+  if (session && isAuthPage) throw redirect(303, '/')
 
   return { session }
 }

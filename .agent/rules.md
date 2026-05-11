@@ -141,6 +141,20 @@ let selectedItem = $state<Item | null>(null)
 // import toast from 'svelte-french-toast'
 ```
 
+### ✅ Context API untuk Global Layout State
+Gunakan `setContext` dan `getContext` (`svelte`) yang dipadukan dengan Svelte Store (`writable`) untuk state yang bersifat global di dalam layout (contoh: `deletionStore`).
+```typescript
+// ✅ BENAR - Di +layout.svelte
+import { setContext } from 'svelte';
+import { writable } from 'svelte/store';
+const deletionStore = writable(false);
+setContext('deletionStore', deletionStore);
+
+// Di +page.svelte (child)
+import { getContext } from 'svelte';
+const deletionStore = getContext<Writable<boolean>>('deletionStore');
+```
+
 ### ✅ Optimistic Update Pattern
 ```typescript
 // ✅ Update UI dulu, rollback jika gagal
@@ -255,9 +269,21 @@ await notificationService.sendBulk([uid1, uid2], 'type', 'Judul', 'Pesan', data)
 Jangan pernah *insert* langsung ke tabel `notifications` dari klien. `notificationService.send` sudah dirancang untuk memanggil **RPC (bypass RLS)** dan **Edge Function (FCM Push)** secara bersamaan.
 Jangan gunakan API SvelteKit (`+server.ts`) karena akan dihapus di *production* (`adapter-static`).
 
+### ✅ Aturan PWA & Push Notification (iOS)
+Dilarang memanggil `Notification.requestPermission()` secara asinkron atau tanpa interaksi (User Gesture). Pada iOS, pemanggilan harus berada di baris pertama event `click` atau `touchstart`. Selalu cek `window.matchMedia('(display-mode: standalone)').matches` untuk mendeteksi mode PWA di iOS sebelum inisialisasi FCM.
+
 ---
 
-## 8. Form Validation
+## 8. Chat Realtime & Channels
+
+### Realtime Channels & Subscriptions
+- **Channel Cleanup (Kritis):** Wajib menghapus channel lama (`supabase.removeChannel`) sebelum membuat `channel` baru (misalnya pada `chat_{roomId}`) untuk mencegah *memory leak* dan duplikasi event ("after subscribe error").
+- **Multiple Channels vs Filters (Penting):** Jangan menggunakan filter array `in.(uuid1,uuid2)` pada Supabase Realtime jika menangani lebih dari 1 ID karena ada limit karakter yang akan membuat koneksi gagal secara diam-diam (*silently fail*).
+- **Hindari Konflik Channel:** Jangan pernah mendaftarkan channel tanpa filter ke tabel `chat_messages` (global) jika ada channel lain yang memantau tabel yang sama dengan filter. Ini akan menyebabkan bentrokan pada *multiplexer* Supabase dan semua koneksi akan mati.
+- **Multiple Rooms Subscription:** Jika user ingin memantau pesan dari banyak *room* sekaligus, buatlah *instance* channel terpisah secara spesifik untuk masing-masing *room* (contoh: `supabase.channel('global-chat-123').on(..., filter: 'room_id=eq.123')`) dan simpan referensinya ke dalam array untuk di-*teardown* saat sinkronisasi ulang.
+- **Mobile Interaction:** Gunakan event `oncontextmenu` untuk menangani aksi *long-press* pada perangkat mobile (seperti menu hapus pesan).
+
+## 9. Form Validation
 
 ```typescript
 // ✅ Validasi sebelum submit, set error per-field
@@ -289,7 +315,7 @@ async function handleSubmit() {
 
 ---
 
-## 9. Penamaan
+## 10. Penamaan
 
 | Konteks | Konvensi | Contoh |
 |---|---|---|
@@ -303,7 +329,7 @@ async function handleSubmit() {
 
 ---
 
-## 10. Hal yang DILARANG
+## 11. Hal yang DILARANG
 
 ```typescript
 // ❌ JANGAN gunakan Svelte 4 reactive ($:)

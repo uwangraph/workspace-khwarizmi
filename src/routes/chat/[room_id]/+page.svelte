@@ -30,9 +30,12 @@
   let messages = $state<ChatMessage[]>([])
   let isLoading = $state(true)
   let subscription: any
+  let typingSubscription: any
   let partnerStatusChannel: any
+  let partnerReadChannel: any
   let initialLastReadAt = $state<string | null>(null)
   let initialUnreadCount = $state(0)
+  let partnerLastReadAt = $state<string | null>(null)
   
   let firstUnreadIndex = $derived.by(() => {
     if (initialUnreadCount <= 0) return -1;
@@ -114,7 +117,7 @@
   // Gallery & Sidebar
   let showSidebar = $state(false)
   let pinnedMessage = $state<ChatMessage | null>(null)
-  let chatImages = $derived(messages.filter(m => m.type === 'image'))
+  let chatImages = $derived(messages.filter(m => m.type === 'image' || m.type === 'audio'))
   let chatFiles = $derived(messages.filter(m => m.type === 'file'))
 
   // Multi-select & Features
@@ -132,10 +135,25 @@
   let allProfiles = $state<Profile[]>([])
   let isSearchingProfiles = $state(false)
   let statusInterval: any
+  let participantIds = $state<string[]>([])
+  let groupMemberNames = $derived(
+    activeRoom?.type === 'group' && allProfiles.length > 0 && participantIds.length > 0
+      ? (() => {
+          const names = allProfiles
+            .filter(p => participantIds.includes(p.id) && p.id !== user?.id)
+            .map(p => p.full_name.split(' ')[0])
+          if (names.length === 0) return 'Grup'
+          if (names.length <= 3) return names.join(', ')
+          return names.slice(0, 2).join(', ') + ` +${names.length - 2} lainnya`
+        })()
+      : ''
+  )
 
   onDestroy(() => {
     if (statusInterval) clearInterval(statusInterval)
     if (partnerStatusChannel) supabase.removeChannel(partnerStatusChannel)
+    if (partnerReadChannel) supabase.removeChannel(partnerReadChannel)
+    typingSubscription?.unsubscribe?.()
     if (user?.id) chatService.markMessagesAsRead(roomId, user.id)
   })
 
@@ -345,8 +363,10 @@
     if (reactions[user.id] === emoji) delete reactions[user.id]
     else reactions[user.id] = emoji
     try {
-      await chatService.updateMessageMetadata(msgId, { ...msg.metadata, reactions })
-      messages = messages.map(m => m.id === msgId ? { ...m, metadata: { ...m.metadata, reactions } } : m)
+      const newMetadata = { ...msg.metadata, reactions }
+      messages = messages.map(m => m.id === msgId ? { ...m, metadata: newMetadata } : m)
+      chatService.broadcastMetadata(roomId, msgId, newMetadata)
+      await chatService.updateMessageMetadata(msgId, newMetadata)
     } catch { toast.error('Gagal memberi reaksi') }
   }
 
@@ -435,8 +455,14 @@
       if (savedWp) selectedWallpaper = savedWp
       if (savedColor) customBgColor = savedColor
       if (activeRoom?.type === 'direct') {
-        const { data: part } = await supabase.from('chat_participants').select('user_id').eq('room_id', roomId).neq('user_id', authUser.id).maybeSingle()
+        const { data: part } = await supabase
+          .from('chat_participants')
+          .select('user_id, last_read_at')
+          .eq('room_id', roomId)
+          .neq('user_id', authUser.id)
+          .maybeSingle()
         if (part) {
+          partnerLastReadAt = part.last_read_at || null
           const { data: p } = await supabase.from('profiles').select('*').eq('id', part.user_id).maybeSingle()
           if (p) partnerProfile = p
 
@@ -445,6 +471,24 @@
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${part.user_id}` }, (payload) => {
               partnerProfile = payload.new as Profile
             })
+            .subscribe()
+
+          partnerReadChannel = supabase.channel(`partner_read_${roomId}_${part.user_id}`)
+            .on(
+              'postgres_changes',
+              {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'chat_participants',
+                filter: `room_id=eq.${roomId}`
+              },
+              (payload) => {
+                const updated = payload.new as { user_id: string; last_read_at?: string | null }
+                if (updated.user_id === part.user_id) {
+                  partnerLastReadAt = updated.last_read_at || null
+                }
+              }
+            )
             .subscribe()
         }
       }
@@ -456,6 +500,11 @@
       scrollToBottom()
       const { data: profs } = await supabase.from('profiles').select('*')
       if (profs) allProfiles = (profs as Profile[]).filter(p => p.id !== authUser.id)
+
+      if (activeRoom?.type === 'group') {
+        const { data: parts } = await supabase.from('chat_participants').select('user_id').eq('room_id', roomId)
+        if (parts) participantIds = parts.map((p: any) => p.user_id)
+      }
       const pollMsgs = fMsgs.filter(m => m.type === 'poll')
       if (pollMsgs.length > 0) await Promise.all(pollMsgs.map(async m => { pollVotes[m.id] = await chatService.getPollVotes(m.id) }))
       
@@ -467,7 +516,10 @@
         } else {
           const nm = payload.new as ChatMessage
           if (!messages.some(m => m.id === nm.id)) {
-            messages = [...messages, nm]
+            const sender = nm.sender_id === authUser.id
+              ? (profile ?? undefined)
+              : (allProfiles.find(p => p.id === nm.sender_id) ?? undefined)
+            messages = [...messages, { ...nm, sender }]
             if (nm.sender_id !== authUser.id) {
               scrollToBottom()
               chatService.markMessagesAsRead(roomId, authUser.id)
@@ -477,6 +529,18 @@
       }, async (payload) => {
         const v = payload.new as any
         if (pollVotes[v.message_id]) pollVotes[v.message_id] = await chatService.getPollVotes(v.message_id)
+      }, (broadcastPayload) => {
+        // Fast UI sync via Custom Broadcast
+        const { messageId, metadata } = broadcastPayload
+        messages = messages.map(m => m.id === messageId ? { ...m, metadata } : m)
+      })
+
+      typingSubscription = chatService.subscribeToTyping(roomId, ({ userId, isTyping }) => {
+        if (!userId || userId === authUser.id) return
+        const next = new Set(typingUsers)
+        if (isTyping) next.add(userId)
+        else next.delete(userId)
+        typingUsers = next
       })
     } catch (e) {
       console.error('Error in chat onMount:', e)
@@ -486,6 +550,7 @@
 
     return () => {
       subscription?.unsubscribe()
+      typingSubscription?.unsubscribe?.()
       if (statusInterval) clearInterval(statusInterval)
     }
   })
@@ -526,6 +591,11 @@
     } 
     return 'Offline' 
   }
+  function isMessageRead(msg: ChatMessage) {
+    if (msg.sender_id !== user?.id) return false
+    if (!partnerLastReadAt) return false
+    return new Date(partnerLastReadAt).getTime() >= new Date(msg.created_at).getTime()
+  }
 </script>
 
 <div class="h-screen bg-slate-50 flex flex-col overflow-hidden font-sans relative" 
@@ -536,8 +606,9 @@
       <LoadingSpinner label="Memuat pesan..." />
     </div>
   {:else}
-    <ChatHeader 
+    <ChatHeader
       {activeRoom} {partnerProfile} {typingUsers} {wallpapers}
+      memberNames={groupMemberNames}
       bind:isSearching bind:searchQuery bind:showSidebar bind:selectedWallpaper bind:customBgColor bind:showWallpaperMenu
       onWallpaperUpload={() => wallpaperInputRef?.click()}
       onColorSelect={() => colorInputRef?.click()}
@@ -604,6 +675,7 @@
             <ChatBubble 
               {msg} 
               isMe={msg.sender_id === user?.id}
+              isGroup={activeRoom?.type === 'group'}
               isSelectMode={isSelectMode}
               isSelected={selectedMessageIds.includes(msg.id)}
               {searchQuery}
@@ -627,6 +699,7 @@
               onToggleAudio={toggleAudio}
               onVote={handleVote}
               onImagePreview={(url) => selectedImageUrl = url}
+              isRead={isMessageRead(msg)}
               {formatTime}
               {highlightText}
               {getUrlPreview}
@@ -661,6 +734,10 @@
         room={activeRoomDetails || activeRoom} 
         currentUser={user}
         {allProfiles}
+        messages={messages}
+        {chatImages}
+        {chatFiles}
+        onImagePreview={(url) => selectedImageUrl = url}
         onUpdateRoom={(updated) => {
           activeRoom = { ...activeRoom, ...updated }
           activeRoomDetails = { ...activeRoomDetails, ...updated }
@@ -728,7 +805,7 @@
           </div>
           <div class="flex justify-between">
             <span class="text-xs font-bold text-slate-400">Status</span>
-            <span class="text-xs font-bold text-blue-500">{showMessageInfo.metadata?.is_read ? 'Dibaca' : 'Terkirim'}</span>
+            <span class="text-xs font-bold text-blue-500">{isMessageRead(showMessageInfo) ? 'Dibaca' : 'Terkirim'}</span>
           </div>
         </div>
         <button onclick={() => showMessageInfo = null} class="w-full mt-6 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold">Tutup</button>

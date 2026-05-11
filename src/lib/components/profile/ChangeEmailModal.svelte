@@ -21,9 +21,13 @@
     isLoading = true
     const { error: authError } = await authService.verifyPassword(userEmail, emailPassword)
     if (authError) { emailError = 'Password tidak benar'; isLoading = false; return }
+    const { data: sessionData } = await authService.getSession()
     const res = await fetch('/api/user/email', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {})
+      },
       body: JSON.stringify({ userId, newEmail: newEmail.trim() })
     });
     

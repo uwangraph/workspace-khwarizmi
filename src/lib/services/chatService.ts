@@ -119,6 +119,24 @@ export const chatService = {
 
   // Ambil detail lengkap sebuah room (termasuk partisipan)
   async getRoomDetails(roomId: string) {
+    const {
+      data: { user }
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      throw new Error('Sesi tidak ditemukan')
+    }
+
+    const { data: membership, error: membershipError } = await supabase
+      .from('chat_participants')
+      .select('room_id')
+      .eq('room_id', roomId)
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (membershipError) throw membershipError
+    if (!membership) throw new Error('Anda bukan peserta room ini')
+
     const { data: room, error: roomError } = await supabase
       .from('chat_rooms')
       .select('*')
@@ -156,6 +174,14 @@ export const chatService = {
         const prof = profiles?.find(pr => pr.id === p.user_id)
         return { ...prof, joined_at: p.joined_at }
       })
+
+      if (room.type === 'direct') {
+        const partner = room.participants.find((p: any) => p?.id && p.id !== user.id)
+        if (partner) {
+          room.name = partner.full_name
+          room.partner_avatar = partner.avatar_url || null
+        }
+      }
     } else {
       room.participants = []
     }
@@ -219,7 +245,19 @@ export const chatService = {
       .limit(limit)
     
     if (error) throw error
-    return data.reverse() as ChatMessage[]
+    const messages = data.reverse() as ChatMessage[]
+    const senderIds = [...new Set(messages.map((message) => message.sender_id).filter(Boolean))]
+    if (senderIds.length === 0) return messages
+
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('id', senderIds)
+
+    return messages.map((message) => ({
+      ...message,
+      sender: profiles?.find((profile) => profile.id === message.sender_id)
+    })) as ChatMessage[]
   },
 
   // Kirim pesan teks
@@ -247,9 +285,21 @@ export const chatService = {
 
   // Edit pesan
   async editMessage(messageId: string, userId: string, newContent: string) {
+    const { data: existingMessage, error: existingError } = await supabase
+      .from('chat_messages')
+      .select('metadata')
+      .eq('id', messageId)
+      .eq('sender_id', userId)
+      .single()
+
+    if (existingError) throw existingError
+
     const { data, error } = await supabase
       .from('chat_messages')
-      .update({ content: newContent, metadata: { edited: true } })
+      .update({
+        content: newContent,
+        metadata: { ...(existingMessage?.metadata || {}), edited: true }
+      })
       .eq('id', messageId)
       .eq('sender_id', userId)
       .select()
@@ -261,12 +311,23 @@ export const chatService = {
 
   // Perbarui metadata pesan (untuk reaksi, bintang, dll)
   async updateMessageMetadata(messageId: string, metadata: any) {
-    const { error } = await supabase
-      .from('chat_messages')
-      .update({ metadata })
-      .eq('id', messageId)
-    
-    if (error) throw error
+    try {
+      // Gunakan server route untuk bypass RLS (agar bisa react/pin pesan orang lain)
+      const res = await fetch('/api/chat/metadata', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId, metadata })
+      })
+      if (!res.ok) throw new Error('API route failed')
+    } catch (err) {
+      console.warn('[Chat] API route failed, falling back to direct update', err)
+      const { error } = await supabase
+        .from('chat_messages')
+        .update({ metadata })
+        .eq('id', messageId)
+      
+      if (error) throw error
+    }
   },
 
   // Teruskan pesan ke room lain
@@ -384,7 +445,10 @@ export const chatService = {
     const participants = [creatorId, ...participantIds].map(id => ({ room_id: room.id, user_id: id }))
     const { error: partError } = await supabase.from('chat_participants').insert(participants)
     
-    if (partError) throw partError
+    if (partError) {
+      await supabase.from('chat_rooms').delete().eq('id', room.id)
+      throw partError
+    }
     return room as ChatRoom
   },
 
@@ -517,10 +581,10 @@ export const chatService = {
   },
 
   // Subscribe ke pesan baru & vote polling
-  subscribeToMessages(roomId: string, onMessage: (payload: any) => void, onVote?: (payload: any) => void) {
+  subscribeToMessages(roomId: string, onMessage: (payload: any) => void, onVote?: (payload: any) => void, onMetadata?: (payload: any) => void) {
     const channelName = `chat_${roomId}`
     // Pastikan channel lama dihapus agar tidak error "after subscribe"
-    const existing = supabase.getChannels().find(c => c.name === channelName)
+    const existing = supabase.getChannels().find((c: any) => c.topic === channelName)
     if (existing) supabase.removeChannel(existing)
     
     const channel = supabase.channel(channelName)
@@ -553,13 +617,35 @@ export const chatService = {
       (payload) => onMessage({ ...payload, eventType: 'UPDATE' })
     )
 
+    // Custom Broadcast untuk update Metadata (Reactions, Pins) agar langsung sinkron tanpa menunggu/bergantung pada Postgres
+    channel.on(
+      'broadcast',
+      { event: 'metadata_update' },
+      (payload) => {
+        if (onMetadata) onMetadata(payload.payload)
+      }
+    )
+
     return channel.subscribe()
+  },
+
+  // Broadcast update metadata secara realtime
+  broadcastMetadata(roomId: string, messageId: string, metadata: any) {
+    const channelName = `chat_${roomId}`
+    const channel = supabase.getChannels().find((c: any) => c.topic === channelName)
+    if (channel) {
+      channel.send({
+        type: 'broadcast',
+        event: 'metadata_update',
+        payload: { messageId, metadata }
+      })
+    }
   },
 
   // Broadcast sedang mengetik
   broadcastTyping(roomId: string, userId: string, userName: string, isTyping: boolean) {
     const channelName = `typing_${roomId}`
-    const existing = supabase.getChannels().find(c => c.name === channelName)
+    const existing = supabase.getChannels().find((c: any) => c.topic === channelName)
     if (existing) supabase.removeChannel(existing)
     
     const channel = supabase.channel(channelName)
@@ -577,7 +663,7 @@ export const chatService = {
   // Subscribe status mengetik
   subscribeToTyping(roomId: string, onTyping: (payload: any) => void) {
     const channelName = `typing_listen_${roomId}`
-    const existing = supabase.getChannels().find(c => c.name === channelName)
+    const existing = supabase.getChannels().find((c: any) => c.topic === channelName)
     if (existing) supabase.removeChannel(existing)
     
     const channel = supabase.channel(channelName)

@@ -1,5 +1,14 @@
 import { supabase } from '$lib/supabase';
 
+async function getAuthHeaders() {
+  const { data } = await supabase.auth.getSession();
+  const accessToken = data.session?.access_token;
+  return {
+    'Content-Type': 'application/json',
+    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
+  };
+}
+
 export const adminService = {
   async fetchAllData(period?: string) {
     // period can be 'YYYY-MM' or 'YYYY'
@@ -47,7 +56,10 @@ export const adminService = {
   async deleteUser(userId: string) {
     // Delete via server API (requires admin privileges to remove auth user)
     try {
-      const res = await fetch(`/api/admin/users?id=${userId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/users?id=${userId}`, {
+        method: 'DELETE',
+        headers: await getAuthHeaders()
+      });
       const result = await res.json();
       if (!res.ok) return { error: result.error || 'Gagal menghapus pengguna' };
       return { data: result };
@@ -60,7 +72,7 @@ export const adminService = {
     try {
       const res = await fetch('/api/admin/users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await getAuthHeaders(),
         body: JSON.stringify(data)
       });
       const result = await res.json();
@@ -102,12 +114,33 @@ export const adminService = {
   },
 
   async scheduleDeletion() {
-    const now = new Date().toISOString();
-    return await supabase.from('app_settings').update({ deletion_scheduled_at: now }).eq('id', 1);
+    try {
+      const res = await fetch('/api/admin/system', {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({ action: 'schedule-deletion' })
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Gagal menjadwalkan penghapusan');
+      return { data: result };
+    } catch (err: any) {
+      return { error: err.message };
+    }
   },
 
   async cancelDeletion() {
-    return await supabase.from('app_settings').update({ deletion_scheduled_at: null }).eq('id', 1);
+    try {
+      const res = await fetch('/api/admin/system', {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({ action: 'cancel-deletion' })
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Gagal membatalkan penghapusan');
+      return { data: result };
+    } catch (err: any) {
+      return { error: err.message };
+    }
   },
 
   async checkScheduledDeletion(settings: any) {
@@ -116,30 +149,22 @@ export const adminService = {
     const now = Date.now();
     const hours24 = 24 * 60 * 60 * 1000;
     
-    // Jika sudah lewat 24 jam, eksekusi hapus permanen!
-    if (now - scheduledAt >= hours24) {
-      await this.clearAllTransactionData();
-      await this.cancelDeletion(); // Reset setelah berhasil dihapus
-      return false; // Karena sudah dihapus, status 'menunggu' hilang
-    }
-    return true; // Sedang dalam masa tunggu 24 jam
+    return now - scheduledAt < hours24;
   },
   
   async clearAllTransactionData() {
-    // Menghapus semua data transaksi/operasional untuk pembersihan sistem
-    const results = await Promise.all([
-      supabase.from('task_assignments').delete().neq('task_id', '00000000-0000-0000-0000-000000000000'), // Delete assignments first to avoid FK constraint errors
-      supabase.from('tasks').delete().neq('id', '00000000-0000-0000-0000-000000000000'), // Delete all tasks
-      supabase.from('attendance').delete().neq('id', '00000000-0000-0000-0000-000000000000'), // Delete all attendance
-      supabase.from('attendance_leaves').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-      supabase.from('attendance_penalties').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-      supabase.from('notifications').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-      supabase.from('fcm_tokens').delete().neq('user_id', '00000000-0000-0000-0000-000000000000')
-    ]);
-
-    const error = results.find(r => r.error);
-    if (error) throw error.error;
-    return { success: true };
+    try {
+      const res = await fetch('/api/admin/system', {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({ action: 'clear-transaction-data' })
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Gagal menghapus data');
+      return { data: result };
+    } catch (err: any) {
+      return { error: err.message };
+    }
   },
 
   async getPendingLeavesCount() {
@@ -151,4 +176,3 @@ export const adminService = {
     return count || 0;
   }
 };
-

@@ -8,6 +8,7 @@
     activeRoom,
     partnerProfile,
     typingUsers,
+    memberNames = '',
     isSearching = $bindable(false),
     searchQuery = $bindable(''),
     showSidebar = $bindable(false),
@@ -23,6 +24,7 @@
     activeRoom: ChatRoom | null,
     partnerProfile: Profile | null,
     typingUsers: Set<string>,
+    memberNames?: string,
     isSearching: boolean,
     searchQuery: string,
     showSidebar: boolean,
@@ -54,31 +56,39 @@
       </button>
     </div>
   {:else}
-    {#if activeRoom?.type === 'group'}
-      {#if activeRoom?.avatar_url}
-        <img src={activeRoom.avatar_url} alt={activeRoom.name} class="w-10 h-10 rounded-full object-cover shrink-0 shadow-sm" />
+    <button onclick={onInfo} class="flex flex-1 min-w-0 items-center gap-3 rounded-2xl px-1 py-1 text-left hover:bg-slate-50 transition-colors">
+      {#if activeRoom?.type === 'group'}
+        {#if (activeRoom as any)?.avatar_url}
+          <img src={(activeRoom as any).avatar_url} alt={activeRoom.name} class="w-10 h-10 rounded-full object-cover shrink-0 shadow-sm" />
+        {:else}
+          <div class="w-10 h-10 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center shrink-0">
+            <Hash size={18} strokeWidth={2.5} />
+          </div>
+        {/if}
       {:else}
-        <div class="w-10 h-10 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center shrink-0">
-          <Hash size={18} strokeWidth={2.5} />
-        </div>
+        <img src={partnerProfile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeRoom?.name || 'U')}&background=random&color=fff&size=80`}
+             alt={activeRoom?.name} class="w-10 h-10 rounded-full object-cover shrink-0 shadow-sm" />
       {/if}
-    {:else}
-      <img src={partnerProfile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeRoom?.name || 'U')}&background=random&color=fff&size=80`}
-           alt={activeRoom?.name} class="w-10 h-10 rounded-full object-cover shrink-0 shadow-sm" />
-    {/if}
 
-    <div class="flex-1 min-w-0">
-      <h1 class="text-sm font-bold text-slate-800 truncate" style="font-family:'Plus Jakarta Sans',sans-serif;">{activeRoom?.name || 'Obrolan'}</h1>
-      <p class="text-[10px] font-medium {typingUsers.size > 0 ? 'text-orange-500 animate-pulse' : (getStatusText(partnerProfile) === 'Online' ? 'text-emerald-500' : 'text-slate-400')}">
-        {typingUsers.size > 0 ? 'Sedang mengetik...' : getStatusText(partnerProfile)}
-      </p>
-    </div>
+      <div class="flex-1 min-w-0">
+        <h1 class="text-sm font-bold text-slate-800 truncate" style="font-family:'Plus Jakarta Sans',sans-serif;">{activeRoom?.name || 'Obrolan'}</h1>
+        {#if typingUsers.size > 0}
+          <p class="text-[10px] font-medium text-orange-500 animate-pulse">Sedang mengetik...</p>
+        {:else if activeRoom?.type === 'group'}
+          <p class="text-[10px] font-medium text-slate-400 truncate">{memberNames || 'Grup'}</p>
+        {:else}
+          <p class="text-[10px] font-medium {getStatusText(partnerProfile) === 'Online' ? 'text-emerald-500' : 'text-slate-400'}">
+            {getStatusText(partnerProfile)}
+          </p>
+        {/if}
+      </div>
+    </button>
 
     <button onclick={() => isSearching = true} class="p-2 text-slate-400 hover:text-orange-500 hover:bg-orange-50 rounded-full transition-all">
       <Search size={20} />
     </button>
 
-    <button onclick={onInfo} class="p-2 text-slate-400 hover:text-orange-500 hover:bg-orange-50 rounded-full transition-all">
+    <button onclick={onInfo} class="p-2 text-slate-400 hover:text-orange-500 hover:bg-orange-50 rounded-full transition-all" title="Info obrolan">
       <Info size={20} />
     </button>
 

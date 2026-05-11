@@ -384,7 +384,8 @@
   async function clearAllData() {
     isClearingData = true
     try {
-      await adminService.scheduleDeletion()
+      const { error } = await adminService.scheduleDeletion()
+      if (error) throw new Error(error)
       showToast('Pembersihan dijadwalkan! Aplikasi dibekukan selama 24 jam.', 'success')
       showClearDataModal = false
       // Reload untuk memicu overlay global dari layout
@@ -399,7 +400,8 @@
   async function cancelClearData() {
     isClearingData = true
     try {
-      await adminService.cancelDeletion()
+      const { error } = await adminService.cancelDeletion()
+      if (error) throw new Error(error)
       showToast('Penghapusan data berhasil dibatalkan!', 'success')
       setTimeout(() => location.reload(), 1000);
     } catch (err: any) {
@@ -416,8 +418,10 @@
     showImmediateDeleteModal = false
     isClearingData = true
     try {
-      await adminService.clearAllTransactionData()
-      await adminService.cancelDeletion()
+      const clearResult = await adminService.clearAllTransactionData()
+      if (clearResult.error) throw new Error(clearResult.error)
+      const cancelResult = await adminService.cancelDeletion()
+      if (cancelResult.error) throw new Error(cancelResult.error)
       showToast('Data berhasil dihapus permanen!', 'success')
       setTimeout(() => location.reload(), 1000)
     } catch (err: any) {

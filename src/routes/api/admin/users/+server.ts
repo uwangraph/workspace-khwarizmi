@@ -1,10 +1,12 @@
 import { json } from '@sveltejs/kit'
 import { supabaseAdmin } from '$lib/server/supabase'
 import type { RequestEvent } from '@sveltejs/kit'
+import { requireAdmin } from '$lib/server/auth'
 
-export async function POST({ request }: RequestEvent) {
+export async function POST(event: RequestEvent) {
   try {
-    const { name, email, password, position, role } = await request.json()
+    await requireAdmin(event)
+    const { name, email, password, position, role } = await event.request.json()
 
     if (!name || !email || !password) {
       return json({ error: 'Nama, email, dan password wajib diisi' }, { status: 400 })
@@ -42,9 +44,10 @@ export async function POST({ request }: RequestEvent) {
   }
 }
 
-export async function DELETE({ url }: RequestEvent) {
+export async function DELETE(event: RequestEvent) {
   try {
-    const userId = url.searchParams.get('id')
+    await requireAdmin(event)
+    const userId = event.url.searchParams.get('id')
     if (!userId) return json({ error: 'User ID wajib diisi' }, { status: 400 })
 
     // 1. Hapus data terkait terlebih dahulu untuk menghindari FK constraint error

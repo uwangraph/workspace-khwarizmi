@@ -6,9 +6,11 @@
   let { 
     msg, 
     isMe, 
+    isGroup = false,
     isSelectMode, 
     isSelected,
     searchQuery = '',
+    isRead = false,
     playingId = null,
     audioProgress = 0,
     audioPlayer = null,
@@ -37,9 +39,11 @@
   }: {
     msg: ChatMessage,
     isMe: boolean,
+    isGroup: boolean,
     isSelectMode: boolean,
     isSelected: boolean,
     searchQuery: string,
+    isRead: boolean,
     playingId: string | null,
     audioProgress: number,
     audioPlayer: any,
@@ -71,12 +75,14 @@
     // Logic moved to parent for simplicity or keep here?
     // Let's assume parent handles long press for now to keep bubble clean
   }
+
+  let openDirection = $state<'up' | 'down'>('up');
 </script>
 
 <div id="msg-{msg.id}" class="flex {isMe ? 'justify-end' : 'justify-start'} group relative {activeMenuId === msg.id ? 'z-[110]' : 'z-0'}" transition:fade={{ duration: 100 }}>
   
   {#if activeMenuId === msg.id}
-    <button class="fixed inset-0 z-[120] cursor-default bg-black/5" onclick={() => activeMenuId = null}></button>
+    <button aria-label="Tutup menu pesan" class="fixed inset-0 z-[120] cursor-default bg-black/5" onclick={() => activeMenuId = null}></button>
   {/if}
 
   {#if isSelectMode}
@@ -93,58 +99,78 @@
 
   <div class="max-w-[78%] flex flex-col {isMe ? 'items-end' : 'items-start'} relative {activeMenuId === msg.id ? 'z-[130]' : 'z-[10]'}">
     
-    <button onclick={() => activeMenuId = activeMenuId === msg.id ? null : msg.id}
+    <button onclick={(e) => { 
+              if (typeof window !== 'undefined') openDirection = (e.clientY + 350 > window.innerHeight) ? 'up' : 'down';
+              activeMenuId = activeMenuId === msg.id ? null : msg.id; 
+            }}
             class="absolute {isMe ? '-left-6' : '-right-6'} top-1 opacity-0 lg:group-hover:opacity-100 transition-all p-1 text-slate-400 hover:text-slate-600 hidden lg:block">
       <ChevronDown size={16} />
     </button>
 
     {#if activeMenuId === msg.id}
-      <div class="absolute {isMe ? 'right-0' : 'left-0'} top-8 z-[100] bg-white rounded-2xl shadow-xl border border-slate-100 py-1.5 min-w-[180px]" transition:slide={{ duration: 150 }}>
-        <div class="flex items-center justify-around px-2 py-1.5 border-b border-slate-50 mb-1">
+      <div class="absolute {isMe ? 'right-0' : 'left-0'} {openDirection === 'up' ? 'bottom-full mb-2' : 'top-full mt-2'} z-[100] bg-white/95 backdrop-blur-xl rounded-[18px] shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-slate-200/60 py-1 min-w-[200px]" transition:slide={{ duration: 150, axis: 'y' }}>
+        
+        <!-- Reaction Bar -->
+        <div class="flex items-center justify-between px-2.5 py-1.5 border-b border-slate-100/80 mb-0.5">
           {#each ['❤️', '👍', '😂', '😮', '😢', '🙏'] as emoji}
-            <button onclick={() => onReaction(msg.id, emoji)} class="text-lg hover:scale-125 transition-transform p-1">
+            <button onclick={() => { onReaction(msg.id, emoji); activeMenuId = null; }} class="text-[20px] hover:scale-125 transition-transform active:scale-95">
               {emoji}
             </button>
           {/each}
         </div>
         
-        <button onclick={() => { onReply(msg); activeMenuId = null }} class="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-3">
-          <Reply size={16} class="text-orange-500" /> Balas
-        </button>
-        <button onclick={() => { onStar(msg); activeMenuId = null }} class="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-3">
-          <Star size={16} class={starredMessages.includes(msg.id) ? 'text-yellow-500 fill-yellow-500' : 'text-yellow-500'} /> {starredMessages.includes(msg.id) ? 'Hapus Bintang' : 'Bintangi'}
-        </button>
-        <button onclick={() => { onPin(msg); activeMenuId = null }} class="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-3">
-          <Pin size={16} class="text-orange-500" /> Sematkan
-        </button>
-        <button onclick={() => { onForward(msg); activeMenuId = null }} class="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-3">
-          <Forward size={16} class="text-blue-500" /> Teruskan
-        </button>
-        {#if isMe && msg.type === 'text'}
-          <button onclick={() => { onEdit(msg); activeMenuId = null }} class="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-3">
-            <Edit2 size={16} class="text-emerald-500" /> Edit
+        <!-- Options -->
+        <div class="grid grid-cols-1 py-0.5">
+          <button onclick={() => { onReply(msg); activeMenuId = null }} class="w-full px-3 py-2 text-left text-[13px] font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5">
+            <Reply size={16} class="text-slate-400" /> Balas
           </button>
-        {/if}
-        <button onclick={() => { onCopy(msg.content); activeMenuId = null }} class="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-3">
-          <Copy size={16} class="text-blue-500" /> Salin
-        </button>
-        <button onclick={() => { onInfo(msg); activeMenuId = null }} class="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-3">
-          <Info size={16} class="text-slate-400" /> Info
-        </button>
-        <div class="h-px bg-slate-50 my-1"></div>
-        {#if isMe}
-          <button onclick={() => { onDelete(msg.id); activeMenuId = null }} class="w-full px-4 py-2.5 text-left text-xs font-bold text-red-500 hover:bg-red-50 flex items-center gap-3">
-            <Trash2 size={16} /> Hapus
+          <button onclick={() => { onCopy(msg.content || ''); activeMenuId = null }} class="w-full px-3 py-2 text-left text-[13px] font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5">
+            <Copy size={16} class="text-slate-400" /> Salin
           </button>
-        {/if}
-        <button onclick={() => { onToggleSelect(msg.id); activeMenuId = null }} class="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-3">
-          <CheckSquare size={16} class="text-orange-400" /> Pilih pesan
-        </button>
+          <button onclick={() => { onForward(msg); activeMenuId = null }} class="w-full px-3 py-2 text-left text-[13px] font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5">
+            <Forward size={16} class="text-slate-400" /> Teruskan
+          </button>
+          <button onclick={() => { onStar(msg); activeMenuId = null }} class="w-full px-3 py-2 text-left text-[13px] font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5">
+            <Star size={16} class={starredMessages.includes(msg.id) ? 'text-yellow-500 fill-yellow-500' : 'text-slate-400'} /> {starredMessages.includes(msg.id) ? 'Hapus Bintang' : 'Bintangi'}
+          </button>
+          
+          {#if isMe && msg.type === 'text'}
+            <button onclick={() => { onEdit(msg); activeMenuId = null }} class="w-full px-3 py-2 text-left text-[13px] font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5">
+              <Edit2 size={16} class="text-slate-400" /> Edit
+            </button>
+          {/if}
+          
+          <button onclick={() => { onInfo(msg); activeMenuId = null }} class="w-full px-3 py-2 text-left text-[13px] font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5">
+            <Info size={16} class="text-slate-400" /> Info
+          </button>
+          
+          <button onclick={() => { onToggleSelect(msg.id); activeMenuId = null }} class="w-full px-3 py-2 text-left text-[13px] font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2.5">
+            <CheckSquare size={16} class="text-slate-400" /> Pilih pesan
+          </button>
+
+          {#if isMe}
+            <div class="h-px bg-slate-100/80 my-1 mx-2"></div>
+            <button onclick={() => { onDelete(msg.id); activeMenuId = null }} class="w-full px-3 py-2 text-left text-[13px] font-bold text-red-500 hover:bg-red-50 flex items-center gap-2.5">
+              <Trash2 size={16} class="text-red-400" /> Hapus
+            </button>
+          {/if}
+        </div>
       </div>
     {/if}
 
-    <div class="px-4 py-2.5 rounded-2xl text-[13px] leading-relaxed shadow-sm relative overflow-hidden select-none active:scale-[0.98] transition-transform
-                {isMe ? 'bg-orange-100 text-orange-900 border border-orange-200/50 rounded-br-sm' : 'bg-emerald-100 text-emerald-900 border border-emerald-200/50 rounded-bl-sm'}">
+    <div class="px-4 py-2.5 rounded-2xl text-[13px] leading-relaxed shadow-sm relative select-none active:scale-[0.98] transition-transform
+                {isMe ? 'bg-orange-100 text-orange-900 border border-orange-200/50 rounded-br-sm' : 'bg-emerald-100 text-emerald-900 border border-emerald-200/50 rounded-bl-sm'}
+                {msg.metadata?.reactions && Object.keys(msg.metadata.reactions).length > 0 ? 'mb-3' : ''}"
+         oncontextmenu={(e) => { 
+           e.preventDefault(); 
+           if (typeof window !== 'undefined') openDirection = (e.clientY + 350 > window.innerHeight) ? 'up' : 'down';
+           activeMenuId = msg.id; 
+         }}>
+      {#if isGroup && !isMe}
+        <p class="mb-1.5 text-[10px] font-black uppercase tracking-wide text-emerald-700/75">
+          {msg.sender?.full_name || 'Anggota'}
+        </p>
+      {/if}
       
       {#if msg.metadata?.forwarded && msg.metadata?.original_sender !== msg.sender_id}
         <div class="flex items-center gap-1 mb-1 opacity-50">
@@ -154,7 +180,7 @@
       {/if}
 
       {#if msg.metadata?.reply_to}
-        <div class="mb-2 p-2 rounded-lg bg-black/5 border-l-4 {isMe ? 'border-orange-400' : 'border-emerald-400'} cursor-pointer"
+        <button type="button" class="mb-2 block w-full rounded-lg bg-black/5 p-2 text-left border-l-4 {isMe ? 'border-orange-400' : 'border-emerald-400'} cursor-pointer"
              onclick={() => { /* scrollToMessage logic if available */ }}>
           <p class="text-[10px] font-bold {isMe ? 'text-orange-600' : 'text-emerald-600'} mb-0.5">
             {msg.metadata.reply_name || 'User'}
@@ -162,11 +188,12 @@
           <p class="text-[11px] text-slate-500 line-clamp-2 italic">
             {msg.metadata.reply_content || '...'}
           </p>
-        </div>
+        </button>
       {/if}
 
       {#if msg.type === 'text'}
-        {@const url = getUrlPreview(msg.content)}
+        {@const textContent = msg.content || ''}
+        {@const url = getUrlPreview(textContent)}
         {#if url}
           <a href={url} target="_blank" class="block mb-2 rounded-xl overflow-hidden bg-white/50 border border-slate-200/50 hover:bg-white/80 transition-all">
             <div class="p-2.5">
@@ -181,7 +208,7 @@
             </div>
           </a>
         {/if}
-        <span>{@html highlightText(msg.content, searchQuery)}</span>
+        <span>{@html highlightText(textContent, searchQuery)}</span>
         <div class="flex items-center justify-end gap-1 mt-1 -mb-1 ml-4 self-end shrink-0">
           <span class="text-[9px] font-medium {isMe ? 'text-orange-700/60' : 'text-emerald-700/60'}">
             {#if starredMessages.includes(msg.id)}
@@ -193,16 +220,16 @@
             {/if}
           </span>
           {#if isMe}
-            <CheckCheck size={11} class="{msg.metadata?.is_read ? 'text-blue-500' : 'text-slate-400'}" strokeWidth={3} />
+            <CheckCheck size={11} class={isRead ? 'text-blue-500' : 'text-slate-400'} strokeWidth={3} />
           {/if}
         </div>
       {:else if msg.type === 'image'}
-        <div class="relative group/img cursor-pointer" onclick={() => onImagePreview(msg.metadata?.url)}>
+        <button type="button" class="relative block w-full cursor-pointer group/img" onclick={() => onImagePreview(msg.metadata?.url)}>
           <img src={msg.metadata?.url} alt="Gambar" class="max-w-full rounded-xl mb-1 max-h-60 object-cover" />
           <div class="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center rounded-xl">
             <Maximize2 size={24} class="text-white" />
           </div>
-        </div>
+        </button>
         {#if msg.content && !msg.content.match(/\.(jpg|jpeg|png|gif|webp)$/i)}
           <p class="mt-1.5 text-xs font-medium leading-relaxed">{msg.content}</p>
         {/if}
@@ -214,7 +241,7 @@
             {formatTime(msg.created_at)}
           </span>
           {#if isMe}
-            <CheckCheck size={11} class="{msg.metadata?.is_read ? 'text-blue-500' : 'text-slate-400'}" strokeWidth={3} />
+            <CheckCheck size={11} class={isRead ? 'text-blue-500' : 'text-slate-400'} strokeWidth={3} />
           {/if}
         </div>
       {:else if msg.type === 'audio'}
@@ -252,7 +279,7 @@
             {formatTime(msg.created_at)}
           </span>
           {#if isMe}
-            <CheckCheck size={11} class="{msg.metadata?.is_read ? 'text-blue-500' : 'text-slate-400'}" strokeWidth={3} />
+            <CheckCheck size={11} class={isRead ? 'text-blue-500' : 'text-slate-400'} strokeWidth={3} />
           {/if}
         </div>
       {:else if msg.type === 'file'}
@@ -274,7 +301,7 @@
             {formatTime(msg.created_at)}
           </span>
           {#if isMe}
-            <CheckCheck size={11} class="{msg.metadata?.is_read ? 'text-blue-500' : 'text-slate-400'}" strokeWidth={3} />
+            <CheckCheck size={11} class={isRead ? 'text-blue-500' : 'text-slate-400'} strokeWidth={3} />
           {/if}
         </div>
       {:else if msg.type === 'poll'}
@@ -311,7 +338,7 @@
             {formatTime(msg.created_at)}
           </span>
           {#if isMe}
-            <CheckCheck size={11} class="{msg.metadata?.is_read ? 'text-blue-500' : 'text-slate-400'}" strokeWidth={3} />
+            <CheckCheck size={11} class={isRead ? 'text-blue-500' : 'text-slate-400'} strokeWidth={3} />
           {/if}
         </div>
       {/if}

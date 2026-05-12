@@ -68,7 +68,7 @@ export const notificationService = {
       } else {
         console.error('Error saving FCM token:', error.message);
       }
-      // console.log('[NotificationService] Token saved to Supabase.');
+      throw new Error('Gagal menyimpan token notifikasi.');
     }
   },
 
@@ -90,9 +90,8 @@ export const notificationService = {
       });
     }
 
-    // 2. Panggil Supabase Edge Function untuk memicu Push Notification (FCM)
     try {
-      const { data: funcData, error: funcError } = await supabase.functions.invoke('send-fcm', {
+      const { data: funcData, error: funcError } = await supabase.functions.invoke('send-push', {
         body: { user_id: uid, title, message, data }
       });
       
@@ -139,7 +138,7 @@ export const notificationService = {
 
     // 2. Panggil Supabase Edge Function SEKALI untuk semua user
     try {
-      const { data: funcData, error: funcError } = await supabase.functions.invoke('send-fcm', {
+      const { data: funcData, error: funcError } = await supabase.functions.invoke('send-push', {
         body: { user_ids: uids, title, message, data }
       });
       

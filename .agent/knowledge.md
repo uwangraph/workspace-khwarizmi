@@ -256,8 +256,8 @@ const SESSIONS = [
     unlockAt: '06:00', autoCheckoutAt: '12:00', requireLocation: true },
   { id: 2, name: 'Sesi Siang', start: '13:30', end: '15:00',
     unlockAt: '12:00', autoCheckoutAt: '15:30', requireLocation: true },
-  { id: 3, name: 'Sesi Sore',  start: '16:00', end: '22:00',
-    unlockAt: '15:30', autoCheckoutAt: '22:30', requireLocation: true },
+  { id: 3, name: 'Sesi Sore',  start: '16:00', end: '17:00',
+    unlockAt: '15:30', autoCheckoutAt: '17:30', requireLocation: true },
   { id: 4, name: 'Lembur',     start: '20:00', end: '23:59',
     unlockAt: '19:30', autoCheckoutAt: '23:59', requireLocation: false },
 ]
@@ -267,6 +267,15 @@ const SESSIONS = [
 - **Auto Checkout Penalty:** 10 menit jika lupa checkout
 - **Radius GPS:** Dinamis berdasarkan data `office_lat`, `office_lng`, dan `office_radius` di tabel `app_settings` (bukan *hardcoded*).
 - **Format Keterlambatan:** Otomatis mengubah satuan ke `Jam & Menit` jika melebihi 60 menit.
+
+### Realtime Izin/Sakit (Smart Polling)
+- **Admin Side:** Polling setiap 10 detik dari tabel `attendance_leaves`. Jika ditemukan record baru, tampilkan toast notifikasi.
+- **User Side:** Polling setiap 15 detik untuk mengecek status izin yang di-approve/reject admin.
+- **Alasan Polling vs Broadcast:** Tabel `attendance_leaves` belum di-enable Realtime di Supabase Dashboard (`supabase_realtime` publication). Smart Polling adalah solusi paling reliable tanpa konfigurasi dashboard.
+- **Fitur Tambahan:**
+  - User bisa memilih **tanggal izin** (bukan hanya hari ini).
+  - Admin bisa memberikan **keterangan penolakan** (`rejection_note`) saat menolak izin.
+  - SQL migrasi: `migrations/add_rejection_note.sql`.
 
 ---
 
@@ -326,10 +335,11 @@ const alreadyNotified: string[] = JSON.parse(localStorage.getItem(storageKey) ||
   - Fitur Delete (otomatis menghapus blob file dari storage jika pesan bertipe media dihapus).
 - **Global Chat Store (`src/lib/stores/globalChatStore.ts`)**:
   - Menyimpan array `globalRooms`, `globalUnreadChatCount`, dan mendeteksi `latestIncomingChat` untuk pop-up *toast* kustom di layout.
-  - **Arsitektur Multiplexing**: Untuk mencegah bentrokan listener (*silent failure*), channel global dibuat menggunakan pola 1-channel-per-room (`global-chat-{uid}-{roomId}`) dengan filter `eq`. Ini menggantikan filter array `in.()` yang rentan terhadap batas limit karakter Supabase Realtime, dan menghindari bug channel bentrok (unfiltered vs filtered) pada sisi *client multiplexer*.
+  - **Arsitektur Multiplexing**: Untuk mencegah bentrokan listener (*silent failure*), channel global dibuat menggunakan pola 1-channel-per-room (`global-chat-{uid}-{roomId}`) dengan filter `eq`. Ini menggantikan filter array `in.()` yang rentan terhadap batas limit karakter Supabase Realtime.
+  - **Custom Broadcast untuk Metadata**: Menggunakan `channel.send({ type: 'broadcast' })` untuk mengirim update reaksi (reactions) dan sematan (pins) seketika tanpa perlu menunggu Postgres `UPDATE` trigger. Ini secara efektif membypass silent failure pada RLS jika user meng-update metadata pesan milik orang lain.
 - **Chat Interface & Gestures (`src/lib/components/chat/...`)**:
-  - Integrasi fitur *Voice Note* dengan efek *audio waveform* beranimasi (berbasis Svelte reactivity).
-  - Fitur aksi pada pesan (Balas, Teruskan, Salin, Hapus) dipicu menggunakan event **`oncontextmenu`** (*native long-press* pada mobile dan *right-click* pada desktop). Ini menghindari ketergantungan pada *library gesture swipe/press* eksternal.
+  - Integrasi fitur *Voice Menu* dan *Smart Context Menu*.
+  - Menu (Long-press / Right-click) secara matematis mengevaluasi ruang yang tersisa (`e.clientY + 350 > window.innerHeight`). Menu akan otomatis mengambang ke **ATAS** jika berada di bawah, mengatasi masalah menu tenggelam atau terpotong tanpa library eksternal.
 
 ---
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onMount, onDestroy } from 'svelte'
   import type { User } from '@supabase/supabase-js'
   import toast from 'svelte-french-toast'
   import { Eye, Clock, Shield, FileText } from 'lucide-svelte'
@@ -7,6 +7,7 @@
   import { authService } from '$lib/services/authService'
   import { attendanceService } from '$lib/services/attendanceService'
   import { locationService } from '$lib/services/locationService'
+  import { supabase } from '$lib/supabase'
   import type { Profile, AttendanceRecord, Holiday } from '$lib/type'
   
   import AppHeader from '$lib/components/shared/AppHeader.svelte'
@@ -21,7 +22,7 @@
   import LeaveModal from '$lib/components/absensi/LeaveModal.svelte'
 
   interface Session { id: number; name: string; start: string; end: string; unlockAt: string; autoCheckoutAt: string; hasLateCheck?: boolean; requireLocation?: boolean }
-  interface LeaveRecord { id: string; date: string; type: 'izin' | 'sakit'; reason: string; session_id: number | null; status: 'pending' | 'approved' | 'rejected' }
+  interface LeaveRecord { id: string; date: string; type: 'izin' | 'sakit'; reason: string; session_id: number | null; status: 'pending' | 'approved' | 'rejected'; rejection_note?: string }
   interface PenaltyRecord { id: string; date: string; session_id: number; minutes: number; reason: string }
   interface SpecialRule { id: string; date: string; type: 'normal' | 'custom_time' | 'wfa'; start_time?: string | null; active_sessions?: number[] | null; note?: string | null }
   interface AppSetting { office_lat: number; office_lng: number; office_radius: number; office_locations?: { id: string; name: string; lat: number; lng: number; radius: number }[] | null }
@@ -30,7 +31,7 @@
   const SESSIONS: Session[] = [
     { id: 1, name: 'Sesi Pagi',  start: '08:00', end: '11:30', unlockAt: '06:00', autoCheckoutAt: '12:00', hasLateCheck: true, requireLocation: true },
     { id: 2, name: 'Sesi Siang', start: '13:30', end: '15:00', unlockAt: '12:00', autoCheckoutAt: '15:30', hasLateCheck: true, requireLocation: true },
-    { id: 3, name: 'Sesi Sore',  start: '16:00', end: '22:00', unlockAt: '15:30', autoCheckoutAt: '22:30', hasLateCheck: true, requireLocation: true },
+    { id: 3, name: 'Sesi Sore',  start: '16:00', end: '17:00', unlockAt: '15:30', autoCheckoutAt: '17:30', hasLateCheck: true, requireLocation: true },
     { id: 4, name: 'Lembur',     start: '20:00', end: '23:59', unlockAt: '19:30', autoCheckoutAt: '23:59', requireLocation: false },
   ]
 
@@ -56,8 +57,6 @@
   let isTodayThursday = $derived(new Date().getDay() === 4), isTodayFriday = $derived(new Date().getDay() === 5)
   
   let activeSessions = $derived.by(() => {
-    if (isTodayFriday) return []
-    
     let result: Session[] = []
     
     // If special rule defines specific active sessions, use them
@@ -70,12 +69,15 @@
         start: '06:00',
         unlockAt: '06:00'
       }))
+    } else if (isTodayFriday && !specialRule) {
+      result = []
     } else {
       result = (isTodayThursday && !specialRule) ? SESSIONS.slice(0, 1) : SESSIONS
     }
 
-    // Always ensure Lembur (ID 4) is included
-    if (!result.find(s => s.id === 4)) {
+    // Always ensure Lembur (ID 4) is included (unless Friday with no special rule — rest day)
+    const isRestDay = isTodayFriday && !specialRule && !todayHoliday
+    if (!isRestDay && !result.find(s => s.id === 4)) {
       const lembur = SESSIONS.find(s => s.id === 4)
       if (lembur) result.push(lembur)
     }
@@ -210,18 +212,50 @@
     } catch (e: any) { cameraStatus = e.message; isSubmitting = false }
   }
 
-  async function submitLeave(data: { type: 'izin' | 'sakit', reason: string, sessionId: number | null }) {
+  async function submitLeave(data: { type: 'izin' | 'sakit', reason: string, sessionId: number | null, date: string }) {
     if (!user) return
     if (!data.reason.trim()) { leaveStatus = 'Alasan wajib diisi'; return }
-    if (data.sessionId !== null && leaves.find(l => l.session_id === data.sessionId)) { leaveStatus = `Sudah ada izin/sakit untuk sesi tersebut`; return }
+    if (data.sessionId !== null && leaves.find(l => l.date === data.date && l.session_id === data.sessionId && l.status !== 'rejected')) { leaveStatus = `Sudah ada izin/sakit untuk sesi tersebut`; return }
     isSubmittingLeave = true; leaveStatus = ''
     try {
-      await attendanceService.submitLeave(user.id, data.type, data.reason, data.sessionId)
+      await attendanceService.submitLeave(user.id, data.type, data.reason, data.sessionId, data.date)
       showLeaveModal = false; toast.success(data.type === 'izin' ? 'Izin berhasil dicatat' : 'Sakit berhasil dicatat'); await loadData()
     } catch (e: any) { leaveStatus = e.message || 'Gagal menyimpan' } finally { isSubmittingLeave = false }
   }
 
-  onMount(loadData)
+
+  let leavePollingTimer: ReturnType<typeof setInterval>
+
+  onMount(() => {
+    loadData()
+
+    // Smart polling: cek status izin (disetujui/ditolak admin) setiap 15 detik
+    leavePollingTimer = setInterval(async () => {
+      if (!user) return
+      const today = new Date().toISOString().split('T')[0]
+      const { data } = await supabase
+        .from('attendance_leaves')
+        .select('*')
+        .eq('user_id', user.id)
+        .gte('date', today)
+        .order('date', { ascending: true })
+      
+      if (data) {
+        for (const updated of data) {
+          const existing = leaves.find(l => l.id === updated.id)
+          if (existing && existing.status === 'pending' && updated.status !== 'pending') {
+            const statusText = updated.status === 'approved' ? 'disetujui ✅' : 'ditolak ❌'
+            toast(`Pengajuan ${updated.type} Anda telah ${statusText}`, { icon: '📋' })
+          }
+        }
+        leaves = data as any
+      }
+    }, 15000)
+  })
+
+  onDestroy(() => {
+    if (leavePollingTimer) clearInterval(leavePollingTimer)
+  })
 </script>
 
 <svelte:head><title>Presensi — Khwarizmi Workspace</title></svelte:head>
@@ -314,7 +348,25 @@
         {/if}
       </div>
 
-      {#if activeSessions.length > 0}
+      {#if activeSessions.length === 0}
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 text-center my-4">
+          <div class="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-3 text-slate-300">
+            <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+          </div>
+          <h3 class="text-sm font-bold text-slate-700 mb-1">Tidak Ada Sesi Aktif</h3>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            {#if todayHoliday}
+              Hari ini libur <strong>"{todayHoliday.name}"</strong>. Tidak ada sesi reguler.
+            {:else if isTodayFriday}
+              Hari Jumat adalah hari istirahat. Tidak ada sesi reguler.
+            {:else}
+              Tidak ada sesi absensi yang aktif saat ini.
+            {/if}
+          </p>
+        </div>
+      {:else}
         <AttendanceStats {attendance} {activeSessions} />
         <div class="flex flex-col gap-3">
           {#each activeSessions as session}
@@ -327,7 +379,7 @@
 
       {#if leaves.length > 0}
         <div class="mt-4">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 ml-1">Pengajuan Anda Hari Ini</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 ml-1">Pengajuan Izin/Sakit Anda</p>
           <div class="flex flex-col gap-2">
             {#each leaves as leave}
               <div class="flex items-start gap-3 bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
@@ -335,8 +387,11 @@
                   {#if leave.type === 'sakit'}<Shield size={18} />{:else}<FileText size={18} />{/if}
                 </div>
                 <div>
-                  <div class="flex items-center gap-2">
+                  <div class="flex flex-wrap items-center gap-2">
                     <p class="text-sm font-bold text-slate-800 capitalize">{leave.type}</p>
+                    <span class="text-[9px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-600 uppercase">
+                      {new Date(leave.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                    </span>
                     <span class="text-[9px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 uppercase">
                       {leave.session_id === null ? 'Semua Sesi' : SESSIONS.find(s => s.id === leave.session_id)?.name}
                     </span>
@@ -345,6 +400,12 @@
                     </span>
                   </div>
                   <p class="text-xs text-slate-500 mt-1">{leave.reason}</p>
+                  {#if leave.status === 'rejected' && leave.rejection_note}
+                    <div class="mt-2 bg-red-50 border border-red-100 rounded-lg p-2.5">
+                      <p class="text-[10px] font-bold text-red-600 mb-0.5">Alasan Penolakan:</p>
+                      <p class="text-xs text-red-500 italic">"{leave.rejection_note}"</p>
+                    </div>
+                  {/if}
                 </div>
               </div>
             {/each}
@@ -378,7 +439,7 @@
 {/if}
 
 {#if showLeaveModal}
-  <LeaveModal sessions={activeSessions} {leaves} status={leaveStatus} {isSubmittingLeave} onSubmit={submitLeave} onClose={() => showLeaveModal = false} />
+  <LeaveModal sessions={activeSessions.filter(s => s.id !== 4)} {leaves} status={leaveStatus} {isSubmittingLeave} onSubmit={submitLeave} onClose={() => showLeaveModal = false} />
 {/if}
 
 {#if showCamera}

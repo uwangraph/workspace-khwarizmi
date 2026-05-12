@@ -3,10 +3,12 @@ import type { AttendanceRecord } from '$lib/type';
 
 /** Tanggal lokal WIB (UTC+7) dalam format YYYY-MM-DD, bukan UTC */
 function getLocalDate(): string {
-  const now = new Date();
-  // Offset WIB = UTC+7 = 420 menit
-  const wib = new Date(now.getTime() + (7 * 60 * 60 * 1000));
-  return wib.toISOString().split('T')[0];
+  return new Intl.DateTimeFormat('en-CA', { 
+    timeZone: 'Asia/Jakarta', 
+    year: 'numeric', 
+    month: '2-digit', 
+    day: '2-digit' 
+  }).format(new Date());
 }
 
 async function checkDeletionStatus() {
@@ -14,8 +16,8 @@ async function checkDeletionStatus() {
   if (settings?.deletion_scheduled_at) {
     const scheduledAt = new Date(settings.deletion_scheduled_at).getTime();
     const now = Date.now();
-    // Jika masih dalam jendela 24 jam
-    if (now - scheduledAt < 24 * 60 * 60 * 1000) {
+    // Jika sudah melewati jadwal dan masih dalam jendela 24 jam
+    if (now >= scheduledAt && now - scheduledAt < 24 * 60 * 60 * 1000) {
       throw new Error('Sistem sedang dikunci karena pembersihan data dijadwalkan. Silakan hubungi Admin.');
     }
   }
@@ -26,7 +28,7 @@ export const attendanceService = {
     const today = getLocalDate();
     const [attendRes, leavesRes, penaltiesRes, settingsRes, holidayRes] = await Promise.all([
       supabase.from('attendance').select('*').eq('user_id', userId).eq('date', today),
-      supabase.from('attendance_leaves').select('*').eq('user_id', userId).eq('date', today),
+      supabase.from('attendance_leaves').select('*').eq('user_id', userId).gte('date', today).order('date', { ascending: true }),
       supabase.from('attendance_penalties').select('*').eq('user_id', userId).eq('date', today),
       supabase.from('app_settings').select('*').eq('id', 1).single(),
       supabase.from('holidays').select('*').eq('date', today).maybeSingle()
@@ -77,10 +79,29 @@ export const attendanceService = {
       .eq('date', today);
   },
 
-  async autoCheckout(userId: string, recordId: string, sessionId: number, checkoutTime: string) {
+  async autoCheckout(userId: string, recordId: string, sessionId: number, clientCheckoutTime?: string) {
     const today = getLocalDate();
+    
+    // Tentukan waktu checkout di service untuk mencegah eksploitasi clock browser
+    let clockOutTime = new Date().toISOString();
+    const sessionTimeMap: Record<number, string> = {
+      1: '12:00:00',
+      2: '15:30:00',
+      3: '17:30:00',
+      4: '23:59:59'
+    };
+    
+    if (sessionTimeMap[sessionId]) {
+      const jkt = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+      const [h, m, s] = sessionTimeMap[sessionId].split(':').map(Number);
+      jkt.setHours(h, m, s, 0);
+      clockOutTime = jkt.toISOString();
+    } else if (clientCheckoutTime) {
+      clockOutTime = clientCheckoutTime;
+    }
+
     await supabase.from('attendance').update({ 
-      clock_out: checkoutTime, 
+      clock_out: clockOutTime, 
       forgot_checkout: true 
     }).eq('id', recordId);
     
@@ -93,11 +114,11 @@ export const attendanceService = {
     });
   },
 
-  async submitLeave(userId: string, type: 'izin' | 'sakit', reason: string, sessionId: number | null) {
+  async submitLeave(userId: string, type: 'izin' | 'sakit', reason: string, sessionId: number | null, date?: string) {
     await checkDeletionStatus();
     return await supabase.from('attendance_leaves').insert({ 
       user_id: userId, 
-      date: getLocalDate(), 
+      date: date || getLocalDate(), 
       type, 
       reason: reason.trim(), 
       session_id: sessionId,
@@ -110,50 +131,25 @@ export const attendanceService = {
     return new Set((data || []).map(a => a.date)).size;
   },
 
-  async cleanupOldData(daysThreshold: number = 40) {
-    const thresholdDate = new Date();
-    thresholdDate.setDate(thresholdDate.getDate() - daysThreshold);
-    const thresholdString = thresholdDate.toISOString().split('T')[0];
+  async cleanupOldData(days: number) {
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session) throw new Error('Not authenticated');
 
-    // 1. Cari data lama untuk menghapus foto di Storage
-    const { data: oldRecords } = await supabase
-      .from('attendance')
-      .select('photo_in_url, photo_out_url')
-      .lt('date', thresholdString);
-
-    if (oldRecords && oldRecords.length > 0) {
-      const filesToDelete: string[] = [];
-      
-      for (const record of oldRecords) {
-        if (record.photo_in_url) {
-          const parts = record.photo_in_url.split('/selfies/');
-          if (parts.length > 1) filesToDelete.push(parts[1]);
-        }
-        if (record.photo_out_url) {
-          const parts = record.photo_out_url.split('/selfies/');
-          if (parts.length > 1) filesToDelete.push(parts[1]);
-        }
-      }
-
-      // Hapus dari bucket secara bertahap (batch) jika datanya sangat banyak
-      const chunkSize = 100;
-      for (let i = 0; i < filesToDelete.length; i += chunkSize) {
-        const chunk = filesToDelete.slice(i, i + chunkSize);
-        await supabase.storage.from('selfies').remove(chunk);
-      }
+      const res = await fetch('/api/admin/system', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.session.access_token}`
+        },
+        body: JSON.stringify({ action: 'cleanup-old-data', days })
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Gagal membersihkan data');
+      return result;
+    } catch (err: any) {
+      console.error('Error during cleanup:', err.message);
+      return { success: false, error: err.message };
     }
-
-    // 2. Hapus data dari database (Absensi, Izin, Penalti)
-    const [delAttend, delLeaves, delPenalties] = await Promise.all([
-      supabase.from('attendance').delete().lt('date', thresholdString),
-      supabase.from('attendance_leaves').delete().lt('date', thresholdString),
-      supabase.from('attendance_penalties').delete().lt('date', thresholdString)
-    ]);
-
-    return {
-      success: true,
-      deletedPhotos: oldRecords ? oldRecords.length * 2 : 0, // Estimasi maksimal
-      thresholdDate: thresholdString
-    };
   }
 };

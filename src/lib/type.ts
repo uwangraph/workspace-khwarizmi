@@ -114,3 +114,21 @@ export interface ChatPollVote {
   option_id: string
   created_at: string
 }
+
+// ── Task Comment Types ────────────────────────────────────────────────────────
+
+export type TaskCommentTag = 'problem' | 'late' | 'missed_deadline' | 'general'
+
+export interface TaskComment {
+  id: string
+  task_id: string
+  user_id: string
+  content: string
+  tag: TaskCommentTag
+  reply_to: string | null
+  created_at: string
+  updated_at: string
+  // joined
+  author?: { id: string; full_name: string; avatar_url: string | null; role?: string }
+  replies?: TaskComment[]
+}

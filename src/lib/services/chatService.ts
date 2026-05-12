@@ -217,7 +217,7 @@ export const chatService = {
     const insertData = userIds.map(uid => ({ room_id: roomId, user_id: uid }))
     const { error } = await supabase
       .from('chat_participants')
-      .insert(insertData)
+      .upsert(insertData, { onConflict: 'room_id,user_id', ignoreDuplicates: true })
     
     if (error) throw error
     return true
@@ -236,13 +236,19 @@ export const chatService = {
   },
 
   // Ambil riwayat pesan untuk sebuah room
-  async getMessages(roomId: string, limit = 50) {
-    const { data, error } = await supabase
+  async getMessages(roomId: string, limit = 50, before?: string) {
+    let query = supabase
       .from('chat_messages')
       .select('*')
       .eq('room_id', roomId)
       .order('created_at', { ascending: false })
       .limit(limit)
+
+    if (before) {
+      query = query.lt('created_at', before)
+    }
+
+    const { data, error } = await query
     
     if (error) throw error
     const messages = data.reverse() as ChatMessage[]
@@ -311,22 +317,20 @@ export const chatService = {
 
   // Perbarui metadata pesan (untuk reaksi, bintang, dll)
   async updateMessageMetadata(messageId: string, metadata: any) {
-    try {
-      // Gunakan server route untuk bypass RLS (agar bisa react/pin pesan orang lain)
-      const res = await fetch('/api/chat/metadata', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messageId, metadata })
-      })
-      if (!res.ok) throw new Error('API route failed')
-    } catch (err) {
-      console.warn('[Chat] API route failed, falling back to direct update', err)
-      const { error } = await supabase
-        .from('chat_messages')
-        .update({ metadata })
-        .eq('id', messageId)
-      
-      if (error) throw error
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData.session?.access_token
+    const res = await fetch('/api/chat/metadata', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ messageId, metadata })
+    })
+
+    if (!res.ok) {
+      const err = await res.json()
+      throw new Error(err.error || 'Gagal update metadata')
     }
   },
 
@@ -576,16 +580,17 @@ export const chatService = {
       .eq('user_id', userId)
       .maybeSingle()
     
-    console.log('[Chat] Verifikasi last_read_at setelah update:', verify?.last_read_at)
     return true
   },
 
   // Subscribe ke pesan baru & vote polling
-  subscribeToMessages(roomId: string, onMessage: (payload: any) => void, onVote?: (payload: any) => void, onMetadata?: (payload: any) => void) {
+  async subscribeToMessages(roomId: string, onMessage: (payload: any) => void, onVote?: (payload: any) => void, onMetadata?: (payload: any) => void) {
     const channelName = `chat_${roomId}`
-    // Pastikan channel lama dihapus agar tidak error "after subscribe"
+    // Pastikan channel lama dihapus dengan await agar tidak ada race condition
     const existing = supabase.getChannels().find((c: any) => c.topic === channelName)
-    if (existing) supabase.removeChannel(existing)
+    if (existing) {
+      await supabase.removeChannel(existing)
+    }
     
     const channel = supabase.channel(channelName)
     
@@ -646,18 +651,25 @@ export const chatService = {
   broadcastTyping(roomId: string, userId: string, userName: string, isTyping: boolean) {
     const channelName = `typing_${roomId}`
     const existing = supabase.getChannels().find((c: any) => c.topic === channelName)
-    if (existing) supabase.removeChannel(existing)
     
-    const channel = supabase.channel(channelName)
-    channel.subscribe(async (status) => {
-      if (status === 'SUBSCRIBED') {
-        await channel.send({
-          type: 'broadcast',
-          event: 'typing',
-          payload: { userId, userName, isTyping }
-        })
-      }
-    })
+    if (existing) {
+      existing.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { userId, userName, isTyping }
+      })
+    } else {
+      const channel = supabase.channel(channelName)
+      channel.subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.send({
+            type: 'broadcast',
+            event: 'typing',
+            payload: { userId, userName, isTyping }
+          })
+        }
+      })
+    }
   },
 
   // Subscribe status mengetik

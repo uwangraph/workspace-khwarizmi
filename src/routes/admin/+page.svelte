@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onMount, onDestroy } from 'svelte'
   import type { User } from '@supabase/supabase-js'
   import { Shield } from 'lucide-svelte'
   import toast from 'svelte-french-toast'
@@ -9,6 +9,7 @@
   import { notificationService } from '$lib/services/notificationService'
   import { taskService } from '$lib/services/taskService'
   import { attendanceService } from '$lib/services/attendanceService'
+  import { supabase } from '$lib/supabase'
 
   import type { Profile, Task, AttendanceRecord, TaskAssignment, Holiday, AdminTab, SpecialRule, AppSetting, AttendanceLeave } from '$lib/components/admin/_types'
 
@@ -450,15 +451,55 @@
   }
 
   // ── Leave Actions ──────────────────────────────────────────────────────────
-  async function updateLeaveStatus(leave: AttendanceLeave, status: 'approved' | 'rejected') {
+  let showRejectLeaveModal = $state(false)
+  let rejectingLeave = $state<AttendanceLeave | null>(null)
+  let rejectionNote = $state('')
+
+  async function updateLeaveStatus(leave: AttendanceLeave, status: 'approved' | 'rejected', note?: string) {
     if (!profile) return
-    const { error } = await adminService.updateLeaveStatus(leave.id, status, profile.id)
+    if (status === 'rejected' && !note) {
+      // Tampilkan modal untuk input alasan penolakan
+      rejectingLeave = leave
+      rejectionNote = ''
+      showRejectLeaveModal = true
+      return
+    }
+    const { error } = await adminService.updateLeaveStatus(leave.id, status, profile.id, note)
     if (error) { showToast('Gagal mengupdate status izin', 'error'); return }
-    allLeaves = allLeaves.map(l => l.id === leave.id ? { ...l, status, approved_by: profile!.id } : l)
+    allLeaves = allLeaves.map(l => l.id === leave.id ? { ...l, status, approved_by: profile!.id, rejection_note: note || null } : l)
     showToast(`Izin berhasil di-${status === 'approved' ? 'setujui' : 'tolak'}`, 'success')
+    showRejectLeaveModal = false
+    rejectingLeave = null
   }
 
-  onMount(loadData)
+  let leavePollingTimer: ReturnType<typeof setInterval>
+
+  onMount(() => {
+    loadData()
+    
+    // Smart polling: cek pengajuan izin baru setiap 10 detik
+    leavePollingTimer = setInterval(async () => {
+      const { data } = await supabase
+        .from('attendance_leaves')
+        .select('*')
+        .order('date', { ascending: false })
+      
+      if (data) {
+        // Deteksi pengajuan baru
+        for (const leave of data) {
+          if (!allLeaves.some(l => l.id === leave.id)) {
+            const profileName = allUsers.find(u => u.id === leave.user_id)?.full_name || 'Seseorang'
+            toast(`${profileName} baru saja mengajukan ${leave.type}!`, { icon: '📋' })
+          }
+        }
+        allLeaves = data as AttendanceLeave[]
+      }
+    }, 10000) // Setiap 10 detik
+  })
+
+  onDestroy(() => {
+    if (leavePollingTimer) clearInterval(leavePollingTimer)
+  })
 </script>
 
 <svelte:head>
@@ -670,4 +711,31 @@
     isDeleting={isCleaningOldData}
     onConfirm={handleCleanupOldData}
     onClose={() => showCleanupOldDataModal = false} />
+{/if}
+
+{#if showRejectLeaveModal && rejectingLeave}
+  <div class="fixed inset-0 z-[60] flex items-center justify-center p-4"
+       style="background:rgba(0,0,0,0.6); backdrop-filter:blur(8px);"
+       onclick={() => { showRejectLeaveModal = false; rejectingLeave = null }}>
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
+         onclick={(e) => e.stopPropagation()}
+         style="animation: slideUp 0.3s cubic-bezier(0.16,1,0.3,1);">
+      <h3 class="text-base font-bold text-slate-800 mb-1" style="font-family:'Plus Jakarta Sans',sans-serif;">Tolak Pengajuan Izin</h3>
+      <p class="text-xs text-slate-500 mb-4">Berikan keterangan mengapa izin ini ditolak.</p>
+      
+      <textarea bind:value={rejectionNote} rows="3" placeholder="Contoh: Alasan tidak cukup kuat, silakan ajukan ulang dengan bukti..."
+                class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-400 resize-none mb-4"></textarea>
+      
+      <div class="flex gap-3">
+        <button onclick={() => { showRejectLeaveModal = false; rejectingLeave = null }}
+                class="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+          Batal
+        </button>
+        <button onclick={() => { if (rejectingLeave) updateLeaveStatus(rejectingLeave, 'rejected', rejectionNote.trim() || 'Ditolak oleh admin') }}
+                class="flex-[2] py-2.5 rounded-xl text-sm font-bold text-white bg-red-500 hover:bg-red-600 active:scale-[0.98] transition-all">
+          Tolak Izin
+        </button>
+      </div>
+    </div>
+  </div>
 {/if}

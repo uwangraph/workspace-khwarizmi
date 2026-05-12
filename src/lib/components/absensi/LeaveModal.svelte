@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { X, FileText, Shield, AlertTriangle } from 'lucide-svelte'
+  import { X, FileText, Shield, AlertTriangle, CalendarDays } from 'lucide-svelte'
   interface Session { id: number; name: string }
-  interface LeaveRecord { session_id: number | null }
+  interface LeaveRecord { session_id: number | null; date: string; status: string }
   interface Props {
     sessions: Session[]
     leaves: LeaveRecord[]
-    onSubmit: (data: { type: 'izin' | 'sakit'; reason: string; sessionId: number | null }) => void
+    onSubmit: (data: { type: 'izin' | 'sakit'; reason: string; sessionId: number | null; date: string }) => void
     onClose: () => void
     isSubmitting: boolean
     status: string
@@ -15,9 +15,23 @@
   let leaveType = $state<'izin' | 'sakit'>('izin')
   let leaveReason = $state('')
   let leaveSessionId = $state<number | null>(null)
+  let leaveDate = $state(new Date().toISOString().split('T')[0])
+
+  // Batasi tanggal: hari ini sampai 30 hari ke depan
+  let minDate = $derived(new Date().toISOString().split('T')[0])
+  let maxDate = $derived.by(() => {
+    const d = new Date()
+    d.setDate(d.getDate() + 30)
+    return d.toISOString().split('T')[0]
+  })
+
+  // Filter izin berdasarkan tanggal yang dipilih (hanya yang pending/approved yang block, rejected tidak)
+  let leavesForDate = $derived(
+    leaves.filter(l => l.date === leaveDate && l.status !== 'rejected')
+  )
 
   function handleSubmit() {
-    onSubmit({ type: leaveType, reason: leaveReason.trim(), sessionId: leaveSessionId })
+    onSubmit({ type: leaveType, reason: leaveReason.trim(), sessionId: leaveSessionId, date: leaveDate })
   }
 </script>
 
@@ -55,6 +69,16 @@
         </div>
       </div>
 
+      <!-- Date Picker -->
+      <div>
+        <label class="text-xs font-semibold text-slate-500 block mb-2">Tanggal Izin</label>
+        <div class="relative">
+          <CalendarDays size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input type="date" bind:value={leaveDate} min={minDate} max={maxDate}
+                 class="w-full pl-9 pr-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+        </div>
+      </div>
+
       <div>
         <label class="text-xs font-semibold text-slate-500 block mb-2">Berlaku Untuk Sesi</label>
         <div class="flex flex-wrap gap-2">
@@ -65,7 +89,7 @@
             Semua Sesi
           </button>
           {#each sessions as s}
-            {@const hasLeave = leaves.some(l => l.session_id === s.id)}
+            {@const hasLeave = leavesForDate.some(l => l.session_id === s.id || l.session_id === null)}
             <button onclick={() => leaveSessionId = s.id} disabled={hasLeave}
                     class="rounded-lg px-3 py-2 text-xs font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                     style="background:{leaveSessionId === s.id ? 'linear-gradient(135deg, #F97316, #EA580C)' : '#F1F5F9'};

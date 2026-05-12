@@ -2,9 +2,15 @@ import { json } from '@sveltejs/kit'
 import { supabaseAdmin } from '$lib/server/supabase'
 import type { RequestEvent } from '@sveltejs/kit'
 import { requireAdmin } from '$lib/server/auth'
+import { checkRateLimit } from '$lib/server/rateLimiter'
 
 export async function POST(event: RequestEvent) {
   try {
+    const ip = event.getClientAddress()
+    if (!checkRateLimit(ip, 10, 60000)) {
+      return json({ error: 'Terlalu banyak permintaan' }, { status: 429 })
+    }
+    
     await requireAdmin(event)
     const { name, email, password, position, role } = await event.request.json()
 
@@ -46,14 +52,26 @@ export async function POST(event: RequestEvent) {
 
 export async function DELETE(event: RequestEvent) {
   try {
+    const ip = event.getClientAddress()
+    if (!checkRateLimit(ip, 10, 60000)) {
+      return json({ error: 'Terlalu banyak permintaan' }, { status: 429 })
+    }
     await requireAdmin(event)
     const userId = event.url.searchParams.get('id')
     if (!userId) return json({ error: 'User ID wajib diisi' }, { status: 400 })
+
+    // Hapus assignment untuk tasks yang dibuat oleh user ini terlebih dahulu
+    const { data: userTasks } = await supabaseAdmin.from('tasks').select('id').eq('created_by', userId)
+    if (userTasks && userTasks.length > 0) {
+      const taskIds = userTasks.map((t: any) => t.id)
+      await supabaseAdmin.from('task_assignments').delete().in('task_id', taskIds)
+    }
 
     // 1. Hapus data terkait terlebih dahulu untuk menghindari FK constraint error
     await Promise.all([
       supabaseAdmin.from('attendance').delete().eq('user_id', userId),
       supabaseAdmin.from('attendance_leaves').delete().eq('user_id', userId),
+      supabaseAdmin.from('attendance_penalties').delete().eq('user_id', userId),
       supabaseAdmin.from('task_assignments').delete().eq('user_id', userId),
       supabaseAdmin.from('notifications').delete().eq('user_id', userId),
       supabaseAdmin.from('fcm_tokens').delete().eq('user_id', userId),

@@ -328,6 +328,12 @@
                       {/if}
                     </div>
                     <p class="text-xs text-slate-600 bg-white border border-slate-100 p-2 rounded-lg italic inline-block w-full">"{leave.reason}"</p>
+                    {#if leave.status === 'rejected' && leave.rejection_note}
+                      <div class="mt-1.5 bg-red-50 border border-red-100 rounded-lg p-2">
+                        <p class="text-[10px] font-bold text-red-600 mb-0.5">Alasan Penolakan:</p>
+                        <p class="text-xs text-red-500 italic">"{leave.rejection_note}"</p>
+                      </div>
+                    {/if}
                   </div>
                 </div>
                 

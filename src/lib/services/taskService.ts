@@ -7,7 +7,7 @@ async function checkDeletionStatus() {
   if (settings?.deletion_scheduled_at) {
     const scheduledAt = new Date(settings.deletion_scheduled_at).getTime();
     const now = Date.now();
-    if (now - scheduledAt < 24 * 60 * 60 * 1000) {
+    if (now >= scheduledAt && now - scheduledAt < 24 * 60 * 60 * 1000) {
       throw new Error('Sistem sedang dikunci karena pembersihan data dijadwalkan.');
     }
   }
@@ -59,9 +59,15 @@ export const taskService = {
       const oldStatusMap = new Map((oldAssignments || []).map(a => [a.user_id, a.status]));
       const ownerId = currentTask?.created_by || userId;
 
-      await supabase.from('task_assignments').delete().eq('task_id', taskId);
-      
       const allUserIds = [...new Set([...assignedUserIds, ownerId, userId])];
+      
+      // Hapus assignment untuk user yang sudah tidak di-assign
+      if (allUserIds.length > 0) {
+        await supabase.from('task_assignments').delete().eq('task_id', taskId).not('user_id', 'in', `(${allUserIds.join(',')})`);
+      } else {
+        await supabase.from('task_assignments').delete().eq('task_id', taskId);
+      }
+
       const newAssignments = allUserIds.map(uid => {
         const oldStatus = oldStatusMap.get(uid);
         let status: any = 'pending';
@@ -86,7 +92,9 @@ export const taskService = {
         return assignment;
       });
 
-      await supabase.from('task_assignments').insert(newAssignments);
+      const { error: upsertError } = await supabase.from('task_assignments').upsert(newAssignments, { onConflict: 'task_id,user_id' });
+      if (upsertError) throw upsertError;
+
       const newCollabs = assignedUserIds.filter(uid => {
         if (uid === userId || uid === ownerId) return false;
         const oldStatus = oldStatusMap.get(uid);
@@ -114,7 +122,7 @@ export const taskService = {
     }
   },
 
-  async checkLowTaskCount(userId: string) {
+  async checkLowTaskCount(userId: string, preFetchedAdminIds?: string[]) {
     const { count } = await supabase
       .from('task_assignments')
       .select('*', { count: 'exact', head: true })
@@ -123,16 +131,18 @@ export const taskService = {
       .not('status', 'eq', 'rejected');
 
     if (count !== null && count <= 1) {
-      const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin');
-      if (admins && admins.length > 0) {
+      let adminIds = preFetchedAdminIds;
+      if (!adminIds) {
+        const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin');
+        adminIds = (admins || []).map(a => a.id);
+      }
+      const filteredAdminIds = adminIds.filter(id => id !== userId);
+      
+      if (filteredAdminIds.length > 0) {
         const { data: userProfile } = await supabase.from('profiles').select('full_name').eq('id', userId).single();
-        const adminIds = admins.map(a => a.id).filter(id => id !== userId);
-        
-        if (adminIds.length > 0) {
-          const title = '⚠️ Peringatan Workload';
-          const message = `${userProfile?.full_name || 'Anggota'} hanya memiliki ${count} tugas aktif. Mohon berikan tugas baru agar tetap produktif.`;
-          await notificationService.sendBulk(adminIds, 'workload_alert', title, message, { user_id: userId, task_count: count });
-        }
+        const title = '⚠️ Peringatan Workload';
+        const message = `${userProfile?.full_name || 'Anggota'} hanya memiliki ${count} tugas aktif. Mohon berikan tugas baru agar tetap produktif.`;
+        await notificationService.sendBulk(filteredAdminIds, 'workload_alert', title, message, { user_id: userId, task_count: count });
       }
     }
   },
@@ -144,10 +154,11 @@ export const taskService = {
     
     if (status === 'done') {
       const { data: ass } = await supabase.from('task_assignments').select('user_id').eq('task_id', taskId);
-      if (ass) {
-        for (const a of ass) {
-          await this.checkLowTaskCount(a.user_id);
-        }
+      if (ass && ass.length > 0) {
+        const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin');
+        const adminIds = (admins || []).map(a => a.id);
+        const userIds = [...new Set(ass.map(a => a.user_id))];
+        await Promise.all(userIds.map(uid => this.checkLowTaskCount(uid, adminIds)));
       }
     }
 
@@ -175,10 +186,13 @@ export const taskService = {
     const { data: ass } = await supabase.from('task_assignments').select('user_id').eq('task_id', taskId);
     const result = await supabase.from('tasks').delete().eq('id', taskId);
     
-    if (ass) {
-      for (const a of ass) {
-        await this.checkLowTaskCount(a.user_id);
-      }
+    if (ass && ass.length > 0) {
+      // Fetch admins once for all assignees
+      const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin');
+      const adminIds = (admins || []).map(a => a.id);
+      // Deduplicate user IDs
+      const userIds = [...new Set(ass.map(a => a.user_id))];
+      await Promise.all(userIds.map(uid => this.checkLowTaskCount(uid, adminIds)));
     }
 
     return result;

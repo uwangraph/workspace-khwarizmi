@@ -18,8 +18,8 @@
       <span class="text-lg">🕌</span>
     </div>
     <div>
-      <p class="text-sm font-bold text-violet-700">Hari Jumat — Libur Mingguan</p>
-      <p class="text-xs text-violet-500 mt-0.5">Tidak ada sesi absensi hari ini. Selamat beristirahat!</p>
+      <p class="text-sm font-bold text-violet-700">Hari Jumat — Sesi Reguler Libur</p>
+      <p class="text-xs text-violet-500 mt-0.5">Sesi reguler libur hari ini. Sesi <strong>Lembur</strong> tetap tersedia jika diperlukan.</p>
     </div>
   </div>
 {:else if specialRule || isThursday}

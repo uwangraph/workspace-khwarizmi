@@ -3,6 +3,10 @@ import { chatService } from '$lib/services/chatService';
 import { supabase } from '$lib/supabase';
 import { readRoomIds } from './chatReadStore';
 
+declare global {
+  var _chatChannels: any[];
+}
+
 export const globalRooms = writable<any[]>([]);
 export const globalUnreadChatCount = writable<number>(0);
 export const isChatLoaded = writable<boolean>(false);
@@ -130,7 +134,13 @@ async function handleNewMessage(newMessage: any, userId: string) {
     if (newRoom && newMessage.sender_id !== userId) {
       latestIncomingChat.set({ room: newRoom, message: { ...newMessage, sender: senderProfile || undefined } });
     }
-    await setupSubscription(userId, freshRooms.map((r: any) => r.id));
+    
+    // Cegah infinite loop dengan mengecek apakah benar-benar ada room baru
+    const oldRoomIds = currentRooms.map(r => r.id).sort().join(',');
+    const newRoomIds = freshRooms.map((r: any) => r.id).sort().join(',');
+    if (oldRoomIds !== newRoomIds) {
+      await setupSubscription(userId, freshRooms.map((r: any) => r.id));
+    }
   }
 }
 

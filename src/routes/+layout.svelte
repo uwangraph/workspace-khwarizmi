@@ -180,13 +180,7 @@
         $page.url.pathname !== `/chat/${$latestIncomingChat.room?.id}`
     );
 
-    // Check session on route change
-    $effect(() => {
-        const path = $page.url.pathname;
-        if (user && !['/auth', '/login', '/register'].some(p => path.startsWith(p))) {
-            validateUserSession();
-        }
-    });
+    // Session check is now only on load (onMount) or through Supabase auth state change.
 
     onMount(() => {
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
@@ -207,7 +201,6 @@
         });
 
         checkDeletionStatus();
-        validateUserSession();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             if (event === 'SIGNED_OUT') {
@@ -298,7 +291,11 @@
         if (!incoming?.room?.id || !user || !chatReplyText.trim()) return;
         isReplyingChat = true;
         try {
-            await chatService.sendTextMessage(incoming.room.id, user.id, chatReplyText.trim());
+            await chatService.sendTextMessage(incoming.room.id, user.id, chatReplyText.trim(), {
+                reply_to: incoming.message.id,
+                reply_name: incoming.message.sender?.full_name,
+                reply_content: incoming.message.content
+            });
             toast.success('Balasan terkirim');
             chatReplyText = '';
             dismissIncomingChat();

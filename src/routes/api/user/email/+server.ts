@@ -2,9 +2,14 @@ import { json } from '@sveltejs/kit';
 import { supabaseAdmin } from '$lib/server/supabase';
 import type { RequestEvent } from '@sveltejs/kit';
 import { requireSelfOrAdmin } from '$lib/server/auth';
+import { checkRateLimit } from '$lib/server/rateLimiter';
 
 export async function POST(event: RequestEvent) {
   try {
+    const ip = event.getClientAddress()
+    if (!checkRateLimit(ip, 5, 60000)) {
+      return json({ error: 'Terlalu banyak percobaan update' }, { status: 429 })
+    }
     const { newEmail, userId } = await event.request.json();
 
     if (!newEmail || !userId) {

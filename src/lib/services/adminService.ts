@@ -10,10 +10,11 @@ async function getAuthHeaders() {
 }
 
 export const adminService = {
-  async fetchAllData(period?: string) {
+  async fetchAllData(period?: string, page = 1, pageSize = 100) {
     // period can be 'YYYY-MM' or 'YYYY'
     const isYearly = period && period.length === 4;
     const month = period || new Date().toISOString().slice(0, 7);
+    const offset = (page - 1) * pageSize;
     
     let startDate, endDate;
     if (isYearly) {
@@ -26,14 +27,16 @@ export const adminService = {
       endDate = `${month}-${lastDay}`;
     }
 
+    // Tabel kecil (users, holidays, assignments, settings, special_rules) — ambil semua tanpa pagination
+    // Tabel besar (tasks, attendance, leaves) — pagination per tabel dengan range terpisah
     const [usersRes, tasksRes, attendRes, assignRes, holidaysRes, settingsRes, leavesRes, specialRes] = await Promise.all([
       supabase.from('profiles').select('*').order('full_name'),
-      supabase.from('tasks').select('*').order('created_at', { ascending: false }),
-      supabase.from('attendance').select('*').gte('date', startDate).lte('date', endDate).order('date', { ascending: false }),
+      supabase.from('tasks').select('*').order('created_at', { ascending: false }).range(offset, offset + pageSize - 1),
+      supabase.from('attendance').select('*').gte('date', startDate).lte('date', endDate).order('date', { ascending: false }).range(offset, offset + pageSize - 1),
       supabase.from('task_assignments').select('*'),
       supabase.from('holidays').select('*').order('date'),
       supabase.from('app_settings').select('*').eq('id', 1).single(),
-      supabase.from('attendance_leaves').select('*').order('date', { ascending: false }),
+      supabase.from('attendance_leaves').select('*').gte('date', startDate).lte('date', endDate).order('date', { ascending: false }).range(offset, offset + pageSize - 1),
       supabase.from('special_rules').select('*').order('date')
     ]);
 
@@ -84,33 +87,85 @@ export const adminService = {
   },
 
   async saveHoliday(holiday: any) {
-    if (holiday.id) return await supabase.from('holidays').update({ name: holiday.name, date: holiday.date }).eq('id', holiday.id);
-    return await supabase.from('holidays').insert({ name: holiday.name, date: holiday.date });
+    try {
+      const res = await fetch('/api/admin/holidays', {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify(holiday)
+      })
+      const result = await res.json()
+      if (!res.ok) return { data: null, error: { message: result.error } }
+      return { data: result.data, error: null }
+    } catch (err: any) {
+      return { data: null, error: { message: err.message } }
+    }
   },
 
   async deleteHoliday(id: string) {
-    return await supabase.from('holidays').delete().eq('id', id);
+    try {
+      const res = await fetch(`/api/admin/holidays?id=${id}`, {
+        method: 'DELETE',
+        headers: await getAuthHeaders()
+      })
+      const result = await res.json()
+      if (!res.ok) return { error: result.error }
+      return { error: null }
+    } catch (err: any) {
+      return { error: err.message }
+    }
   },
 
   async saveSpecialRule(rule: any) {
-    // Use upsert to handle both create and update, conflicting on date
-    return await supabase
-      .from('special_rules')
-      .upsert(rule, { onConflict: 'date' })
-      .select()
-      .single();
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({ action: 'save-special-rule', rule })
+      })
+      const result = await res.json()
+      if (!res.ok) return { data: null, error: result.error }
+      return { data: result.data, error: null }
+    } catch (err: any) {
+      return { data: null, error: err.message }
+    }
   },
 
   async deleteSpecialRule(id: string) {
-    return await supabase.from('special_rules').delete().eq('id', id);
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({ action: 'delete-special-rule', id })
+      })
+      const result = await res.json()
+      if (!res.ok) return { error: result.error }
+      return { error: null }
+    } catch (err: any) {
+      return { error: err.message }
+    }
   },
 
   async updateSettings(settings: any) {
-    return await supabase.from('app_settings').update(settings).eq('id', 1);
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({ action: 'update-settings', settings })
+      })
+      const result = await res.json()
+      if (!res.ok) return { error: result.error }
+      return { error: null }
+    } catch (err: any) {
+      return { error: err.message }
+    }
   },
 
-  async updateLeaveStatus(leaveId: string, status: 'approved' | 'rejected', adminId: string) {
-    return await supabase.from('attendance_leaves').update({ status, approved_by: adminId }).eq('id', leaveId);
+  async updateLeaveStatus(leaveId: string, status: 'approved' | 'rejected', adminId: string, rejectionNote?: string) {
+    const updateData: any = { status, approved_by: adminId }
+    if (status === 'rejected' && rejectionNote) {
+      updateData.rejection_note = rejectionNote
+    }
+    return await supabase.from('attendance_leaves').update(updateData).eq('id', leaveId);
   },
 
   async scheduleDeletion() {
@@ -118,7 +173,7 @@ export const adminService = {
       const res = await fetch('/api/admin/system', {
         method: 'POST',
         headers: await getAuthHeaders(),
-        body: JSON.stringify({ action: 'schedule-deletion' })
+        body: JSON.stringify({ action: 'schedule-deletion', confirm: true })
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Gagal menjadwalkan penghapusan');
@@ -149,7 +204,7 @@ export const adminService = {
     const now = Date.now();
     const hours24 = 24 * 60 * 60 * 1000;
     
-    return now - scheduledAt < hours24;
+    return now >= scheduledAt && now - scheduledAt < hours24;
   },
   
   async clearAllTransactionData() {
@@ -157,7 +212,7 @@ export const adminService = {
       const res = await fetch('/api/admin/system', {
         method: 'POST',
         headers: await getAuthHeaders(),
-        body: JSON.stringify({ action: 'clear-transaction-data' })
+        body: JSON.stringify({ action: 'clear-transaction-data', confirm: true })
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Gagal menghapus data');

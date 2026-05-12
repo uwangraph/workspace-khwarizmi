@@ -18,6 +18,17 @@ Thumbs.db
 !.env.example
 !.env.test
 
+# Firebase service account credentials (jangan pernah commit ke repo)
+*firebase-adminsdk*.json
+*service-account*.json
+
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Test and Debug files
+test-*.js
+debug_*.mjs
+*.txt
+scratch/
+

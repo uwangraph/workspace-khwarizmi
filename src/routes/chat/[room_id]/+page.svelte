@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte'
+  import { onMount, onDestroy, tick } from 'svelte'
   import { fade, slide } from 'svelte/transition'
   import { page } from '$app/stores'
   import { goto } from '$app/navigation'
@@ -18,7 +18,7 @@
   import RoomInfo from '$lib/components/chat/RoomInfo.svelte'
   import ForwardModal from '$lib/components/chat/ForwardModal.svelte'
   import { markRoomAsRead } from '$lib/stores/chatReadStore'
-  import { X, Star, Forward, Trash2, Pin } from 'lucide-svelte'
+  import { X, Star, Forward, Trash2, Pin, ArrowDown } from 'lucide-svelte'
   import toast from 'svelte-french-toast'
 
   const roomId = $derived($page.params.room_id)
@@ -39,9 +39,11 @@
   
   let firstUnreadIndex = $derived.by(() => {
     if (initialUnreadCount <= 0) return -1;
-    // Jika ada unread count, pesan unread adalah N pesan terakhir
     return Math.max(0, filteredMessages.length - initialUnreadCount);
   });
+
+  let isAtBottom = $state(true);
+  let unreadBottomCount = $state(0);
 
   // Input
   let newMessage = $state('')
@@ -452,7 +454,11 @@
       }
       const savedWp = localStorage.getItem('chat_wallpaper')
       const savedColor = localStorage.getItem('chat_wallpaper_color')
-      if (savedWp) selectedWallpaper = savedWp
+      if (savedWp === 'custom') {
+        const data = localStorage.getItem('chat_wallpaper_custom_data')
+        if (data) { customWallpaperUrl = data; selectedWallpaper = 'custom'; }
+        else { selectedWallpaper = 'none'; }
+      } else if (savedWp) selectedWallpaper = savedWp
       if (savedColor) customBgColor = savedColor
       if (activeRoom?.type === 'direct') {
         const { data: part } = await supabase
@@ -497,7 +503,10 @@
       messages = fMsgs
       starredMessages = fMsgs.filter(m => m.metadata?.is_starred).map(m => m.id)
       pinnedMessage = fMsgs.find(m => m.metadata?.is_pinned) || null
-      scrollToBottom()
+      if (!pinnedMessage) {
+        const { data: pm } = await supabase.from('chat_messages').select('*').eq('room_id', roomId).contains('metadata', {is_pinned: true}).maybeSingle()
+        if (pm) pinnedMessage = pm as ChatMessage
+      }
       const { data: profs } = await supabase.from('profiles').select('*')
       if (profs) allProfiles = (profs as Profile[]).filter(p => p.id !== authUser.id)
 
@@ -508,7 +517,7 @@
       const pollMsgs = fMsgs.filter(m => m.type === 'poll')
       if (pollMsgs.length > 0) await Promise.all(pollMsgs.map(async m => { pollVotes[m.id] = await chatService.getPollVotes(m.id) }))
       
-      subscription = chatService.subscribeToMessages(roomId, (payload) => {
+      subscription = await chatService.subscribeToMessages(roomId, (payload) => {
         if (payload.eventType === 'DELETE') messages = messages.filter(m => m.id !== payload.old.id)
         else if (payload.eventType === 'UPDATE') {
           const up = payload.new as ChatMessage
@@ -521,8 +530,14 @@
               : (allProfiles.find(p => p.id === nm.sender_id) ?? undefined)
             messages = [...messages, { ...nm, sender }]
             if (nm.sender_id !== authUser.id) {
-              scrollToBottom()
-              chatService.markMessagesAsRead(roomId, authUser.id)
+              if (isAtBottom) {
+                scrollToBottom('smooth')
+                chatService.markMessagesAsRead(roomId, authUser.id)
+              } else {
+                unreadBottomCount++
+              }
+            } else {
+              scrollToBottom('smooth')
             }
           }
         }
@@ -530,10 +545,35 @@
         const v = payload.new as any
         if (pollVotes[v.message_id]) pollVotes[v.message_id] = await chatService.getPollVotes(v.message_id)
       }, (broadcastPayload) => {
-        // Fast UI sync via Custom Broadcast
+        // Fast UI sync via Custom Broadcast (reactions, pins, etc)
         const { messageId, metadata } = broadcastPayload
         messages = messages.map(m => m.id === messageId ? { ...m, metadata } : m)
+        // Sync pinned message state from broadcast
+        if (metadata?.is_pinned) {
+          const pinnedMsg = messages.find(m => m.id === messageId)
+          if (pinnedMsg) pinnedMessage = pinnedMsg
+        } else if (pinnedMessage?.id === messageId && !metadata?.is_pinned) {
+          pinnedMessage = null
+        }
       })
+
+      // Subscribe to pin changes via postgres_changes (UPDATE on chat_messages)
+      const pinChannel = supabase.channel(`pin_${roomId}`)
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `room_id=eq.${roomId}`
+        }, (payload) => {
+          const updated = payload.new as any
+          if (updated.metadata?.is_pinned) {
+            const msg = messages.find(m => m.id === updated.id)
+            pinnedMessage = msg ? { ...msg, metadata: updated.metadata } : null
+          } else if (pinnedMessage?.id === updated.id) {
+            pinnedMessage = null
+          }
+        })
+        .subscribe()
 
       typingSubscription = chatService.subscribeToTyping(roomId, ({ userId, isTyping }) => {
         if (!userId || userId === authUser.id) return
@@ -546,6 +586,7 @@
       console.error('Error in chat onMount:', e)
     } finally {
       isLoading = false
+      tick().then(() => scrollToBottom('auto'))
     }
 
     return () => {
@@ -576,12 +617,38 @@
     return bars
   }
 
-  function scrollToBottom() { setTimeout(() => { const el = document.getElementById('msgs'); if (el) el.scrollTop = el.scrollHeight }, 80) }
+  function scrollToBottom(behavior: ScrollBehavior = 'auto') {
+    tick().then(() => {
+      setTimeout(() => {
+        const el = document.getElementById('msgs');
+        if (el) el.scrollTo({ top: el.scrollHeight, behavior });
+      }, 50);
+    });
+  }
   function formatTime(iso: string) { return new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) }
   function scrollToMessage(id: string) { const el = document.getElementById(`msg-${id}`); if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('highlight-msg'); setTimeout(() => el.classList.remove('highlight-msg'), 2000) } }
   function formatRecordingTime(s: number) { const m = Math.floor(s / 60); const sec = s % 60; return `${m}:${sec.toString().padStart(2, '0')}` }
   function getUrlPreview(text: string) { const match = text.match(/https?:\/\/[^\s]+/); return match ? match[0] : null }
   function highlightText(text: string, q: string) { if (!q.trim()) return text; const regex = new RegExp(`(${q})`, 'gi'); return text.replace(regex, '<mark class="bg-yellow-200 text-slate-800 p-0.5 rounded">$1</mark>') }
+  function compressImage(file: File, maxWidth: number, quality: number): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+      img.onload = () => {
+        URL.revokeObjectURL(url)
+        let w = img.width, h = img.height
+        if (w > maxWidth) { h = (h * maxWidth) / w; w = maxWidth }
+        const canvas = document.createElement('canvas')
+        canvas.width = w; canvas.height = h
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(img, 0, 0, w, h)
+        resolve(canvas.toDataURL('image/jpeg', quality))
+      }
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Gagal membaca gambar')) }
+      img.src = url
+    })
+  }
+
   function getStatusText(p: Profile | null) { 
     if (!p) return 'Offline'; 
     if (p.last_seen) { 
@@ -619,10 +686,15 @@
     <input bind:this={wallpaperInputRef} type="file" class="hidden" accept="image/*" onchange={(e) => {
       const file = (e.target as HTMLInputElement).files?.[0]
       if (file) {
-        customWallpaperUrl = URL.createObjectURL(file)
-        selectedWallpaper = 'custom'
-        localStorage.setItem('chat_wallpaper', 'custom')
-        showWallpaperMenu = false
+        compressImage(file, 800, 0.6).then((compressed) => {
+          customWallpaperUrl = compressed
+          selectedWallpaper = 'custom'
+          try {
+            localStorage.setItem('chat_wallpaper_custom_data', customWallpaperUrl)
+            localStorage.setItem('chat_wallpaper', 'custom')
+          } catch { toast.error('Gambar terlalu besar untuk disimpan') }
+          showWallpaperMenu = false
+        })
       }
     }} />
     <input bind:this={colorInputRef} type="color" class="hidden" bind:value={customBgColor} onchange={() => {
@@ -650,7 +722,24 @@
           </div>
         {/if}
 
-        <div id="msgs" class="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6 custom-scrollbar relative z-10">
+        {#if !isAtBottom}
+          <div class="absolute bottom-24 right-4 z-50 flex flex-col items-center gap-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            {#if unreadBottomCount > 0}
+              <span class="bg-blue-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md animate-bounce">{unreadBottomCount} Pesan Baru</span>
+            {/if}
+            <button class="p-3 bg-white text-slate-600 rounded-full shadow-[0_4px_15px_rgba(0,0,0,0.15)] border border-slate-100 hover:bg-slate-50 transition-all hover:scale-105 active:scale-95 flex items-center justify-center" 
+                    onclick={() => { scrollToBottom('smooth'); unreadBottomCount = 0; }}>
+              <ArrowDown size={20} strokeWidth={2.5} />
+            </button>
+          </div>
+        {/if}
+
+        <div id="msgs" class="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6 custom-scrollbar relative z-10"
+             onscroll={(e) => {
+               const target = e.target as HTMLElement;
+               isAtBottom = target.scrollHeight - target.scrollTop <= target.clientHeight + 150;
+               if (isAtBottom) unreadBottomCount = 0;
+             }}>
           {#each filteredMessages as msg, i}
             {#if i === 0 || new Date(msg.created_at).toDateString() !== new Date(filteredMessages[i-1].created_at).toDateString()}
               <div class="flex justify-center my-8">
@@ -756,9 +845,30 @@
         <span class="text-sm font-bold text-slate-700">{selectedMessageIds.length} pesan terpilih</span>
       </div>
       <div class="flex items-center gap-3">
-        <button class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all"><Star size={16} /> Bintangi</button>
-        <button class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-blue-600 hover:bg-blue-50 transition-all"><Forward size={16} /> Teruskan</button>
-        <button onclick={() => { if (confirm(`Hapus ${selectedMessageIds.length} pesan?`)) { selectedMessageIds = []; isSelectMode = false } }} 
+        <button onclick={async () => {
+          for (const id of selectedMessageIds) {
+            const m = messages.find(msg => msg.id === id);
+            if (m && !starredMessages.includes(m.id)) await toggleStar(m);
+          }
+          selectedMessageIds = []; isSelectMode = false;
+          toast.success('Pesan ditambahkan ke Berbintang');
+        }} class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all"><Star size={16} /> Bintangi</button>
+        
+        <button onclick={() => {
+          toast.error('Bulk forward belum didukung. Teruskan pesan satu per satu.');
+          selectedMessageIds = []; isSelectMode = false;
+        }} class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-blue-600 hover:bg-blue-50 transition-all"><Forward size={16} /> Teruskan</button>
+        
+        <button onclick={async () => { 
+          if (confirm(`Hapus ${selectedMessageIds.length} pesan?`)) { 
+            for (const id of selectedMessageIds) {
+              await chatService.deleteMessage(id, user.id);
+            }
+            messages = messages.filter(m => !selectedMessageIds.includes(m.id));
+            selectedMessageIds = []; isSelectMode = false;
+            toast.success('Pesan dihapus');
+          } 
+        }} 
                 class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 transition-all"><Trash2 size={16} /> Hapus</button>
       </div>
     </div>

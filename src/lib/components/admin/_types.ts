@@ -74,6 +74,7 @@ export interface AttendanceLeave {
   session_id: number | null
   status: 'pending' | 'approved' | 'rejected'
   approved_by?: string | null
+  rejection_note?: string | null
 }
 
 export interface AppSetting {

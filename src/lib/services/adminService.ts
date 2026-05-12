@@ -160,12 +160,19 @@ export const adminService = {
     }
   },
 
-  async updateLeaveStatus(leaveId: string, status: 'approved' | 'rejected', adminId: string, rejectionNote?: string) {
-    const updateData: any = { status, approved_by: adminId }
-    if (status === 'rejected' && rejectionNote) {
-      updateData.rejection_note = rejectionNote
+  async updateLeaveStatus(leaveId: string, status: 'approved' | 'rejected', _adminId: string, rejectionNote?: string) {
+    try {
+      const res = await fetch('/api/admin/leaves', {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({ leaveId, status, rejectionNote })
+      })
+      const result = await res.json()
+      if (!res.ok) return { error: result.error }
+      return { error: null }
+    } catch (err: any) {
+      return { error: err.message }
     }
-    return await supabase.from('attendance_leaves').update(updateData).eq('id', leaveId);
   },
 
   async scheduleDeletion() {

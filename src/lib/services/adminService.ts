@@ -52,6 +52,23 @@ export const adminService = {
     };
   },
 
+  async fetchAttendanceData(period: string) {
+    const [year, m] = period.split('-').map(Number);
+    const lastDay = new Date(year, m, 0).getDate();
+    const startDate = `${period}-01`;
+    const endDate = `${period}-${String(lastDay).padStart(2, '0')}`;
+
+    const [attendRes, leavesRes] = await Promise.all([
+      supabase.from('attendance').select('*').gte('date', startDate).lte('date', endDate).order('date', { ascending: false }).limit(5000),
+      supabase.from('attendance_leaves').select('*').gte('date', startDate).lte('date', endDate).order('date', { ascending: false }).limit(1000)
+    ]);
+
+    return {
+      attendance: attendRes.data || [],
+      leaves: leavesRes.data || []
+    };
+  },
+
   async updateUser(userId: string, data: any) {
     return await supabase.from('profiles').update(data).eq('id', userId);
   },

@@ -14,7 +14,7 @@
   import type { AppNotification } from '$lib/type'
   import { Check, Bell, Search, RefreshCw, Trash2, X, Send, Reply } from 'lucide-svelte'
 
-  type NotifType = 'task_collaboration_invite'|'task_deadline_today'|'collaboration_accepted'|'collaboration_rejected'|'task_completed'|'task_ready_review'|'task_deleted'|'task_assigned'|'task_revision'|(string & {})
+  type NotifType = 'task_collaboration_invite'|'task_deadline_today'|'collaboration_accepted'|'collaboration_rejected'|'task_completed'|'task_ready_review'|'task_deleted'|'task_assigned'|'task_revision'|'leave_request'|(string & {})
   // Use AppNotification from type.ts to avoid shadowing the browser's Notification API
   type PageNotification = AppNotification & { type: NotifType }
 
@@ -88,6 +88,7 @@
     task_deleted:{bg:'bg-slate-100',color:'text-slate-500',path:'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16'},
     task_revision:{bg:'bg-amber-50',color:'text-amber-500',path:'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'},
     task_assigned:{bg:'bg-blue-50',color:'text-blue-500',path:'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'},
+    leave_request:{bg:'bg-orange-50',color:'text-orange-500',path:'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'},
   }
   const DEFAULT_ICON = {bg:'bg-slate-50',color:'text-slate-500',path:'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'}
   const getIcon = (t: string) => ICON_MAP[t] ?? DEFAULT_ICON
@@ -130,6 +131,7 @@
       case 'task_collaboration_invite': case 'task_assigned': case 'task_deadline_today':
       case 'task_ready_review': case 'task_revision': case 'task_completed': case 'task_deleted': return '/tasks'
       case 'collaboration_accepted': case 'collaboration_rejected': return '/absensi'
+      case 'leave_request': return '/admin'
       default: return '/'
     }
   }

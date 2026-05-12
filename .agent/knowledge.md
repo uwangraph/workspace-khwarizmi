@@ -293,6 +293,7 @@ const SESSIONS = [
 | `task_deadline_today` | 🔴 Red | `/tasks` |
 | `task_deleted` | ⚫ Slate | `/tasks` |
 | `task_revision` | 🟡 Amber | `/tasks` |
+| `leave_request` | 🟠 Orange | `/admin` |
 
 ### Arsitektur Notifikasi (Serverless)
 Karena aplikasi dikonfigurasi sebagai **Static SPA** (`adapter-static`), *Backend API Route* SvelteKit (`+server.ts`) tidak akan ada di *production*. Karena itu, aplikasi menggunakan arsitektur **Serverless** berikut:

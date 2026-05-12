@@ -40,14 +40,15 @@
   let activeTab = $state<AdminTab>('overview')
 
   // Data
-  let allUsers       = $state<Profile[]>([])
-  let allTasks       = $state<Task[]>([])
-  let allAttendance  = $state<AttendanceRecord[]>([])
-  let allAssignments = $state<TaskAssignment[]>([])
-  let holidays       = $state<Holiday[]>([])
-  let specialRules   = $state<SpecialRule[]>([])
-  let allLeaves      = $state<AttendanceLeave[]>([])
-  let appSettings    = $state<AppSetting | null>(null)
+  let allUsers           = $state<Profile[]>([])
+  let allTasks           = $state<Task[]>([])
+  let allAttendance      = $state<AttendanceRecord[]>([])
+  let monthlyAttendance  = $state<AttendanceRecord[]>([])
+  let allAssignments     = $state<TaskAssignment[]>([])
+  let holidays           = $state<Holiday[]>([])
+  let specialRules       = $state<SpecialRule[]>([])
+  let allLeaves          = $state<AttendanceLeave[]>([])
+  let appSettings        = $state<AppSetting | null>(null)
 
   // Modal visibility
   let showEditUserModal     = $state(false)
@@ -114,7 +115,10 @@
     if (!p || p.role !== 'admin') { location.assign('/'); return }
     profile = p
 
-    const data = await adminService.fetchAllData(month || selectedMonth)
+    const [data, monthlyData] = await Promise.all([
+      adminService.fetchAllData(month || selectedMonth),
+      adminService.fetchAttendanceData(month || selectedMonth)
+    ])
     allUsers = data.users as Profile[]
     holidays = data.holidays as Holiday[]
     appSettings = data.settings as AppSetting
@@ -124,13 +128,15 @@
     if (appSettings?.deletion_scheduled_at) {
       allTasks = []
       allAttendance = []
+      monthlyAttendance = []
       allAssignments = []
       allLeaves = []
     } else {
       allTasks = data.tasks as Task[]
-      allAttendance = data.attendance as AttendanceRecord[]
+      allAttendance = monthlyData.attendance as AttendanceRecord[]
+      monthlyAttendance = monthlyData.attendance as AttendanceRecord[]
       allAssignments = data.assignments as TaskAssignment[]
-      allLeaves = data.leaves as AttendanceLeave[]
+      allLeaves = monthlyData.leaves as AttendanceLeave[]
     }
 
     isLoading = false
@@ -455,6 +461,11 @@
   let rejectingLeave = $state<AttendanceLeave | null>(null)
   let rejectionNote = $state('')
 
+  async function handleAttendanceMonthChange(month: string) {
+    const data = await adminService.fetchAttendanceData(month)
+    monthlyAttendance = data.attendance as AttendanceRecord[]
+  }
+
   async function updateLeaveStatus(leave: AttendanceLeave, status: 'approved' | 'rejected', note?: string) {
     if (!profile) return
     if (status === 'rejected' && !note) {
@@ -472,33 +483,38 @@
     rejectingLeave = null
   }
 
-  let leavePollingTimer: ReturnType<typeof setInterval>
+  let leavesChannel: ReturnType<typeof supabase.channel> | null = null
 
-  onMount(() => {
-    loadData()
-    
-    // Smart polling: cek pengajuan izin baru setiap 10 detik
-    leavePollingTimer = setInterval(async () => {
-      const { data } = await supabase
-        .from('attendance_leaves')
-        .select('*')
-        .order('date', { ascending: false })
-      
-      if (data) {
-        // Deteksi pengajuan baru
-        for (const leave of data) {
-          if (!allLeaves.some(l => l.id === leave.id)) {
-            const profileName = allUsers.find(u => u.id === leave.user_id)?.full_name || 'Seseorang'
-            toast(`${profileName} baru saja mengajukan ${leave.type}!`, { icon: '📋' })
-          }
+  onMount(async () => {
+    await loadData()
+
+    // Realtime: deteksi pengajuan izin/sakit baru dari user manapun
+    leavesChannel = supabase
+      .channel('admin-attendance-leaves')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'attendance_leaves' },
+        (payload) => {
+          const newLeave = payload.new as AttendanceLeave
+          if (allLeaves.some(l => l.id === newLeave.id)) return
+          allLeaves = [newLeave, ...allLeaves]
+          const userName = allUsers.find(u => u.id === newLeave.user_id)?.full_name || 'Seseorang'
+          toast(`${userName} mengajukan ${newLeave.type}!`, { icon: '📋', duration: 6000 })
         }
-        allLeaves = data as AttendanceLeave[]
-      }
-    }, 10000) // Setiap 10 detik
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'attendance_leaves' },
+        (payload) => {
+          const updated = payload.new as AttendanceLeave
+          allLeaves = allLeaves.map(l => l.id === updated.id ? updated : l)
+        }
+      )
+      .subscribe()
   })
 
   onDestroy(() => {
-    if (leavePollingTimer) clearInterval(leavePollingTimer)
+    if (leavesChannel) supabase.removeChannel(leavesChannel)
   })
 </script>
 
@@ -569,8 +585,9 @@
                   onRemindTask={handleRemindTask} />
 
       {:else if activeTab === 'attendance'}
-        <AttendanceTab {allUsers} {allAttendance} {holidays} specialRules={specialRules} {allLeaves}
-                       onUpdateLeave={updateLeaveStatus} />
+        <AttendanceTab {allUsers} {allAttendance} {monthlyAttendance} {holidays} specialRules={specialRules} {allLeaves}
+                       onUpdateLeave={updateLeaveStatus}
+                       onMonthChange={handleAttendanceMonthChange} />
 
       {:else if activeTab === 'rekap'}
         <RekapTab {allUsers} {allTasks} {allAssignments} {allAttendance} {holidays}

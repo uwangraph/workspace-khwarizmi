@@ -75,9 +75,8 @@
       result = (isTodayThursday && !specialRule) ? SESSIONS.slice(0, 1) : SESSIONS
     }
 
-    // Always ensure Lembur (ID 4) is included (unless Friday with no special rule — rest day)
-    const isRestDay = isTodayFriday && !specialRule && !todayHoliday
-    if (!isRestDay && !result.find(s => s.id === 4)) {
+    // Lembur selalu tersedia — termasuk hari Jumat dan hari libur
+    if (!result.find(s => s.id === 4)) {
       const lembur = SESSIONS.find(s => s.id === 4)
       if (lembur) result.push(lembur)
     }
@@ -219,7 +218,10 @@
     isSubmittingLeave = true; leaveStatus = ''
     try {
       await attendanceService.submitLeave(user.id, data.type, data.reason, data.sessionId, data.date)
-      showLeaveModal = false; toast.success(data.type === 'izin' ? 'Izin berhasil dicatat' : 'Sakit berhasil dicatat'); await loadData()
+      showLeaveModal = false
+      toast.success(data.type === 'izin' ? 'Izin berhasil dicatat' : 'Sakit berhasil dicatat')
+      await loadData()
+      // Notifikasi ke admin ditangani otomatis oleh DB trigger notify_admins_on_leave
     } catch (e: any) { leaveStatus = e.message || 'Gagal menyimpan' } finally { isSubmittingLeave = false }
   }
 

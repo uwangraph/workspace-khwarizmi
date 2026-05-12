@@ -1,36 +1,55 @@
 <script lang="ts">
+  import { onMount } from 'svelte'
   import type { Profile, AttendanceRecord, Holiday, SpecialRule, AttendanceLeave } from '$lib/components/admin/_types'
   import { getInitials, formatTime, getMonthlyAttendanceStat, getHolidayName, isHoliday, isThursday, isFriday, getSpecialRule, SESSIONS } from '$lib/components/admin/_utils'
-  import { Search, CalendarDays, Calendar, CheckCircle2, Clock, X, FileText, Check, XCircle, BarChart3 } from 'lucide-svelte'
+  import { Search, CalendarDays, Calendar, CheckCircle2, Clock, X, FileText, Check, XCircle, BarChart3, ChevronLeft, ChevronRight } from 'lucide-svelte'
   import AttendanceDetailModal from '$lib/components/admin/modals/AttendanceDetailModal.svelte'
 
   interface Props {
     allUsers: Profile[]
     allAttendance: AttendanceRecord[]
+    monthlyAttendance: AttendanceRecord[]
     holidays: Holiday[]
     specialRules: SpecialRule[]
     allLeaves: AttendanceLeave[]
     onUpdateLeave: (leave: AttendanceLeave, status: 'approved' | 'rejected') => void
+    onMonthChange?: (month: string) => void
   }
-  let { allUsers, allAttendance, holidays, specialRules, allLeaves, onUpdateLeave } = $props<Props>()
+  let { allUsers, allAttendance, monthlyAttendance, holidays, specialRules, allLeaves, onUpdateLeave, onMonthChange } = $props<Props>()
 
   const ITEMS_PER_PAGE = 10
+  const LEAVES_PER_PAGE = 8
   let mode           = $state<'daily' | 'monthly' | 'leaves'>('daily')
   let attendanceDate = $state(new Date().toISOString().split('T')[0])
   let attendanceMonth= $state(new Date().toISOString().slice(0, 7))
   let userSearch     = $state('')
   let page           = $state(1)
+  let leavesFilter   = $state<'pending' | 'approved' | 'rejected' | 'all'>('pending')
+  let leavesPage     = $state(1)
   let selectedDetailUser = $state<Profile | null>(null)
 
+  let _mounted = false
+  onMount(() => { _mounted = true })
+
+  $effect(() => {
+    const month = attendanceMonth
+    if (_mounted) onMonthChange?.(month)
+  })
+
   let filtered   = $derived(
-    mode === 'leaves' ? [] :
     allUsers.filter(u =>
       !userSearch || u.full_name.toLowerCase().includes(userSearch.toLowerCase()) ||
       u.position?.toLowerCase().includes(userSearch.toLowerCase())
     )
   )
   let paginated  = $derived(filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE))
-  let totalPages = $derived(mode === 'leaves' ? 1 : Math.ceil(filtered.length / ITEMS_PER_PAGE))
+  let totalPages = $derived(Math.ceil(filtered.length / ITEMS_PER_PAGE) || 1)
+
+  let filteredLeaves = $derived(
+    leavesFilter === 'all' ? allLeaves : allLeaves.filter(l => l.status === leavesFilter)
+  )
+  let paginatedLeaves  = $derived(filteredLeaves.slice((leavesPage - 1) * LEAVES_PER_PAGE, leavesPage * LEAVES_PER_PAGE))
+  let leavesTotalPages = $derived(Math.ceil(filteredLeaves.length / LEAVES_PER_PAGE) || 1)
 
   let attendByDate    = $derived(allAttendance.filter(a => a.date === attendanceDate))
   let presentCount    = $derived(new Set(attendByDate.map(a => a.user_id)).size)
@@ -39,24 +58,36 @@
   let dateIsThursday  = $derived(isThursday(attendanceDate))
   let dateIsFriday    = $derived(isFriday(attendanceDate))
   let specialRule    = $derived(getSpecialRule(attendanceDate, specialRules))
-  // Sesi yang tampil: Kamis hanya sesi 1 (Pagi), hari lain semua sesi
   let activeSessions  = $derived.by(() => {
-    let result = specialRule?.active_sessions 
-      ? SESSIONS.filter(s => specialRule.active_sessions?.includes(s.id))
-      : (dateIsThursday ? SESSIONS.slice(0, 1) : SESSIONS)
-    
+    let result: typeof SESSIONS
+    if (specialRule?.active_sessions) {
+      result = SESSIONS.filter(s => specialRule.active_sessions?.includes(s.id))
+    } else if (dateIsHoliday || dateIsFriday) {
+      result = [] // hari libur/Jumat: sesi reguler off, hanya Lembur
+    } else if (dateIsThursday) {
+      result = SESSIONS.slice(0, 1) // Kamis: hanya Pagi
+    } else {
+      result = [...SESSIONS]
+    }
+
+    // Lembur selalu tampil di grid admin (bisa absen Lembur kapan saja)
     if (!result.find(s => s.id === 4)) {
       const lembur = SESSIONS.find(s => s.id === 4)
-      if (lembur) result.push(lembur)
+      if (lembur) result = [...result, lembur]
     }
     return result.sort((a, b) => a.id - b.id)
   })
 
-  $effect(() => { userSearch; attendanceDate; attendanceMonth; mode; page = 1 })
+  $effect(() => { userSearch; attendanceDate; mode; page = 1 })
+  $effect(() => { leavesFilter; mode; leavesPage = 1 })
 
   function getUserAtt(userId: string) { return attendByDate.filter(a => a.user_id === userId) }
 
   let pendingLeavesCount = $derived(allLeaves.filter(l => l.status === 'pending').length)
+
+  const LEAVE_FILTER_LABELS: Record<string, string> = {
+    pending: 'Menunggu', approved: 'Disetujui', rejected: 'Ditolak', all: 'Semua'
+  }
 </script>
 
 <div class="flex flex-col gap-3">
@@ -224,7 +255,7 @@
     </div>
 
 
-  {:else}
+  {:else if mode === 'monthly'}
     <!-- Monthly Recap -->
     <div class="relative">
       <Calendar size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -257,7 +288,7 @@
       {:else}
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {#each paginated as u}
-            {@const stat = getMonthlyAttendanceStat(u.id, attendanceMonth, allAttendance, holidays)}
+            {@const stat = getMonthlyAttendanceStat(u.id, attendanceMonth, monthlyAttendance, holidays)}
             <div class="px-4 py-3 border-b border-slate-50 hover:bg-slate-50 transition-colors">
               <div class="flex items-center justify-between gap-3 mb-2">
                 <div class="flex items-center gap-2.5 min-w-0">
@@ -293,32 +324,52 @@
 
   {:else if mode === 'leaves'}
     <!-- Leave Approvals -->
+
+    <!-- Status filter tabs -->
+    <div class="flex gap-1.5 bg-slate-100 rounded-xl p-1">
+      {#each (['pending', 'approved', 'rejected', 'all'] as const) as f}
+        {@const count = f === 'all' ? allLeaves.length : allLeaves.filter(l => l.status === f).length}
+        <button onclick={() => leavesFilter = f}
+                class="flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1"
+                class:text-white={leavesFilter === f} class:text-slate-500={leavesFilter !== f}
+                style={leavesFilter === f ? 'background:linear-gradient(135deg,#F97316,#EA580C)' : 'background:transparent'}>
+          {LEAVE_FILTER_LABELS[f]}
+          {#if count > 0}
+            <span class="rounded-full px-1.5 py-0.5 text-[9px] font-black leading-none"
+                  class:bg-white={leavesFilter === f} class:text-orange-500={leavesFilter === f}
+                  class:bg-slate-200={leavesFilter !== f} class:text-slate-500={leavesFilter !== f}>
+              {count}
+            </span>
+          {/if}
+        </button>
+      {/each}
+    </div>
+
     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-      <div class="px-4 py-3 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
-        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Daftar Pengajuan</span>
-        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{allLeaves.filter(l => l.status === 'pending').length} Menunggu</span>
-      </div>
-      
-      {#if allLeaves.length === 0}
-        <div class="py-10 text-center"><p class="text-xs text-slate-400">Belum ada pengajuan izin/sakit</p></div>
+      {#if filteredLeaves.length === 0}
+        <div class="py-10 text-center">
+          <p class="text-xs text-slate-400">
+            {leavesFilter === 'pending' ? 'Tidak ada pengajuan yang menunggu' : 'Tidak ada data untuk filter ini'}
+          </p>
+        </div>
       {:else}
         <div class="flex flex-col">
-          {#each allLeaves as leave}
-            {@const user = allUsers.find(u => u.id === leave.user_id)}
-            {#if user}
-              <div class="px-4 py-4 border-b border-slate-50 hover:bg-slate-50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4">
+          {#each paginatedLeaves as leave}
+            {@const leaveUser = allUsers.find(u => u.id === leave.user_id)}
+            {#if leaveUser}
+              <div class="px-4 py-4 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div class="flex items-start gap-3 min-w-0">
-                  <div class="w-10 h-10 rounded-xl {leave.type === 'sakit' ? 'bg-red-50 text-red-500' : 'bg-orange-50 text-orange-500'} flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <FileText size={18} />
+                  <div class="w-9 h-9 rounded-xl {leave.type === 'sakit' ? 'bg-red-50 text-red-500' : 'bg-orange-50 text-orange-500'} flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <FileText size={16} />
                   </div>
-                  <div class="min-w-0">
-                    <div class="flex items-center gap-2 mb-0.5">
-                      <p class="text-sm font-bold text-slate-800">{user.full_name}</p>
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-2 mb-0.5 flex-wrap">
+                      <p class="text-sm font-bold text-slate-800">{leaveUser.full_name}</p>
                       <span class="text-[9px] font-bold px-2 py-0.5 rounded-md text-white uppercase {leave.status === 'approved' ? 'bg-green-500' : leave.status === 'rejected' ? 'bg-red-500' : 'bg-amber-500'}">
                         {leave.status === 'approved' ? 'Disetujui' : leave.status === 'rejected' ? 'Ditolak' : 'Menunggu'}
                       </span>
                     </div>
-                    <div class="flex items-center gap-2 text-[11px] text-slate-500 mb-1">
+                    <div class="flex items-center gap-2 text-[11px] text-slate-500 mb-1 flex-wrap">
                       <span class="capitalize font-semibold text-slate-600">{leave.type}</span>
                       <span>·</span>
                       <span>{new Date(leave.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
@@ -327,7 +378,7 @@
                         <span class="font-semibold">Sesi {SESSIONS.find(s => s.id === leave.session_id)?.label}</span>
                       {/if}
                     </div>
-                    <p class="text-xs text-slate-600 bg-white border border-slate-100 p-2 rounded-lg italic inline-block w-full">"{leave.reason}"</p>
+                    <p class="text-xs text-slate-600 bg-white border border-slate-100 p-2 rounded-lg italic w-full">"{leave.reason}"</p>
                     {#if leave.status === 'rejected' && leave.rejection_note}
                       <div class="mt-1.5 bg-red-50 border border-red-100 rounded-lg p-2">
                         <p class="text-[10px] font-bold text-red-600 mb-0.5">Alasan Penolakan:</p>
@@ -336,14 +387,16 @@
                     {/if}
                   </div>
                 </div>
-                
+
                 {#if leave.status === 'pending'}
-                  <div class="flex items-center gap-2 md:self-center ml-13 md:ml-0">
-                    <button onclick={() => onUpdateLeave(leave, 'rejected')} class="px-4 py-2 rounded-lg text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 transition-colors flex items-center gap-1.5 border border-red-100">
-                      <XCircle size={14} /> Tolak
+                  <div class="flex items-center gap-2 md:self-center ml-12 md:ml-0 flex-shrink-0">
+                    <button onclick={() => onUpdateLeave(leave, 'rejected')}
+                            class="px-3 py-2 rounded-lg text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 transition-colors flex items-center gap-1.5 border border-red-100 cursor-pointer">
+                      <XCircle size={13} /> Tolak
                     </button>
-                    <button onclick={() => onUpdateLeave(leave, 'approved')} class="px-4 py-2 rounded-lg text-xs font-bold text-white bg-green-500 hover:bg-green-600 transition-colors flex items-center gap-1.5 shadow-sm">
-                      <Check size={14} /> Setujui
+                    <button onclick={() => onUpdateLeave(leave, 'approved')}
+                            class="px-3 py-2 rounded-lg text-xs font-bold text-white bg-green-500 hover:bg-green-600 transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer">
+                      <Check size={13} /> Setujui
                     </button>
                   </div>
                 {/if}
@@ -351,10 +404,39 @@
             {/if}
           {/each}
         </div>
+
+        <!-- Leaves pagination -->
+        {#if leavesTotalPages > 1}
+          <div class="px-4 py-3 border-t border-slate-100 flex items-center justify-between">
+            <button onclick={() => leavesPage = Math.max(1, leavesPage - 1)} disabled={leavesPage === 1}
+                    class="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-200 text-slate-600 disabled:opacity-30 hover:bg-slate-50 transition-colors cursor-pointer">
+              <ChevronLeft size={14} />
+            </button>
+            <div class="flex items-center gap-1">
+              {#each Array.from({ length: leavesTotalPages }, (_, i) => i + 1) as p}
+                {#if leavesTotalPages <= 7 || p === 1 || p === leavesTotalPages || Math.abs(p - leavesPage) <= 1}
+                  <button onclick={() => leavesPage = p}
+                          class="w-7 h-7 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
+                          class:text-white={leavesPage === p}
+                          style={leavesPage === p ? 'background:linear-gradient(135deg,#F97316,#EA580C)' : 'background:#F1F5F9; color:#64748B'}>
+                    {p}
+                  </button>
+                {:else if Math.abs(p - leavesPage) === 2}
+                  <span class="text-slate-300 text-xs">…</span>
+                {/if}
+              {/each}
+            </div>
+            <button onclick={() => leavesPage = Math.min(leavesTotalPages, leavesPage + 1)} disabled={leavesPage === leavesTotalPages}
+                    class="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-200 text-slate-600 disabled:opacity-30 hover:bg-slate-50 transition-colors cursor-pointer">
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        {/if}
       {/if}
     </div>
   {/if}
 
+  <!-- User list pagination (daily & monthly) -->
   {#if totalPages > 1 && mode !== 'leaves'}
     <div class="px-4 py-3 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
       <button onclick={() => page = Math.max(1, page - 1)} disabled={page === 1}

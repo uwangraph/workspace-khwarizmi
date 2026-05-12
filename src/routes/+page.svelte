@@ -17,6 +17,7 @@
   import AttendanceSummary from '$lib/components/dashboard/AttendanceSummary.svelte'
   import TaskSummary from '$lib/components/dashboard/TaskSummary.svelte'
   import NotifPreview from '$lib/components/dashboard/NotifPreview.svelte'
+  import TopPerformers from '$lib/components/dashboard/TopPerformers.svelte'
 
   // AppNotification extends our own type (not window.Notification)
   type DashboardNotification = AppNotification
@@ -36,6 +37,7 @@
     task_deleted:              { bg: 'bg-slate-100',  color: 'text-slate-500',   path: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16' },
     task_revision:             { bg: 'bg-amber-50',   color: 'text-amber-500',   path: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15' },
     task_assigned:             { bg: 'bg-blue-50',    color: 'text-blue-500',    path: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+    leave_request:             { bg: 'bg-orange-50',  color: 'text-orange-500',  path: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
   }
   const DEFAULT_ICON = { bg: 'bg-slate-50', color: 'text-slate-500', path: 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' }
   const getIcon = (type: string) => ICON_MAP[type] ?? DEFAULT_ICON
@@ -44,12 +46,15 @@
     switch (n.type) {
       case 'task_collaboration_invite': case 'task_assigned': case 'task_deadline_today': case 'task_ready_review': case 'task_revision': case 'task_completed': case 'task_deleted': return '/tasks'
       case 'collaboration_accepted': case 'collaboration_rejected': return '/absensi'
+      case 'leave_request': return '/admin'
       default: return '/dashboard'
     }
   }
 
   let user = $state<User | null>(null), profile = $state<Profile | null>(null), attendance = $state<AttendanceRecord[]>([]), tasks = $state<Task[]>([]), notifications = $state<DashboardNotification[]>([])
   let pendingLeavesCount = $state(0)
+  let topPerformers = $state<any[]>([])
+  let performerMonth = $state(new Date().toISOString().slice(0, 7))
   let isLoading = $state(true), gpsActive = $state(false), isNavigating = $state(false), now = $state(new Date())
   let clockInterval: ReturnType<typeof setInterval>
   let notifSubscription: any;
@@ -151,6 +156,11 @@
       pendingLeavesCount = await adminService.getPendingLeavesCount()
     }
 
+    const { data: performers } = await supabase.rpc('get_top_performers', {
+      p_month: performerMonth
+    })
+    if (performers) topPerformers = performers
+
     isLoading = false
   }
 
@@ -193,6 +203,8 @@
   {:else}
     <main class="max-w-lg mx-auto px-4 py-5 pb-24 flex flex-col gap-5">
       <HeroCard {heroDate} greeting={getGreeting()} firstName={getFirstName()} {gpsActive} {totalIn} {totalSessions} {taskActive} {completionRate} />
+
+      <TopPerformers performers={topPerformers} currentUserId={user?.id ?? ''} month={performerMonth} />
 
       {#if profile?.role === 'admin'}
         <section class="relative overflow-hidden rounded-3xl p-6 border border-slate-200 bg-slate-50">

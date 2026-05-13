@@ -1,5 +1,5 @@
 import { supabase } from '$lib/supabase';
-import type { Task, TaskAssignment } from '$lib/type';
+import type { Task, TaskAssignment, TaskComment } from '$lib/type';
 import { notificationService } from './notificationService';
 
 async function checkDeletionStatus() {
@@ -283,6 +283,31 @@ export const taskService = {
     }
     
     return { error: null };
+  },
+
+  async getComments(taskId: string): Promise<TaskComment[]> {
+    const { data, error } = await supabase
+      .from('task_comments')
+      .select('*, author:profiles!task_comments_user_id_fkey(id, full_name, avatar_url, role)')
+      .eq('task_id', taskId)
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return (data || []) as TaskComment[];
+  },
+
+  async addComment(taskId: string, userId: string, content: string, tag: string, replyTo: string | null): Promise<TaskComment> {
+    const { data, error } = await supabase
+      .from('task_comments')
+      .insert({ task_id: taskId, user_id: userId, content: content.trim(), tag, reply_to: replyTo || null })
+      .select('*, author:profiles!task_comments_user_id_fkey(id, full_name, avatar_url, role)')
+      .single();
+    if (error) throw error;
+    return data as TaskComment;
+  },
+
+  async deleteComment(commentId: string): Promise<void> {
+    const { error } = await supabase.from('task_comments').delete().eq('id', commentId);
+    if (error) throw error;
   },
 
   async addExternalLink(taskId: string, userId: string, filename: string, url: string) {

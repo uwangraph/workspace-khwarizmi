@@ -25,6 +25,10 @@
       .filter(Boolean) as Profile[]
   )
   let creator = $derived(allUsers.find(u => u.id === task.created_by))
+  let adminProfile = $derived(allUsers.find(u => u.id === currentUserId))
+  let participantIds = $derived([...assignees.map(a => a.id), task.created_by].filter(Boolean) as string[])
+
+  import TaskComments from '$lib/components/tasks/TaskComments.svelte'
 </script>
 
 <div class="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4"
@@ -141,6 +145,18 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Comments -->
+      <div class="border-t border-slate-50 pt-2">
+        <TaskComments 
+          taskId={task.id} 
+          taskTitle={task.title}
+          userId={currentUserId || ''} 
+          userFullName={adminProfile?.full_name || 'Admin'}
+          participantIds={participantIds}
+          isAdmin={true}
+        />
       </div>
 
       <!-- Admin Actions -->

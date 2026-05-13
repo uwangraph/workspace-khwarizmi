@@ -2,10 +2,26 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { create } from "https://deno.land/x/djwt@v2.8/mod.ts"
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
 serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
   try {
-    const { record } = await req.json()
-    const { user_id, title, message, data } = record
+    const payload = await req.json()
+    // Handle both direct invocation (payload) and webhook invocation (payload.record)
+    const { user_id, user_ids, title, message, data } = payload.record ? payload.record : payload
+
+    const targetUserIds = user_ids ? user_ids : (user_id ? [user_id] : [])
+    
+    if (targetUserIds.length === 0) {
+      return new Response(JSON.stringify({ error: "No user_id or user_ids provided" }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 })
+    }
 
     // 1. Ambil Secrets
     const serviceAccount = JSON.parse(Deno.env.get('FIREBASE_SERVICE_ACCOUNT_JSON')!)
@@ -18,10 +34,10 @@ serve(async (req) => {
     const { data: tokenRows } = await supabase
       .from('fcm_tokens')
       .select('token')
-      .eq('user_id', user_id)
+      .in('user_id', targetUserIds)
 
     if (!tokenRows || tokenRows.length === 0) {
-      return new Response(JSON.stringify({ success: true, message: "No tokens found for user" }), { status: 200 })
+      return new Response(JSON.stringify({ success: true, message: "No tokens found for user(s)" }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 })
     }
 
     // 3. Dapatkan Access Token Google (OAuth2 v1)
@@ -52,11 +68,11 @@ serve(async (req) => {
     console.log(`[FCM] Berhasil mengirim ke ${results.filter(s => s === 200).length} perangkat.`)
 
     return new Response(JSON.stringify({ success: true, status_codes: results }), {
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     })
   } catch (err) {
     console.error("[FCM Error]", err.message)
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 })
+    return new Response(JSON.stringify({ error: err.message }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 })
   }
 })
 

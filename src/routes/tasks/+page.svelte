@@ -743,7 +743,7 @@
 </div>
 
 {#if showDetailModal && detailTask}
-  <TaskDetailModal task={detailTask} userId={user?.id || ''} contributors={getTaskContributors(detailTask.id)}
+  <TaskDetailModal task={detailTask} userId={user?.id || ''} userFullName={profile?.full_name || ''} isAdmin={profile?.role === 'admin'} contributors={getTaskContributors(detailTask.id)}
                    myAssignment={getUserAssignment(detailTask.id)} canEdit={canEditTask(detailTask)} canDelete={canDeleteTask(detailTask)}
                    isPinned={pinnedTaskIds.includes(detailTask.id)}
                    onTogglePin={() => togglePin(detailTask!.id)}

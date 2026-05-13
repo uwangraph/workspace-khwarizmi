@@ -3,14 +3,15 @@
   import { X, Calendar, Clock, CheckCircle2, Trash2, Edit, Pin, Send, Zap, Bell, Paperclip, FileText, Image as ImageIcon, Download, Loader2, FileUp, Link2 } from 'lucide-svelte'
   import { taskService } from '$lib/services/taskService'
   import type { TaskAttachment } from '$lib/type'
+  import TaskComments from './TaskComments.svelte'
 
   interface Subtask { id: string; title: string; completed: boolean }
   interface Task { id: string; title: string; description: string|null; status: string; priority: string; progress: number; due_date: string|null; start_date: string|null; created_by: string; subtasks?: Subtask[]; attachments?: TaskAttachment[] }
   interface Contributor { id: string; name: string; avatar: string|null; status: string }
   interface Assignment { id: string; task_id: string; user_id: string; status: string }
   interface Props {
-    task: Task; userId: string; contributors: Contributor[]; myAssignment: Assignment|null
-    canEdit: boolean; canDelete: boolean
+    task: Task; userId: string; userFullName?: string; contributors: Contributor[]; myAssignment: Assignment|null
+    canEdit: boolean; canDelete: boolean; isAdmin?: boolean
     due: { label: string; color: string } | null
     formatDateShort: (s: string|null) => string|null
     getUserName: (id: string) => string
@@ -35,7 +36,9 @@
   const PRIORITY_LABEL: Record<string,string> = { low:'Rendah', medium:'Sedang', high:'Tinggi' }
   const PRIORITY_DOT: Record<string,string> = { low:'#94A3B8', medium:'#F59E0B', high:'#EF4444' }
 
-  let { task: t, userId, contributors, myAssignment: myA, canEdit, canDelete, isPinned, onTogglePin, onUpdateSubtasks, due, formatDateShort, getUserName, getInitials, getAvatarGradient, onClose, onProgress, onEdit, onDelete, onAccept, onReject, onRemindMember, onRemindAll }: Props = $props()
+  let { task: t, userId, userFullName = '', contributors, myAssignment: myA, canEdit, canDelete, isAdmin = false, isPinned, onTogglePin, onUpdateSubtasks, due, formatDateShort, getUserName, getInitials, getAvatarGradient, onClose, onProgress, onEdit, onDelete, onAccept, onReject, onRemindMember, onRemindAll }: Props = $props()
+
+  let participantIds = $derived([...new Set(contributors.map(c => c.id).concat(t.created_by))])
   let statusStyle = $derived(STATUS_STYLE[t.status])
 
   let newSubtaskTitle = $state('')
@@ -461,6 +464,16 @@
           </div>
         </div>
       </div>
+
+      <!-- Comments -->
+      <TaskComments
+        taskId={t.id}
+        taskTitle={t.title}
+        {userId}
+        {userFullName}
+        {participantIds}
+        {isAdmin}
+      />
     </div>
 
     <!-- Actions -->

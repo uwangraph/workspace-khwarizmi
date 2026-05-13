@@ -208,7 +208,6 @@
     <main class="max-w-lg mx-auto px-4 py-5 pb-24 flex flex-col gap-5">
       <HeroCard {heroDate} greeting={getGreeting()} firstName={getFirstName()} {gpsActive} {totalIn} {totalSessions} {taskActive} {completionRate} />
 
-      <TopPerformers performers={topPerformers} currentUserId={user?.id ?? ''} month={performerMonth} />
 
       {#if profile?.role === 'admin'}
         <section class="relative overflow-hidden rounded-3xl p-6 border border-slate-200 bg-slate-50">
@@ -242,6 +241,8 @@
       <AttendanceSummary {attendance} sessions={[{ id: 1, label: 'Pagi', time: '08:00 - 11:30' }, { id: 2, label: 'Siang', time: '13:30 - 15:00' }, { id: 3, label: 'Sore', time: '16:00 - 17:00' }]} />
 
       <TaskSummary {recentTasks} {formatDue} statusLabel={STATUS_LABEL} priorityDot={PRIORITY_DOT} />
+
+      <TopPerformers performers={topPerformers} currentUserId={user?.id ?? ''} month={performerMonth} />
     </main>
   {/if}
 </div>

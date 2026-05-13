@@ -1,4 +1,4 @@
-# 🚀 Khwarizmi Workspace
+# 🚀 SI Workspace
 
 Productivity Dashboard premium berbasis Svelte 5 yang dirancang untuk manajemen tugas tim dengan antarmuka yang modern, cepat, dan sangat mudah digunakan.
 
@@ -52,4 +52,5 @@ npm run dev
 
 ---
 
-Dibuat dengan ❤️ oleh PT. Alkhwarizmi Kreatif Produktif untuk Khwarizmi Workspace.
+Dibuat dengan ❤️ oleh PT. AlSI Kreatif Produktif untuk SI Workspace.
+# workspace-si

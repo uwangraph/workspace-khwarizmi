@@ -233,6 +233,10 @@
               <div class="mt-6 w-full max-w-md p-5 bg-white rounded-3xl border border-slate-100 shadow-sm text-center">
                 <p class="text-sm text-slate-600 leading-relaxed font-medium italic">"{room.description}"</p>
               </div>
+            {:else if room?.type === 'group'}
+              <div class="mt-6 w-full max-w-md p-5 bg-white rounded-3xl border border-dashed border-slate-200 shadow-sm text-center">
+                <p class="text-sm text-slate-400 leading-relaxed font-medium italic">Belum ada deskripsi</p>
+              </div>
             {/if}
           {/if}
         </div>

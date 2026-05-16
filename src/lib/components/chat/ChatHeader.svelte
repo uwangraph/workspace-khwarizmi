@@ -1,6 +1,6 @@
 <script lang="ts">
   import { slide } from 'svelte/transition'
-  import { ArrowLeft, Search, X, Hash, Info, Palette } from 'lucide-svelte'
+  import { ArrowLeft, Search, X, Hash, Info, Palette, MoreVertical } from 'lucide-svelte'
   import { goto } from '$app/navigation'
   import type { ChatRoom, Profile } from '$lib/type'
 
@@ -37,6 +37,8 @@
     onInfo: () => void,
     getStatusText: (p: Profile | null) => string
   } = $props()
+
+  let showMainMenu = $state(false)
 
 </script>
 
@@ -84,19 +86,25 @@
       </div>
     </button>
 
-    <button onclick={() => isSearching = true} class="p-2 text-slate-400 hover:text-orange-500 hover:bg-orange-50 rounded-full transition-all">
-      <Search size={20} />
-    </button>
-
-    <button onclick={onInfo} class="p-2 text-slate-400 hover:text-orange-500 hover:bg-orange-50 rounded-full transition-all" title="Info obrolan">
-      <Info size={20} />
-    </button>
-
     <div class="relative">
-      <button onclick={() => showWallpaperMenu = !showWallpaperMenu} class="p-2 text-slate-400 hover:text-orange-500 hover:bg-orange-50 rounded-full transition-all">
-        <Palette size={20} />
+      <button onclick={() => showMainMenu = !showMainMenu} class="p-2 text-slate-400 hover:text-orange-500 hover:bg-orange-50 rounded-full transition-all">
+        <MoreVertical size={20} />
       </button>
-      
+
+      {#if showMainMenu}
+        <div class="absolute right-0 top-12 z-[100] bg-white rounded-2xl shadow-xl border border-slate-100 py-1.5 min-w-[160px]" transition:slide={{ duration: 150 }}>
+          <button onclick={() => { showMainMenu = false; isSearching = true }} class="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2">
+            <Search size={16} /> Cari Pesan
+          </button>
+          <button onclick={() => { showMainMenu = false; onInfo() }} class="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2">
+            <Info size={16} /> Info {activeRoom?.type === 'group' ? 'Grup' : 'Profil'}
+          </button>
+          <button onclick={() => { showMainMenu = false; showWallpaperMenu = true }} class="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2">
+            <Palette size={16} /> Ganti Wallpaper
+          </button>
+        </div>
+      {/if}
+
       {#if showWallpaperMenu}
         <div class="absolute right-0 top-12 z-[100] bg-white rounded-2xl shadow-xl border border-slate-100 py-1.5 min-w-[140px]" transition:slide={{ duration: 150 }}>
           {#each wallpapers as wp}

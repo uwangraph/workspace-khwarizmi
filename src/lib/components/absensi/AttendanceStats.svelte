@@ -18,15 +18,15 @@
   ])
 </script>
 
-<div class="grid grid-cols-3 gap-3">
+<div class="grid grid-cols-3 gap-3 my-2">
   {#each stats as s}
-    <div class="bg-white/90 rounded-2xl p-4 shadow-sm border border-slate-100 text-center">
+    <div class="bg-white rounded-[24px] p-4 border-2 border-b-[6px] border-slate-200 text-center shadow-sm transition-all hover:border-slate-300">
       <div class="flex items-center justify-center gap-1.5 mb-2">
-        <svelte:component this={s.Icon} size={14} style="color:{s.color};" />
-        <span class="text-[9px] font-bold text-slate-400 uppercase">{s.label}</span>
+        <svelte:component this={s.Icon} size={18} style="color:{s.color};" strokeWidth={2.5} />
+        <span class="text-[10px] font-black text-slate-400 uppercase tracking-wider">{s.label}</span>
       </div>
-      <p class="text-2xl font-bold" style="color:{s.color}; font-family:'Plus Jakarta Sans',sans-serif;">
-        {s.value}<span class="text-sm font-medium text-slate-300">/{s.total}</span>
+      <p class="text-3xl font-black" style="color:{s.color}; font-family:'Plus Jakarta Sans',sans-serif;">
+        {s.value}<span class="text-base font-extrabold text-slate-300">/{s.total}</span>
       </p>
     </div>
   {/each}

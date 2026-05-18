@@ -526,23 +526,25 @@
 <div class="min-h-screen bg-slate-50 pb-24" style="font-family:'Inter',sans-serif;">
 
   <!-- Header -->
-  <header class="sticky top-0 z-30 bg-white border-b border-slate-100 px-5 py-0 flex items-center justify-between" style="height:57px">
-    <div class="flex items-center gap-2.5">
-      <Shield size={15} style="color:#ea580c" />
+  <header class="sticky top-0 z-30 bg-white border-b-[4px] border-slate-200 px-6 py-0 flex items-center justify-between shadow-xs transition-all" style="height:64px">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-2xl bg-orange-100 flex items-center justify-center border-b-[4px] border-orange-200">
+        <Shield size={20} class="text-orange-600" />
+      </div>
       <div>
-        <p class="font-semibold text-slate-800 text-sm leading-none">Admin Panel</p>
-        <p class="text-[10px] text-slate-400 mt-0.5">Khwarizmi Workspace</p>
+        <p class="font-black text-slate-800 text-base leading-none" style="font-family:'Plus Jakarta Sans',sans-serif;">Admin Panel</p>
+        <p class="text-xs font-bold text-slate-400 mt-1">Khwarizmi Workspace</p>
       </div>
     </div>
     <div class="flex items-center gap-4">
-      <a href="/chat" class="flex items-center gap-1.5 text-[11px] text-slate-400 hover:text-indigo-600 transition-colors" title="Obrolan">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <a href="/chat" class="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white border-2 border-b-[4px] border-slate-200 hover:border-indigo-500 hover:text-indigo-600 text-xs font-black text-slate-600 active:translate-y-0.5 active:border-b-[2px] transition-all" title="Obrolan">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
         </svg>
         Obrolan
       </a>
-      <a href="/" class="flex items-center gap-1.5 text-[11px] text-slate-400 hover:text-slate-700 transition-colors" title="Dashboard">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <a href="/" class="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white border-2 border-b-[4px] border-slate-200 hover:border-slate-400 hover:text-slate-800 text-xs font-black text-slate-600 active:translate-y-0.5 active:border-b-[2px] transition-all" title="Dashboard">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
           <polyline points="9 22 9 12 15 12 15 22"/>
         </svg>
@@ -552,9 +554,9 @@
   </header>
 
   {#if isLoading}
-    <div class="flex flex-col items-center justify-center py-40 gap-3">
-      <div class="w-8 h-8 rounded-full border-4 border-orange-100 border-t-orange-500 animate-spin"></div>
-      <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Memuat data admin...</p>
+    <div class="flex flex-col items-center justify-center py-40 gap-4">
+      <div class="w-12 h-12 rounded-full border-4 border-orange-100 border-t-orange-500 animate-spin"></div>
+      <p class="text-xs font-black text-slate-400 uppercase tracking-widest">Memuat data admin...</p>
     </div>
   {:else}
 
@@ -731,25 +733,26 @@
 {/if}
 
 {#if showRejectLeaveModal && rejectingLeave}
-  <div class="fixed inset-0 z-[60] flex items-center justify-center p-4"
-       style="background:rgba(0,0,0,0.6); backdrop-filter:blur(8px);"
+  <div class="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
        onclick={() => { showRejectLeaveModal = false; rejectingLeave = null }}>
-    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
+    <div class="bg-white rounded-3xl border-2 border-b-[8px] border-slate-200 shadow-2xl max-w-md w-full p-8 flex flex-col gap-4"
          onclick={(e) => e.stopPropagation()}
          style="animation: slideUp 0.3s cubic-bezier(0.16,1,0.3,1);">
-      <h3 class="text-base font-bold text-slate-800 mb-1" style="font-family:'Plus Jakarta Sans',sans-serif;">Tolak Pengajuan Izin</h3>
-      <p class="text-xs text-slate-500 mb-4">Berikan keterangan mengapa izin ini ditolak.</p>
+      <div>
+        <h3 class="text-xl font-black text-slate-800 mb-1" style="font-family:'Plus Jakarta Sans',sans-serif;">Tolak Pengajuan Izin</h3>
+        <p class="text-xs font-bold text-slate-500">Berikan keterangan mengapa izin ini ditolak.</p>
+      </div>
       
       <textarea bind:value={rejectionNote} rows="3" placeholder="Contoh: Alasan tidak cukup kuat, silakan ajukan ulang dengan bukti..."
-                class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-400 resize-none mb-4"></textarea>
+                class="w-full p-4 rounded-2xl border-2 border-slate-200 text-sm font-medium text-slate-700 bg-white focus:outline-none focus:border-red-500 focus:ring-4 focus:ring-red-100 resize-none"></textarea>
       
-      <div class="flex gap-3">
+      <div class="flex gap-3 mt-2">
         <button onclick={() => { showRejectLeaveModal = false; rejectingLeave = null }}
-                class="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">
+                class="flex-1 py-3.5 px-4 rounded-2xl text-sm font-black bg-white border-2 border-b-[4px] border-slate-200 text-slate-600 hover:bg-slate-50 active:translate-y-0.5 active:border-b-[2px] transition-all cursor-pointer">
           Batal
         </button>
         <button onclick={() => { if (rejectingLeave) updateLeaveStatus(rejectingLeave, 'rejected', rejectionNote.trim() || 'Ditolak oleh admin') }}
-                class="flex-[2] py-2.5 rounded-xl text-sm font-bold text-white bg-red-500 hover:bg-red-600 active:scale-[0.98] transition-all">
+                class="flex-[2] py-3.5 px-4 rounded-2xl text-sm font-black text-white bg-red-500 border-2 border-b-[4px] border-red-700 hover:bg-red-600 active:translate-y-0.5 active:border-b-[2px] transition-all cursor-pointer">
           Tolak Izin
         </button>
       </div>

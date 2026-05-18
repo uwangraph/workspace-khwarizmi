@@ -384,10 +384,10 @@
     {:else}
       <div class="relative mb-8">
         <div class="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-          <Search size={16} class="text-slate-300" />
+          <Search size={20} class="text-slate-400" strokeWidth={2.5} />
         </div>
         <input bind:value={notifSearch} placeholder="Cari notifikasi..."
-               class="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-slate-200 text-sm bg-white text-slate-700 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/5 transition-all shadow-sm shadow-slate-200/40 placeholder:text-slate-300" />
+               class="w-full pl-12 pr-4 py-3.5 rounded-[24px] border-2 border-b-[6px] border-slate-200 text-sm font-extrabold bg-white text-slate-800 focus:outline-none focus:border-orange-500 shadow-sm transition-all placeholder:text-slate-300 placeholder:font-bold" />
       </div>
 
       {#if filteredNotifs.length === 0}
@@ -420,16 +420,16 @@
               <div class="flex flex-col gap-3">
                 {#each group.items as n (n.id)}
                   {@const ic = getIcon(n.type)}
-                  <div class="group relative flex gap-4 transition-all duration-300 cursor-pointer rounded-3xl p-5 
+                  <div class="group relative flex gap-4 transition-all duration-300 cursor-pointer rounded-[24px] p-5 border-2 border-b-[6px] active:translate-y-0.5 active:border-b-[3px]
                                {n.is_read 
-                                 ? 'bg-slate-50/50 border border-slate-100 opacity-75 hover:opacity-100 hover:bg-white hover:shadow-lg hover:shadow-slate-200/20' 
-                                 : 'bg-white border-2 border-orange-100 shadow-[0_8px_30px_rgb(249,115,22,0.08)] hover:shadow-[0_8px_30px_rgb(249,115,22,0.15)] hover:border-orange-200'}"
+                                 ? 'bg-slate-50 border-slate-200/70 opacity-75 hover:opacity-100 hover:bg-white' 
+                                 : 'bg-white border-slate-200 shadow-sm hover:border-slate-300'}"
                        onclick={() => handleCardClick(n)} role="button" tabindex="0"
                        onkeydown={(e) => e.key === 'Enter' && handleCardClick(n)}>
                     
-                    <div class="flex-shrink-0">
-                      <div class="w-14 h-14 rounded-2xl {ic.bg} flex items-center justify-center transition-all duration-500 group-hover:rotate-6 group-hover:scale-110
-                                  {n.is_read ? 'grayscale opacity-30' : 'shadow-inner'}">
+                    <div class="flex-shrink-0 my-auto">
+                      <div class="w-14 h-14 rounded-2xl {ic.bg} flex items-center justify-center border border-slate-100 shadow-sm transition-transform duration-300 group-hover:scale-105
+                                  {n.is_read ? 'grayscale opacity-40' : ''}">
                         <svg class="w-7 h-7 {ic.color}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                           <path stroke-linecap="round" stroke-linejoin="round" d={ic.path}/>
                         </svg>

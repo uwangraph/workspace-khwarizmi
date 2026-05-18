@@ -473,9 +473,9 @@
 
 			<button
 				onclick={() => (showLogoutModal = true)}
-				class="mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-red-50 bg-white py-3.5 text-sm font-semibold text-red-500 shadow-sm transition-all hover:bg-red-50 active:scale-[0.98]"
+				class="mt-4 flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-2xl border-2 border-b-[6px] border-red-200 bg-red-50 py-4 text-sm font-black text-red-600 shadow-sm transition-all hover:bg-red-100 active:translate-y-0.5"
 			>
-				<LogOut size={15} /> Keluar dari Akun
+				<LogOut size={18} strokeWidth={2.5} /> Keluar dari Akun
 			</button>
 		</main>
 	{/if}
@@ -533,7 +533,7 @@
 <!-- Edit Profile Modal -->
 {#if showEditModal}
 	<div
-		class="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4"
+		class="fixed inset-0 z-[1000] flex items-end justify-center p-0 sm:items-center sm:p-4"
 		style="background:rgba(15, 23, 42, 0.4); backdrop-filter:blur(8px);"
 		onclick={() => (showEditModal = false)}
 	>

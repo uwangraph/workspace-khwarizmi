@@ -29,7 +29,7 @@
   import TaskCalendarView from '$lib/components/tasks/TaskCalendarView.svelte'
   import ReminderModal from '$lib/components/admin/modals/ReminderModal.svelte'
 
-  interface UserProfile { id: string; full_name: string; avatar_url?: string | null }
+  interface UserProfile { id: string; full_name: string; avatar_url: string | null }
 
   let user = $state<User | null>(null)
   let profile = $state<Profile | null>(null)
@@ -524,7 +524,7 @@
         }
         
         confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } })
-      } else if (newStatus === 'review' && task && task.created_by !== user!.id) {
+      } else if (status === 'review' && task && task.created_by !== user!.id) {
         await notificationService.send(task.created_by, 'task_ready_review', 'Siap Direview', `${updaterName} menandai tugas "${task.title}" siap direview (${progressValue}%).`, { task_id: task.id, task_title: task.title })
       }
       
@@ -635,30 +635,30 @@
       <div class="flex flex-col gap-5">
         {#if viewMode === 'list'}
           <div transition:fly={{ y: 10, duration: 300 }}>
-            <div class="flex items-center gap-2 mb-4">
+            <div class="flex items-center gap-3 mb-5">
               <!-- Search Bar -->
               <div class="relative flex-1">
-                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                 </svg>
                 <input value={taskSearch} oninput={(e) => taskSearch = (e.target as HTMLInputElement).value}
                        placeholder="Cari tugas..."
-                       class="w-full pl-9 pr-4 py-2.5 rounded-2xl border border-orange-100 text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400/20 shadow-sm" />
+                       class="w-full pl-12 pr-4 py-3.5 rounded-[24px] border-2 border-b-[6px] border-slate-200 text-sm font-extrabold bg-white text-slate-800 focus:outline-none focus:border-orange-500 shadow-sm transition-all placeholder:text-slate-300 placeholder:font-bold" />
               </div>
 
               <!-- Action Buttons -->
-              <div class="flex items-center gap-2 flex-shrink-0">
+              <div class="flex items-center gap-2.5 flex-shrink-0">
                 <button onclick={() => { isSelectionMode = !isSelectionMode; if (!isSelectionMode) selectedTaskIds = [] }}
-                        class="flex items-center justify-center p-2.5 rounded-2xl {isSelectionMode ? 'bg-orange-100 text-orange-600' : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-200'} transition-all shadow-sm active:scale-95"
+                        class="flex items-center justify-center p-3.5 rounded-[20px] border-2 border-b-[6px] {isSelectionMode ? 'bg-orange-100 text-orange-600 border-orange-300' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'} transition-all shadow-sm active:translate-y-0.5 cursor-pointer"
                         title={isSelectionMode ? 'Batal Pilih' : 'Pilih Tugas'}>
-                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                  <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                   </svg>
                 </button>
                 <button onclick={openCreateModal}
-                        class="flex items-center justify-center p-2.5 rounded-2xl bg-orange-500 text-white shadow-lg shadow-orange-100 hover:bg-orange-600 transition-all active:scale-95"
+                        class="flex items-center justify-center p-3.5 rounded-[20px] border-2 border-b-[6px] border-orange-700 bg-orange-500 text-white shadow-md hover:bg-orange-600 transition-all active:translate-y-0.5 cursor-pointer"
                         title="Tambah Tugas">
-                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                  <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                   </svg>
                 </button>
@@ -797,7 +797,7 @@
 {/if}
 
 {#if showConfirmActionModal}
-  <ConfirmActionModal action={confirmAction!} taskTitle={confirmActionTaskTitle} {isConfirmingAction} onConfirm={confirmActionTask} onClose={() => showConfirmActionModal = false} />
+  <ConfirmActionModal action={confirmAction!} taskTitle={confirmActionTaskTitle} isConfirming={isConfirmingAction} onConfirm={confirmActionTask} onClose={() => showConfirmActionModal = false} />
 {/if}
 
 {#if showReminderModal && (reminderTarget || detailTask)}

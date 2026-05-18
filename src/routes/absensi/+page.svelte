@@ -264,8 +264,7 @@
 
 <div class="min-h-screen pb-24 bg-[#FFF9F0]/30">
   <AppHeader title="Kehadiran" subtitle="Catat absensi harian Anda">
-    <button onclick={() => { leaveStatus = ''; showLeaveModal = true }} class="px-3 py-1.5 rounded-lg text-xs font-bold text-orange-600 bg-orange-50 border border-orange-100 hover:bg-orange-100 transition-colors flex items-center gap-1.5 shadow-sm">
-      <FileText size={14} /> Izin / Sakit
+    <button onclick={() => { leaveStatus = ''; showLeaveModal = true }} class="px-4 py-2.5 rounded-2xl text-xs font-black text-orange-600 bg-orange-50 border-2 border-b-[4px] border-orange-200 hover:bg-orange-100 transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer active:translate-y-0.5">
     </button>
   </AppHeader>
 
@@ -298,53 +297,53 @@
       <AttendanceBanner isThursday={isTodayThursday} isFriday={isTodayFriday} {specialRule} />
 
       <!-- Location Geofencing Card -->
-      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-2 overflow-hidden relative">
+      <div class="bg-white rounded-[24px] p-5 shadow-sm border-2 border-b-[6px] border-slate-200 mb-2 overflow-hidden relative">
         {#if locStatus === 'loading'}
           <div class="flex items-center gap-3">
-            <div class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-            <p class="text-xs font-bold text-slate-500">Memverifikasi lokasi GPS...</p>
+            <div class="w-3 h-3 rounded-full bg-blue-500 animate-pulse"></div>
+            <p class="text-xs font-black text-slate-500">Memverifikasi lokasi GPS...</p>
           </div>
         {:else if locStatus === 'error'}
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <div class="w-8 h-8 rounded-xl bg-red-50 text-red-500 flex items-center justify-center">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3.5">
+              <div class="w-12 h-12 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center border-2 border-red-200 shadow-sm shrink-0">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
               </div>
-              <div>
-                <p class="text-xs font-bold text-slate-800">GPS Bermasalah</p>
-                <p class="text-[10px] text-red-500 font-medium">{locError}</p>
+              <div class="min-w-0">
+                <p class="text-sm font-extrabold text-slate-800">GPS Bermasalah</p>
+                <p class="text-[11px] text-red-500 font-bold truncate">{locError}</p>
               </div>
             </div>
-            <button onclick={checkLocation} class="text-[10px] font-black text-orange-600 bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100 active:scale-95 transition-all">REFRESH</button>
+            <button onclick={checkLocation} class="text-xs font-black text-orange-600 bg-orange-50 px-4 py-2.5 rounded-2xl border-2 border-b-[4px] border-orange-200 active:translate-y-0.5 hover:bg-orange-100 transition-all cursor-pointer shrink-0 shadow-sm">REFRESH</button>
           </div>
         {:else if locStatus === 'success'}
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-2xl {isLocValid ? 'bg-emerald-50 text-emerald-500' : 'bg-red-50 text-red-500'} flex items-center justify-center transition-colors">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3.5">
+              <div class="w-12 h-12 rounded-2xl {isLocValid ? 'bg-emerald-50 text-emerald-500 border-emerald-200' : 'bg-red-50 text-red-500 border-red-200'} border-2 shadow-sm flex items-center justify-center transition-colors shrink-0">
                 {#if isLocValid}
-                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                  <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                 {:else}
-                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                  <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                 {/if}
               </div>
               <div>
                 <div class="flex items-center gap-2">
-                  <p class="text-xs font-bold text-slate-800">{isLocValid ? 'Area Absensi Valid' : 'Di Luar Radius'}</p>
-                  <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-md {isLocValid ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}">
+                  <p class="text-sm font-extrabold text-slate-800">{isLocValid ? 'Area Absensi Valid' : 'Di Luar Radius'}</p>
+                  <span class="text-[10px] font-black px-2 py-0.5 rounded-xl {isLocValid ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-red-100 text-red-700 border border-red-200'}">
                     {isLocValid ? 'AKTIF' : 'TERKUNCI'}
                   </span>
                 </div>
-                <p class="text-[10px] text-slate-400 font-medium mt-0.5">
+                <p class="text-xs text-slate-400 font-bold mt-0.5">
                   {#if isLocValid}
                     Anda berada dalam radius aman {locName}.
                   {:else}
-                    Jarak Anda: <span class="text-red-500 font-bold">{locDistance}m</span> dari {locName} (Maks {locMaxRadius}m)
+                    Jarak Anda: <span class="text-red-500 font-extrabold">{locDistance}m</span> dari {locName} (Maks {locMaxRadius}m)
                   {/if}
                 </p>
               </div>
             </div>
-            <button onclick={checkLocation} class="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-slate-100 transition-all active:rotate-180 duration-500">
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            <button onclick={checkLocation} class="w-10 h-10 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center border-2 border-b-[4px] border-slate-200 hover:bg-slate-200 transition-all active:translate-y-0.5 shrink-0 cursor-pointer shadow-sm">
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
             </button>
           </div>
         {/if}

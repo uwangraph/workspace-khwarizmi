@@ -19,7 +19,6 @@
   import NotifPreview from '$lib/components/dashboard/NotifPreview.svelte'
   import TopPerformers from '$lib/components/dashboard/TopPerformers.svelte'
 
-  // AppNotification extends our own type (not window.Notification)
   type DashboardNotification = AppNotification
 
   const DAYS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
@@ -78,8 +77,7 @@
             notifSubscription = null
         }
       } else if (!isLoading && user) {
-        // Data di-load kembali di loadData(), jadi tidak perlu di sini kecuali jika batal on-the-fly.
-        // Berhubung kita panggil location.reload() di layout saat batal, aman untuk dibiarkan.
+        // Safe to let it reload
       }
     })
     return unsubscribe
@@ -89,7 +87,6 @@
     clockInterval = setInterval(() => { now = new Date() }, 60000); 
     loadData(); 
     initGps(); 
-    
 
     return () => { 
       clearInterval(clockInterval); 
@@ -101,7 +98,7 @@
   let heroDate = $derived(`${DAYS[now.getDay()]}, ${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`)
   function getFirstName() { if (!profile) return 'Pengguna'; const n = profile.full_name.split(' ')[0]; return n.charAt(0).toUpperCase() + n.slice(1) }
 
-  let totalIn = $derived(attendance.filter(a => a.clock_in !== null).length), taskActive = $derived(tasks.filter(t => t.status !== 'done').length), taskDone = $derived(tasks.filter(t => t.status === 'done').length), taskTotal = $derived(tasks.length), completionRate = $derived(taskTotal > 0 ? Math.round((taskDone / taskTotal) * 100) : 0), unreadCount = $derived(notifications.filter(n => !n.is_read).length), recentNotifs = $derived(notifications.slice(0, 3)), totalSessions = $derived(now.getDay() === 5 ? 0 : now.getDay() === 4 ? 1 : 4)
+  let totalIn = $derived(attendance.filter(a => a.clock_in !== null).length), taskActive = $derived(tasks.filter(t => t.status !== 'done').length), completionRate = $derived(tasks.length > 0 ? Math.round((tasks.filter(t => t.status === 'done').length / tasks.length) * 100) : 0), unreadCount = $derived(notifications.filter(n => !n.is_read).length), recentNotifs = $derived(notifications.slice(0, 3)), totalSessions = $derived(now.getDay() === 5 ? 0 : now.getDay() === 4 ? 1 : 4)
   let recentTasks = $derived(tasks.filter(t => t.status !== 'done').sort((a, b) => { const p: Record<string, number> = { high: 0, medium: 1, low: 2 }; return p[a.priority] - p[b.priority] }).slice(0, 3))
 
   function formatDue(iso: string | null) {
@@ -134,7 +131,7 @@
       return
     }
 
-    const { attendance: attend, appSettings } = await attendanceService.getTodayData(u.id)
+    const { attendance: attend } = await attendanceService.getTodayData(u.id)
     attendance = (attend as any[]) || []
     
     tasks = await taskService.getTasks(u.id, profile?.role || 'user')
@@ -142,7 +139,6 @@
     const { data: notifs } = await notificationService.getNotifications(u.id, 10)
     notifications = (notifs || []) as DashboardNotification[]
     
-    // Subscribe to real-time notifications for this specific user
     if (!notifSubscription) {
       notifSubscription = supabase.channel(`dashboard:notifications:${u.id}`)
         .on('postgres_changes', { 
@@ -182,53 +178,53 @@
 
 <svelte:head><title>Dashboard — Khwarizmi Workspace</title></svelte:head>
 
-<div class="min-h-screen bg-[#FFF9F0]/30 font-sans">
-  <header class="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-orange-100 px-5 py-4 flex items-center justify-between">
-    <div class="flex items-center gap-3">
-      <img src="/logo-khwarizmi.png" alt="Logo" class="w-9 h-9 rounded-xl shadow-sm p-1 bg-white border border-orange-200 object-contain cursor-pointer flex-shrink-0" />
+<div class="min-h-screen bg-[#FFF9F0]/50 font-sans">
+  <header class="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b-2 border-orange-100 px-6 py-4 flex items-center justify-between shadow-sm">
+    <div class="flex items-center gap-3.5">
+      <img src="/logo-khwarizmi.png" alt="Logo" class="w-11 h-11 rounded-2xl shadow-sm p-1.5 bg-white border-2 border-b-[4px] border-orange-200 object-contain cursor-pointer flex-shrink-0" />
       <div>
-        <span class="font-extrabold text-slate-900 text-base tracking-tight" style="font-family:'Plus Jakarta Sans',sans-serif;">Khwarizmi Workspace</span>
-        <p class="text-[10px] font-medium text-orange-600 mt-0.5">Dashboard</p>
+        <span class="font-black text-slate-900 text-lg tracking-tight" style="font-family:'Plus Jakarta Sans',sans-serif;">Khwarizmi Workspace</span>
+        <p class="text-xs font-extrabold text-orange-600">Dashboard</p>
       </div>
     </div>
-    <a href="/notifications" class="relative w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center cursor-pointer hover:bg-slate-100 transition-colors">
-      <Bell size={16} class="text-slate-600" />
+    <a href="/notifications" class="relative w-11 h-11 rounded-2xl bg-white border-2 border-b-[4px] border-slate-200 flex items-center justify-center cursor-pointer hover:border-slate-300 active:translate-y-0.5 active:border-b-2 transition-all">
+      <Bell size={20} strokeWidth={2.5} class="text-slate-600" />
       {#if unreadCount > 0}
-        <span class="absolute -top-1 -right-1 min-w-[18px] h-5 px-1 rounded-full text-[9px] font-bold text-white bg-red-500 flex items-center justify-center">{unreadCount > 99 ? '99+' : unreadCount}</span>
+        <span class="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-black text-white bg-red-500 flex items-center justify-center border-2 border-white shadow-sm">{unreadCount > 99 ? '99+' : unreadCount}</span>
       {/if}
     </a>
   </header>
 
   {#if isLoading}
     <div class="flex flex-col items-center justify-center py-40">
-      <div class="w-10 h-10 border-4 border-orange-200 border-t-orange-500 animate-spin rounded-full mb-4"></div>
-      <p class="text-xs text-slate-500">Menyiapkan workspace...</p>
+      <div class="w-12 h-12 border-4 border-orange-200 border-t-orange-500 animate-spin rounded-full mb-4"></div>
+      <p class="text-sm font-bold text-slate-500">Menyiapkan workspace...</p>
     </div>
   {:else}
-    <main class="max-w-lg mx-auto px-4 py-5 pb-24 flex flex-col gap-5">
+    <main class="max-w-lg mx-auto px-5 py-7 pb-28 flex flex-col gap-8">
       <HeroCard {heroDate} greeting={getGreeting()} firstName={getFirstName()} {gpsActive} {totalIn} {totalSessions} {taskActive} {completionRate} />
 
-
       {#if profile?.role === 'admin'}
-        <section class="relative overflow-hidden rounded-3xl p-6 border border-slate-200 bg-slate-50">
-          <div class="relative z-10 flex items-center justify-between gap-4">
+        <section class="relative overflow-hidden rounded-[32px] p-7 border-2 border-b-[8px] border-indigo-300 bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/20">
+          <div class="relative z-10 flex items-center justify-between gap-5">
             <div class="flex-1">
-              <div class="flex items-center gap-2 mb-1.5">
-                <ShieldCheck size={18} class="text-slate-600" />
-                <h3 class="text-xs font-bold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">Mode Admin Aktif</h3>
+              <div class="flex items-center gap-2.5 mb-5">
+                <ShieldCheck size={28} strokeWidth={2.5} class="text-indigo-200" />
+                <h3 class="text-xl sm:text-2xl font-black tracking-tight leading-none" style="font-family:'Plus Jakarta Sans',sans-serif;">Mode Admin Aktif</h3>
+              </div>
+              <div class="relative inline-block">
+                <a href="/admin" class="inline-flex items-center gap-2.5 bg-white text-indigo-600 hover:bg-indigo-50 active:translate-y-0.5 active:border-b-[2px] transition-all text-sm font-black py-3.5 px-6 rounded-2xl border-2 border-b-[4px] border-indigo-200 shadow-sm cursor-pointer">
+                  Masuk Panel Admin <ArrowRight size={18} strokeWidth={2.5} />
+                </a>
                 {#if pendingLeavesCount > 0}
-                  <span class="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full animate-pulse shadow-sm shadow-red-500/20">
-                    {pendingLeavesCount} Permohonan
+                  <span class="absolute -top-2.5 -right-2.5 bg-red-500 text-white text-xs font-black min-w-[26px] h-6 px-2 rounded-full flex items-center justify-center border-2 border-white shadow-md z-10">
+                    {pendingLeavesCount}
                   </span>
                 {/if}
               </div>
-              <p class="text-[11px] text-slate-500 leading-relaxed mb-4 pr-2">Kelola pengguna, pantau tugas, dan kendalikan sistem melalui panel khusus.</p>
-              <a href="/admin" class="inline-flex items-center gap-2 bg-white hover:bg-slate-50 transition-colors text-slate-700 text-[11px] font-bold py-2.5 px-4 rounded-xl border border-slate-200 shadow-sm">
-                Masuk Panel Admin <ArrowRight size={14} strokeWidth={2.5} />
-              </a>
             </div>
-            <div class="w-14 h-14 rounded-2xl bg-white border border-slate-100 flex items-center justify-center flex-shrink-0 shadow-sm">
-              <Zap size={24} class="text-orange-500" />
+            <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white/10 backdrop-blur-md border-2 border-b-[4px] border-white/20 flex items-center justify-center flex-shrink-0 shadow-sm">
+              <Zap size={36} strokeWidth={2.5} class="text-amber-300" />
             </div>
           </div>
         </section>

@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
+    import { appearanceStore } from '$lib/stores/appearanceStore';
     import './layout.css';
     import { page } from '$app/stores';
     import { Toaster, toast } from 'svelte-french-toast';
@@ -200,6 +201,7 @@
             showIOSInstallBanner = false;
         });
 
+        appearanceStore.init();
         checkDeletionStatus();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -319,6 +321,9 @@
 </script>
 
 <svelte:head>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=DM+Sans:wght@400;500;600;700;800&family=Fredoka:wght@400;500;600;700&family=Nunito:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet" />
     <link rel="icon" type="image/png" href="/logo-khwarizmi.png" />
     <link rel="apple-touch-icon" href="/logo-khwarizmi.png" />
 </svelte:head>
@@ -420,7 +425,7 @@
 		position="bottom-center"
 		toastOptions={{
 			style:
-				"font-family:'Inter',sans-serif; font-size:13px; font-weight:500; border-radius:16px; padding:10px 16px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.05);"
+				"font-family:var(--app-font-family); font-size:13px; font-weight:500; border-radius:16px; padding:10px 16px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.05);"
 		}}
 	/>
 

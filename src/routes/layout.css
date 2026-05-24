@@ -7,6 +7,20 @@
   --color-body-bg: #e2e8f0;
 }
 
+:root {
+  --app-font-family: 'Nunito', 'Inter', sans-serif;
+  --app-font-size-px: 16px;
+}
+
+html {
+  font-size: var(--app-font-size-px);
+}
+
 body {
   background-color: var(--color-body-bg);
+}
+
+body,
+body *:not(code):not(pre):not(kbd):not(samp):not(.font-mono):not([class*='font-mono']) {
+  font-family: var(--app-font-family) !important;
 }

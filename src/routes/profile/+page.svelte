@@ -108,7 +108,7 @@
 
 	const deletionStore = getContext<Writable<boolean>>('deletionStore');
 	let isDataHidden = $state(false);
-	let selectedFontFamilyId = $state('nunito');
+	let selectedFontFamilyId = $state('din-rounded');
 	let selectedFontSize = $state<FontSizeKey>('medium');
 
 	$effect(() => {

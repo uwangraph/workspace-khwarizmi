@@ -10,6 +10,11 @@ export type FontOption = {
 
 export const FONT_OPTIONS: FontOption[] = [
   {
+    id: 'din-rounded',
+    label: 'DIN Rounded',
+    cssValue: "'DIN Rounded', 'Nunito', sans-serif"
+  },
+  {
     id: 'nunito',
     label: 'Nunito',
     cssValue: "'Nunito', 'Inter', sans-serif"
@@ -23,11 +28,6 @@ export const FONT_OPTIONS: FontOption[] = [
     id: 'baloo',
     label: 'Baloo 2',
     cssValue: "'Baloo 2', 'Nunito', sans-serif"
-  },
-  {
-    id: 'fredoka',
-    label: 'Fredoka',
-    cssValue: "'Fredoka', 'Nunito', sans-serif"
   },
   {
     id: 'quicksand',
@@ -55,7 +55,7 @@ export type AppearanceSettings = {
 
 const STORAGE_KEY = 'khwarizmi-appearance';
 const defaultSettings: AppearanceSettings = {
-  fontFamilyId: 'nunito',
+  fontFamilyId: 'din-rounded',
   fontSize: 'medium'
 };
 

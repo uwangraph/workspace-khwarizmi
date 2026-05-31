@@ -7,8 +7,24 @@
   --color-body-bg: #e2e8f0;
 }
 
+@font-face {
+  font-family: 'DIN Rounded';
+  src: url('/fonts/DIN Next Rounded LT W01 Regular.ttf') format('truetype');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400 500;
+}
+
+@font-face {
+  font-family: 'DIN Rounded';
+  src: url('/fonts/DIN Next Rounded LT W04 Medium.otf') format('opentype');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 600 900;
+}
+
 :root {
-  --app-font-family: 'Nunito', 'Inter', sans-serif;
+  --app-font-family: 'DIN Rounded', 'Nunito', sans-serif;
   --app-font-size-px: 16px;
 }
 

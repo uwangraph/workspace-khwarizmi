@@ -486,33 +486,47 @@
 					<p class="mt-1 text-xs text-slate-400">Atur font dan ukuran teks untuk seluruh aplikasi.</p>
 				</div>
 
-				<div class="mb-4">
-					<p class="mb-2 text-[11px] font-black uppercase tracking-wider text-slate-500">Font Family</p>
-					<div class="grid grid-cols-2 gap-2">
-						{#each FONT_OPTIONS as option}
-							<button
-								type="button"
-								onclick={() => appearanceStore.setFontFamily(option.id)}
-								class="rounded-2xl border-2 px-3 py-2.5 text-left text-xs font-bold transition-all active:translate-y-0.5 {selectedFontFamilyId === option.id ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}"
-							>
-								<span style={`font-family:${option.cssValue}`}>{option.label}</span>
-							</button>
-						{/each}
+				<div class="mb-5">
+					<label for="font-family-select" class="mb-2 block text-[11px] font-black uppercase tracking-wider text-slate-500">Font Family</label>
+					<div class="relative">
+						<select
+							id="font-family-select"
+							onchange={(e) => appearanceStore.setFontFamily((e.target as HTMLSelectElement).value)}
+							class="w-full appearance-none rounded-2xl border-2 border-slate-200 bg-white px-4 py-3 pr-10 text-sm font-bold text-slate-700 transition-colors focus:border-orange-500 focus:outline-none"
+							style={`font-family: ${FONT_OPTIONS.find((o) => o.id === selectedFontFamilyId)?.cssValue}`}
+						>
+							{#each FONT_OPTIONS as option}
+								<option value={option.id} selected={selectedFontFamilyId === option.id} style={`font-family: ${option.cssValue}`}>
+									{option.label}
+								</option>
+							{/each}
+						</select>
+						<div class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg>
+						</div>
 					</div>
 				</div>
 
-				<div>
-					<p class="mb-2 text-[11px] font-black uppercase tracking-wider text-slate-500">Ukuran Teks</p>
-					<div class="grid grid-cols-2 gap-2">
+				<div class="mb-2">
+					<div class="mb-3 flex items-center justify-between">
+						<p class="text-[11px] font-black uppercase tracking-wider text-slate-500">Ukuran Teks</p>
+						<span class="text-xs font-bold text-orange-600">
+							{FONT_SIZE_OPTIONS.find((s) => s.id === selectedFontSize)?.label}
+							({FONT_SIZE_OPTIONS.find((s) => s.id === selectedFontSize)?.px}px)
+						</span>
+					</div>
+					<input
+						type="range"
+						min="0"
+						max="3"
+						step="1"
+						value={FONT_SIZE_OPTIONS.findIndex((s) => s.id === selectedFontSize)}
+						oninput={(e) => appearanceStore.setFontSize(FONT_SIZE_OPTIONS[+(e.target as HTMLInputElement).value].id)}
+						class="w-full accent-orange-500"
+					/>
+					<div class="mt-1.5 flex justify-between px-0.5">
 						{#each FONT_SIZE_OPTIONS as size}
-							<button
-								type="button"
-								onclick={() => appearanceStore.setFontSize(size.id)}
-								class="rounded-2xl border-2 px-3 py-2.5 text-left text-xs font-bold transition-all active:translate-y-0.5 {selectedFontSize === size.id ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}"
-							>
-								<span>{size.label}</span>
-								<span class="ml-1 text-[10px] opacity-70">({size.px}px)</span>
-							</button>
+							<span class="text-[10px] text-slate-400">{size.label}</span>
 						{/each}
 					</div>
 				</div>

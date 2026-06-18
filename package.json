@@ -7,6 +7,10 @@
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
+		"cap:copy": "cap copy",
+		"cap:sync": "npm run build && cap sync",
+		"cap:open:android": "cap open android",
+		"cap:run:android": "npm run build && cap run android",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
@@ -14,6 +18,7 @@
 		"format": "prettier --write ."
 	},
 	"devDependencies": {
+		"@capacitor/assets": "^3.0.5",
 		"@sveltejs/adapter-static": "^3.0.10",
 		"@sveltejs/kit": "^2.57.0",
 		"@sveltejs/vite-plugin-svelte": "^7.0.0",
@@ -32,6 +37,13 @@
 		"vite-plugin-pwa": "^1.2.0"
 	},
 	"dependencies": {
+		"@capacitor/android": "^8.4.0",
+		"@capacitor/app": "^8.1.0",
+		"@capacitor/camera": "^8.2.0",
+		"@capacitor/cli": "^8.4.0",
+		"@capacitor/core": "^8.4.0",
+		"@capacitor/geolocation": "^8.2.0",
+		"@capacitor/push-notifications": "^8.1.1",
 		"@supabase/supabase-js": "^2.103.0",
 		"canvas-confetti": "^1.9.4",
 		"firebase": "^12.12.1",

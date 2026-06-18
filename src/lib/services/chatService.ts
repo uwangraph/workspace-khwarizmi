@@ -236,7 +236,7 @@ export const chatService = {
   },
 
   // Ambil riwayat pesan untuk sebuah room
-  async getMessages(roomId: string, limit = 50, before?: string) {
+  async getMessages(roomId: string, limit = 50, before?: string, clearedAt?: string | null) {
     let query = supabase
       .from('chat_messages')
       .select('*')
@@ -248,8 +248,12 @@ export const chatService = {
       query = query.lt('created_at', before)
     }
 
+    if (clearedAt) {
+      query = query.gt('created_at', clearedAt)
+    }
+
     const { data, error } = await query
-    
+
     if (error) throw error
     const messages = data.reverse() as ChatMessage[]
     const senderIds = [...new Set(messages.map((message) => message.sender_id).filter(Boolean))]
@@ -432,6 +436,17 @@ export const chatService = {
     
     if (error) throw error
     return true
+  },
+
+  async clearChatForUser(roomId: string, userId: string) {
+    const clearedAt = new Date().toISOString()
+    const { error } = await supabase
+      .from('chat_participants')
+      .update({ cleared_at: clearedAt })
+      .eq('room_id', roomId)
+      .eq('user_id', userId)
+    if (error) throw error
+    return clearedAt
   },
 
   // Buat Grup Baru

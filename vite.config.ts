@@ -4,6 +4,11 @@ import tailwindcss from '@tailwindcss/vite'
 import { SvelteKitPWA } from '@vite-pwa/sveltekit'
 
 export default defineConfig({
+  server: {
+    watch: {
+      ignored: ['**/migrations/**']
+    }
+  },
   plugins: [
     tailwindcss(),
     sveltekit(),

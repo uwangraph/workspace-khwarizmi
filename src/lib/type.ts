@@ -100,7 +100,7 @@ export interface ChatMessage {
   id: string
   room_id: string
   sender_id: string
-  type: 'text' | 'image' | 'file' | 'audio' | 'poll'
+  type: 'text' | 'image' | 'file' | 'audio' | 'poll' | 'call'
   content: string | null
   metadata: any | null
   created_at: string

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "346078156513",
+    "project_id": "khwarizmi-attendance",
+    "storage_bucket": "khwarizmi-attendance.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:346078156513:android:2997666e66431aefcb09a0",
+        "android_client_info": {
+          "package_name": "com.khwarizmi.workspace"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAvO9uWqozhki8QE7vC1cwZvCxFZ7mkwV8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

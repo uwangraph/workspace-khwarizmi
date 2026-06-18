@@ -9,6 +9,9 @@
     confirmText = 'Ya, Hapus',
     cancelText = 'Batal',
     type = 'danger', // 'danger' | 'info' | 'warning'
+    showCheckbox = false,
+    checkboxLabel = '',
+    checkboxValue = $bindable(false),
     onConfirm,
     onCancel
   } = $props<{
@@ -18,6 +21,9 @@
     confirmText?: string,
     cancelText?: string,
     type?: 'danger' | 'info' | 'warning',
+    showCheckbox?: boolean,
+    checkboxLabel?: string,
+    checkboxValue?: boolean,
     onConfirm: () => void,
     onCancel?: () => void
   }>()
@@ -52,6 +58,19 @@
         <p class="text-sm text-slate-500 leading-relaxed font-medium">
           {message}
         </p>
+
+        {#if showCheckbox}
+          <label class="mt-6 flex items-center gap-3 cursor-pointer group">
+            <div class="relative flex items-center justify-center">
+              <input type="checkbox" bind:checked={checkboxValue} class="peer sr-only" />
+              <div class="w-6 h-6 border-2 border-slate-200 rounded-lg bg-white peer-checked:bg-orange-500 peer-checked:border-orange-500 transition-all group-hover:border-orange-200"></div>
+              <svg class="absolute w-4 h-4 text-white opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4">
+                <path d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <span class="text-sm font-bold text-slate-600 group-hover:text-slate-800 transition-colors">{checkboxLabel}</span>
+          </label>
+        {/if}
       </div>
 
       <div class="p-4 bg-slate-50 flex gap-3">

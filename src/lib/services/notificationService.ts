@@ -1,9 +1,42 @@
 import { messaging } from '$lib/firebase';
 import { supabase } from '$lib/supabase';
 import { PUBLIC_FIREBASE_VAPID_KEY } from '$env/static/public';
+import { Capacitor } from '@capacitor/core';
+import { PushNotifications } from '@capacitor/push-notifications';
+
+let nativePushListenersReady = false;
+
+async function createAndroidChannels() {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    await PushNotifications.createChannel({
+      id: 'chat_messages_v2',
+      name: 'Pesan Chat',
+      description: 'Notifikasi pesan chat masuk',
+      importance: 3, // IMPORTANCE_DEFAULT — ada suara & vibrasi
+      vibration: true,
+      visibility: 1
+    });
+    await PushNotifications.createChannel({
+      id: 'incoming_call_v2',
+      name: 'Panggilan Masuk',
+      description: 'Notifikasi panggilan masuk',
+      importance: 4, // IMPORTANCE_HIGH — heads-up + suara keras
+      vibration: true,
+      visibility: 1
+    });
+  } catch (e) {
+    console.warn('[NotificationService] Failed to create channels:', e);
+  }
+}
 
 export const notificationService = {
   async requestPermissionAndGetToken(userId: string) {
+    if (typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
+      await createAndroidChannels();
+      return await this.requestNativePermissionAndGetToken(userId);
+    }
+
     if (typeof window === 'undefined' || !('Notification' in window) || !('serviceWorker' in navigator)) return null;
     
     try {
@@ -49,6 +82,53 @@ export const notificationService = {
       console.error('[NotificationService] Error requesting notification permission:', error);
     }
     return null;
+  },
+
+  async requestNativePermissionAndGetToken(userId: string) {
+    if (!userId) return null;
+
+    try {
+      if (!nativePushListenersReady) {
+        nativePushListenersReady = true;
+
+        await PushNotifications.addListener('registration', async (token) => {
+          try {
+            await this.saveTokenToSupabase(userId, token.value);
+            console.log('[NotificationService] Native push token saved.');
+          } catch (error) {
+            console.error('[NotificationService] Failed to save native push token:', error);
+          }
+        });
+
+        await PushNotifications.addListener('registrationError', (error) => {
+          console.error('[NotificationService] Native push registration failed:', error);
+        });
+
+        await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+          const data = action.notification.data || {};
+          const url = data.url || data.link;
+          if (typeof url === 'string' && url.length > 0) {
+            window.location.assign(url);
+          }
+        });
+      }
+
+      let permission = await PushNotifications.checkPermissions();
+      if (permission.receive === 'prompt') {
+        permission = await PushNotifications.requestPermissions();
+      }
+
+      if (permission.receive !== 'granted') {
+        console.warn('[NotificationService] Native push permission denied.');
+        return null;
+      }
+
+      await PushNotifications.register();
+      return true;
+    } catch (error) {
+      console.error('[NotificationService] Error requesting native push permission:', error);
+      return null;
+    }
   },
 
   async saveTokenToSupabase(userId: string, token: string) {

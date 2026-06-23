@@ -61,7 +61,7 @@
     
     // If special rule defines specific active sessions, use them
     if (specialRule && specialRule.active_sessions) {
-      result = SESSIONS.filter(s => specialRule.active_sessions?.includes(s.id))
+      result = SESSIONS.filter(s => specialRule!.active_sessions?.includes(s.id))
     } else if (todayHoliday) {
       // On holiday, only allow Overtime (Lembur) by default, and it starts early
       result = SESSIONS.filter(s => s.id === 4).map(s => ({
@@ -440,7 +440,7 @@
 {/if}
 
 {#if showLeaveModal}
-  <LeaveModal sessions={activeSessions.filter(s => s.id !== 4)} {leaves} status={leaveStatus} {isSubmittingLeave} onSubmit={submitLeave} onClose={() => showLeaveModal = false} />
+  <LeaveModal sessions={activeSessions.filter(s => s.id !== 4)} {leaves} status={leaveStatus} isSubmitting={isSubmittingLeave} onSubmit={submitLeave} onClose={() => showLeaveModal = false} />
 {/if}
 
 {#if showCamera}

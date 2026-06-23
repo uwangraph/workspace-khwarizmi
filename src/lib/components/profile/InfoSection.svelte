@@ -1,7 +1,7 @@
 <script lang="ts">
   import { ChevronRight } from 'lucide-svelte'
   interface Row { Icon: any; label: string; val: string | null | undefined; multiline?: boolean }
-  interface Action { Icon: any; label: string; sublabel?: string; bg: string; iconColor: string; badge?: number; onClick: () => void }
+  interface Action { Icon: any; label: string; sublabel?: string; bg: string; iconColor: string; badge?: number; href?: string; onClick: () => void }
   interface Props {
     title: string
     rows?: Row[]

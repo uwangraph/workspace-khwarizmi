@@ -135,7 +135,7 @@
         await taskService.deleteAttachment(attToDelete.id, filePath)
       }
       
-      attachments = attachments.filter(a => a.id !== attToDelete.id)
+      attachments = attachments.filter(a => a.id !== attToDelete!.id)
       toast.success('Lampiran dihapus')
       showDeleteConfirm = false
       attToDelete = null

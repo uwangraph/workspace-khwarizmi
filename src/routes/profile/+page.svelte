@@ -61,6 +61,16 @@
 	let editJoinedAt = $state('');
 	let editBirthDate = $state('');
 	let editPosition = $state('');
+
+	type EditField = [string, string, (v: string) => void, string, string]
+	let editFields = $derived<EditField[]>([
+		['Nama Lengkap *', editName, (v) => (editName = v), 'text', 'Masukkan nama lengkap'],
+		['Jabatan / Posisi', editPosition, (v) => (editPosition = v), 'text', 'Contoh: Creative Designer'],
+		['Nomor WhatsApp', editPhone, (v) => (editPhone = v), 'tel', '08xxx'],
+		['Alamat Lengkap', editAddress, (v) => (editAddress = v), 'text', 'Nama jalan, kota...'],
+		['Tanggal Bergabung', editJoinedAt, (v) => (editJoinedAt = v), 'date', ''],
+		['Tanggal Lahir', editBirthDate, (v) => (editBirthDate = v), 'date', ''],
+	])
 	let avatarPreview = $state<string | null>(null);
 	let croppedBlob = $state<Blob | null>(null);
 	let uploadingAvatar = $state(false);
@@ -660,7 +670,7 @@
 				</div>
 
 				<div class="grid grid-cols-1 gap-5">
-					{#each [['Nama Lengkap *', editName, (v: string) => (editName = v), 'text', 'Masukkan nama lengkap'], ['Jabatan / Posisi', editPosition, (v: string) => (editPosition = v), 'text', 'Contoh: Creative Designer'], ['Nomor WhatsApp', editPhone, (v: string) => (editPhone = v), 'tel', '08xxx'], ['Alamat Lengkap', editAddress, (v: string) => (editAddress = v), 'text', 'Nama jalan, kota...'], ['Tanggal Bergabung', editJoinedAt, (v: string) => (editJoinedAt = v), 'date', ''], ['Tanggal Lahir', editBirthDate, (v: string) => (editBirthDate = v), 'date', '']] as [label, value, setter, type, placeholder]}
+					{#each editFields as [label, value, setter, type, placeholder]}
 						<div class="space-y-1.5">
 							<label class="ml-0.5 text-[11px] font-semibold text-slate-500">{label}</label>
 							<input

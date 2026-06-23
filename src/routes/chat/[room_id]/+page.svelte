@@ -24,7 +24,7 @@
   import { X, Star, Forward, Trash2, Pin, ArrowDown } from 'lucide-svelte'
   import toast from 'svelte-french-toast'
 
-  const roomId = $derived($page.params.room_id)
+  const roomId = $derived($page.params.room_id ?? '')
 
   let user: any = $state(null)
   let profile = $state<Profile | null>(null)
@@ -105,7 +105,7 @@
   let filteredMessages = $derived(
     searchQuery.trim() === '' 
       ? messages 
-      : messages.filter(m => m.type === 'text' && m.content.toLowerCase().includes(searchQuery.toLowerCase()))
+      : messages.filter(m => m.type === 'text' && m.content?.toLowerCase().includes(searchQuery.toLowerCase()))
   )
 
   // Wallpaper
@@ -491,7 +491,8 @@
     }
   }
 
-  onMount(async () => {
+  onMount(() => {
+    ;(async () => {
     try {
       const authUser = await authService.getUser()
       if (!authUser) { goto('/auth'); return }
@@ -667,6 +668,7 @@
       tick().then(() => scrollToBottom('auto'))
     }
 
+    })()
     return () => {
       subscription?.unsubscribe()
       typingSubscription?.unsubscribe?.()
@@ -757,7 +759,7 @@
   
   {#if isLoading}
     <div class="flex-1 flex items-center justify-center">
-      <LoadingSpinner label="Memuat pesan..." />
+      <LoadingSpinner message="Memuat pesan..." />
     </div>
   {:else}
     <ChatHeader
@@ -878,7 +880,7 @@
               onStar={toggleStar}
               onPin={handlePin}
               onForward={(m) => showForwardModal = m}
-              onEdit={(m) => { editingMessage = m; newMessage = m.content }}
+              onEdit={(m) => { editingMessage = m; newMessage = m.content ?? '' }}
               onCopy={(c) => { navigator.clipboard.writeText(c); toast.success('Teks disalin') }}
               onInfo={(m) => showMessageInfo = m}
               onDelete={(id) => { messageIdToDelete = id; showDeleteConfirm = true }}

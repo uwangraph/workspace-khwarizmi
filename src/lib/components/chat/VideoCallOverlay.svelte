@@ -10,6 +10,8 @@
   import { callService } from '$lib/services/callService'
   import { callState, floatingReactions, raisedHands, sharingPeers, activeSpeaker } from '$lib/stores/callStore'
   import toast from 'svelte-french-toast'
+  import type { Profile } from '$lib/type'
+  import { supabase } from '$lib/supabase'
 
   let { roomName = '' }: { roomName?: string } = $props()
 
@@ -102,11 +104,23 @@
     return `${m}:${sec.toString().padStart(2, '0')}`
   }
 
-  onMount(async () => {
+  async function togglePiP() {
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture()
+      } else if (localVideoEl) {
+        await localVideoEl.requestPictureInPicture()
+      }
+    } catch (e) {
+      console.warn('[PiP] Not supported or failed:', e)
+    }
+  }
+
+  onMount(() => {
     isScreenShareSupported = callService.isScreenShareSupported()
 
     // Fetch all profiles for invitation
-    supabase.from('profiles').select('*').then(({ data }) => { if (data) allProfiles = data })
+    supabase.from('profiles').select('*').then(({ data }: { data: Profile[] | null }) => { if (data) allProfiles = data })
 
     callService.onRemoteStream = (peerId, peerName, stream) => {
       remoteStreams = new Map(remoteStreams).set(peerId, { stream, name: peerName })

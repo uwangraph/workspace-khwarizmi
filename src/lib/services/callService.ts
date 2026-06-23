@@ -51,7 +51,7 @@ class CallService {
   private peerNames = new Map<string, string>()
   private ringtoneAudio: HTMLAudioElement | null = null
   private audioContext: AudioContext | null = null
-  private analysers = new Map<string, { analyser: AnalyserNode, data: Uint8Array }>()
+  private analysers = new Map<string, { analyser: AnalyserNode, data: Uint8Array<ArrayBuffer> }>()
   private speakerInterval: any = null
 
   localStream: MediaStream | null = null
@@ -118,7 +118,7 @@ class CallService {
       const analyser = this.audioContext.createAnalyser()
       analyser.fftSize = 256
       source.connect(analyser)
-      this.analysers.set(peerId, { analyser, data: new Uint8Array(analyser.frequencyBinCount) })
+      this.analysers.set(peerId, { analyser, data: new Uint8Array(analyser.frequencyBinCount) as Uint8Array<ArrayBuffer> })
       this.startSpeakerDetection()
     } catch (e) {
       console.warn('[CallService] Failed to add stream to analyser:', e)

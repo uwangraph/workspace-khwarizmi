@@ -73,7 +73,7 @@
             <button onclick={() => onToggleForwardSelection(room.id)} 
                     class="w-full flex items-center gap-3 p-4 hover:bg-slate-50 rounded-2xl transition-all group text-left relative">
               {#if room.type === 'direct'}
-                <img src={room.partner_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(room.name)}&background=random&color=fff`} 
+                <img src={room.partner_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(room.name ?? '')}&background=random&color=fff`}
                      alt="" class="w-12 h-12 rounded-full object-cover shadow-sm" />
               {:else}
                 <div class="w-12 h-12 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center font-bold">

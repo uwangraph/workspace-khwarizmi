@@ -82,6 +82,7 @@
     import PreJoinScreen from '$lib/components/chat/PreJoinScreen.svelte';
     import MinimizedCallBanner from '$lib/components/chat/MinimizedCallBanner.svelte';
 
+
     $effect(() => {
         if (user) {
             callService.subscribeGlobal(user.id)
@@ -158,24 +159,17 @@
         const voiceOnly = params.get('voice_only') === 'true';
         const autoAccept = params.get('auto_accept') === '1';
 
-        if (autoAccept && callUserProfile) {
-            // Langsung join call tanpa tampilkan incoming screen
-            if (kind === 'call') {
-                handleAcceptChatCall(roomId, roomName, voiceOnly);
-            } else {
-                handleAcceptCall(roomId, roomName);
-            }
-        } else {
-            callState.set({
-                status: 'incoming',
-                roomId,
-                roomName,
-                callerId,
-                callerName,
-                kind,
-                voiceOnly
-            });
-        }
+        // Set callState langsung dari URL params (tidak menunggu Realtime),
+        // sehingga jika auto_accept=1, $effect bisa langsung memicu accept
+        callState.set({
+            status: 'incoming',
+            roomId,
+            roomName,
+            callerId,
+            callerName,
+            kind,
+            voiceOnly
+        });
 
         const cleanUrl = new URL(window.location.href);
         [
@@ -185,7 +179,8 @@
             'caller_id',
             'caller_name',
             'call_kind',
-            'voice_only'
+            'voice_only',
+            'auto_accept'
         ].forEach((key) => cleanUrl.searchParams.delete(key));
         history.replaceState(history.state, '', cleanUrl);
     }

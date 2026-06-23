@@ -30,6 +30,9 @@
             android:theme="@style/AppTheme"
         />
 
+        <!-- Receiver untuk tombol Tolak di notifikasi -->
+        <receiver android:name=".CallDeclineReceiver" android:exported="false" />
+
         <!-- Custom FCM service untuk intercept panggilan masuk -->
         <service android:name=".CallFCMService" android:exported="false">
             <intent-filter android:priority="1">

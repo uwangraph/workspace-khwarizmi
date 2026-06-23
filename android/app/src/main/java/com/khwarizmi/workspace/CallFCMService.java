@@ -4,7 +4,9 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Intent;
+import android.media.AudioAttributes;
 import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Build;
 import androidx.core.app.NotificationCompat;
 import com.google.firebase.messaging.FirebaseMessagingService;
@@ -15,7 +17,7 @@ import java.util.Map;
 public class CallFCMService extends FirebaseMessagingService {
 
     public static final int CALL_NOTIFICATION_ID = 1001;
-    private static final String CALL_CHANNEL_ID = "incoming_call_fullscreen";
+    private static final String CALL_CHANNEL_ID = "incoming_call_ringtone_v4";
 
     @Override
     public void onMessageReceived(RemoteMessage remoteMessage) {
@@ -25,13 +27,14 @@ public class CallFCMService extends FirebaseMessagingService {
 
         boolean isCall = "call".equals(type) || "call".equals(kind) || "meeting".equals(kind);
 
-        if (isCall) {
-            showFullScreenCallNotification(data);
+        if (isCall && !MainActivity.isInForeground) {
+            // App di background/killed: tampilkan native notification + fullscreen
+            showCallNotification(data);
+            // App di foreground: Realtime subscription yang handle via web IncomingCallScreen
         }
-        // Non-call: biarkan FCM handle via notification block
     }
 
-    private void showFullScreenCallNotification(Map<String, String> data) {
+    private void showCallNotification(Map<String, String> data) {
         String callerName = data.containsKey("callerName") ? data.get("callerName") :
                            (data.containsKey("caller_name") ? data.get("caller_name") : "Panggilan Masuk");
         String callKind = data.containsKey("kind") ? data.get("kind") : "call";
@@ -40,6 +43,7 @@ public class CallFCMService extends FirebaseMessagingService {
         String url = data.containsKey("url") ? data.get("url") : "";
 
         NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        Uri ringtoneUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
@@ -47,25 +51,24 @@ public class CallFCMService extends FirebaseMessagingService {
                 "Panggilan Masuk",
                 NotificationManager.IMPORTANCE_HIGH
             );
-            channel.setDescription("Panggilan masuk full screen");
+            channel.setDescription("Panggilan masuk");
+            AudioAttributes audioAttrs = new AudioAttributes.Builder()
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                .build();
+            channel.setSound(ringtoneUri, audioAttrs);
             channel.enableVibration(true);
-            channel.setVibrationPattern(new long[]{0, 500, 500, 500});
+            channel.setVibrationPattern(new long[]{0, 1000, 500, 1000, 500, 1000});
             manager.createNotificationChannel(channel);
         }
 
-        Intent callIntent = new Intent(this, IncomingCallActivity.class);
-        callIntent.putExtra("caller_name", callerName);
-        callIntent.putExtra("call_kind", callKind);
-        callIntent.putExtra("voice_only", voiceOnly);
-        callIntent.putExtra("url", url);
-        callIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        // Tap notif → buka MainActivity & arahkan ke URL call (web IncomingCallScreen yg handle accept/decline)
+        Intent openIntent = new Intent(this, MainActivity.class);
+        openIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        openIntent.putExtra("call_url", url);
 
-        // Langsung buka activity — diizinkan Android karena dipicu high-priority FCM data message
-        startActivity(callIntent);
-
-        // Tetap tampilkan notifikasi sebagai fallback (jika HP terkunci / activity gagal launch)
-        PendingIntent fullScreenPendingIntent = PendingIntent.getActivity(
-            this, 0, callIntent,
+        PendingIntent openPendingIntent = PendingIntent.getActivity(
+            this, 0, openIntent,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
@@ -78,12 +81,11 @@ public class CallFCMService extends FirebaseMessagingService {
             .setContentText(callerName)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_CALL)
-            .setFullScreenIntent(fullScreenPendingIntent, true)
-            .setContentIntent(fullScreenPendingIntent)
+            .setFullScreenIntent(openPendingIntent, true)
+            .setContentIntent(openPendingIntent)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE))
-            .setAutoCancel(false)
-            .setOngoing(true);
+            .setAutoCancel(true)
+            .setOngoing(false);
 
         manager.notify(CALL_NOTIFICATION_ID, builder.build());
     }

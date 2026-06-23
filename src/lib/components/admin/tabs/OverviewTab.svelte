@@ -11,7 +11,7 @@
     holidays: Holiday[]
     onSwitchTab: (tab: string) => void
   }
-  let { allUsers, allTasks, allAttendance, allAssignments, holidays, onSwitchTab } = $props<Props>()
+  let { allUsers, allTasks, allAttendance, allAssignments, holidays, onSwitchTab }: Props = $props()
 
   const todayISO = new Date().toISOString().split('T')[0]
 

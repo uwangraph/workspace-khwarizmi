@@ -14,7 +14,7 @@
     onAddUser: () => void
     onSendReminder?: (u: Profile) => void
   }
-  let { allUsers, allTasks, allAssignments, onEditUser, onDeleteUser, onViewPerformance, onAddUser } = $props<Props>()
+  let { allUsers, allTasks, allAssignments, onEditUser, onDeleteUser, onViewPerformance, onAddUser }: Props = $props()
 
   let userSearch  = $state('')
   let roleFilter  = $state<'all' | 'admin' | 'user'>('all')

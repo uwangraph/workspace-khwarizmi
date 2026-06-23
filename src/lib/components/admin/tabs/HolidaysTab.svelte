@@ -11,7 +11,7 @@
     onManageSpecial: (rule?: SpecialRule) => void
     onDeleteSpecialRule: (r: SpecialRule) => void
   }
-  let { holidays, specialRules, onAddHoliday, onEditHoliday, onDeleteHoliday, onManageSpecial, onDeleteSpecialRule } = $props<Props>()
+  let { holidays, specialRules, onAddHoliday, onEditHoliday, onDeleteHoliday, onManageSpecial, onDeleteSpecialRule }: Props = $props()
 
   const todayISO = new Date().toISOString().split('T')[0]
 

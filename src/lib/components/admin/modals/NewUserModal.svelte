@@ -10,7 +10,7 @@
     onCreate: (data: CreateData) => Promise<void>
     onClose: () => void
   }
-  let { isCreating = false, onCreate, onClose } = $props<Props>()
+  let { isCreating = false, onCreate, onClose }: Props = $props()
 
   let newName     = $state('')
   let newEmail    = $state('')

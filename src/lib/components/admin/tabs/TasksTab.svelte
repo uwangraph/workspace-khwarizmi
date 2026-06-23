@@ -11,7 +11,7 @@
     onViewTask: (t: Task) => void
     onRemindTask: (t: Task) => void
   }
-  let { allTasks, allUsers, allAssignments, onDeleteTask, onViewTask, onRemindTask } = $props<Props>()
+  let { allTasks, allUsers, allAssignments, onDeleteTask, onViewTask, onRemindTask }: Props = $props()
 
   const ITEMS_PER_PAGE = 15
   let taskSearch     = $state('')

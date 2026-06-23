@@ -9,7 +9,7 @@
     onTabChange: (tab: AdminTab) => void
     pendingLeavesCount?: number
   }
-  let { activeTab, onTabChange, pendingLeavesCount = 0 } = $props<Props>()
+  let { activeTab, onTabChange, pendingLeavesCount = 0 }: Props = $props()
 
   const TABS: { id: AdminTab; label: string; Icon: any }[] = [
     { id: 'overview',    label: 'Ringkasan',  Icon: BarChart3     },

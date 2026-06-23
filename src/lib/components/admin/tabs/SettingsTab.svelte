@@ -28,7 +28,7 @@
 		isSaving,
 		isClearing,
 		isCleaningOldData
-	} = $props<Props>();
+	}: Props = $props();
 
 	let lat = $state(settings?.office_lat ?? -6.655905);
 	let lng = $state(settings?.office_lng ?? 106.696199);

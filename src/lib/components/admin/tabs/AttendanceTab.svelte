@@ -15,7 +15,7 @@
     onUpdateLeave: (leave: AttendanceLeave, status: 'approved' | 'rejected') => void
     onMonthChange?: (month: string) => void
   }
-  let { allUsers, allAttendance, monthlyAttendance, holidays, specialRules, allLeaves, onUpdateLeave, onMonthChange } = $props<Props>()
+  let { allUsers, allAttendance, monthlyAttendance, holidays, specialRules, allLeaves, onUpdateLeave, onMonthChange }: Props = $props()
 
   const ITEMS_PER_PAGE = 10
   const LEAVES_PER_PAGE = 8

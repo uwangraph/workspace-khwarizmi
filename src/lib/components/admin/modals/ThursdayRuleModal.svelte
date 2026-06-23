@@ -10,7 +10,7 @@
     onSave: (data: { date: string; type: SpecialRule['type']; start_time: string | null; active_sessions: number[] | null; note: string | null }) => Promise<void>
     onClose: () => void
   }
-  let { specialRules, initialRule = null, isSubmitting = false, onSave, onClose } = $props<Props>()
+  let { specialRules, initialRule = null, isSubmitting = false, onSave, onClose }: Props = $props()
 
   // Pre-fill jika tanggal sudah punya rule
   let selectedDate = $state(initialRule?.date || new Date().toISOString().split('T')[0])

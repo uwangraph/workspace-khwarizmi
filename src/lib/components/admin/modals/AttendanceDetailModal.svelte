@@ -10,7 +10,7 @@
     date: string
     onClose: () => void
   }
-  let { user, attendance, leaves, date, onClose } = $props<Props>()
+  let { user, attendance, leaves, date, onClose }: Props = $props()
 
   const waUrl = user.phone ? `https://wa.me/${formatWA(user.phone)}` : ''
   let viewPhotoUrl = $state('')

@@ -17,7 +17,7 @@
     onMonthChange: (m: string) => void
     onModeChange: (mode: 'monthly' | 'yearly') => void
   }
-  let { allUsers, allTasks, allAssignments, allAttendance, holidays, selectedMonth, rekapMode, onMonthChange, onModeChange } = $props<Props>()
+  let { allUsers, allTasks, allAssignments, allAttendance, holidays, selectedMonth, rekapMode, onMonthChange, onModeChange }: Props = $props()
 
   let sub = $state<RekapSubTab>('tasks')
 

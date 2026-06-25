@@ -23,6 +23,7 @@
   import TaskCard from '$lib/components/tasks/TaskCard.svelte'
   import TaskDetailModal from '$lib/components/tasks/TaskDetailModal.svelte'
   import TaskFormModal from '$lib/components/tasks/TaskFormModal.svelte'
+  import NotesDrawer from '$lib/components/tasks/NotesDrawer.svelte'
   import TaskProgressModal from '$lib/components/tasks/TaskProgressModal.svelte'
   import TaskDeleteModal from '$lib/components/tasks/TaskDeleteModal.svelte'
   import ConfirmActionModal from '$lib/components/tasks/ConfirmActionModal.svelte'
@@ -40,6 +41,7 @@
   let isLoading = $state(true)
 
   let showTaskModal = $state(false)
+  let showNotes = $state(false)
   let showDetailModal = $state(false)
   let showConfirmActionModal = $state(false)
   let showReminderModal = $state(false)
@@ -648,6 +650,13 @@
 
               <!-- Action Buttons -->
               <div class="flex items-center gap-2.5 flex-shrink-0">
+                <button onclick={() => showNotes = true}
+                        class="flex items-center justify-center p-3.5 rounded-[20px] border-2 border-b-[6px] bg-yellow-50 text-yellow-600 border-yellow-200 hover:bg-yellow-100 transition-all shadow-sm active:translate-y-0.5 cursor-pointer"
+                        title="Catatan">
+                  <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                  </svg>
+                </button>
                 <button onclick={() => { isSelectionMode = !isSelectionMode; if (!isSelectionMode) selectedTaskIds = [] }}
                         class="flex items-center justify-center p-3.5 rounded-[20px] border-2 border-b-[6px] {isSelectionMode ? 'bg-orange-100 text-orange-600 border-orange-300' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'} transition-all shadow-sm active:translate-y-0.5 cursor-pointer"
                         title={isSelectionMode ? 'Batal Pilih' : 'Pilih Tugas'}>
@@ -805,3 +814,5 @@
                  onClose={() => showReminderModal = false}
                  onSubmit={submitReminder} />
 {/if}
+
+<NotesDrawer userId={user?.id ?? ''} open={showNotes} onClose={() => showNotes = false} />

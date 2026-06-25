@@ -1,7 +1,7 @@
 <script lang="ts">
   import { supabase } from '$lib/supabase'
   import { fly, fade } from 'svelte/transition'
-  import { Pin, PinOff, Plus, Trash2, X, ChevronLeft, Search, CheckSquare, Square, ListChecks } from 'lucide-svelte'
+  import { Pin, PinOff, Plus, Trash2, X, ChevronLeft, Search, CheckSquare, Square, ListChecks, Maximize2, Minimize2 } from 'lucide-svelte'
 
   interface Note {
     id: string
@@ -39,6 +39,7 @@
   let longPressId   = $state<string | null>(null)
   let longPressTimer: ReturnType<typeof setTimeout> | null = null
   let newItemText   = $state('')
+  let fullscreen    = $state(false)
 
   let filteredNotes = $derived(
     searchQuery.trim()
@@ -200,7 +201,7 @@
   }
 
   function handleBack() {
-    if (editingNote) { saveNote(); editingNote = null }
+    if (editingNote) { saveNote(); editingNote = null; fullscreen = false }
     else onClose()
   }
 </script>
@@ -215,7 +216,8 @@
   >
     <!-- Sheet -->
     <div
-      class="relative flex max-h-[94vh] w-full max-w-lg flex-col rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl overflow-hidden"
+      class="relative flex w-full max-w-lg flex-col bg-white shadow-2xl overflow-hidden transition-all duration-300
+        {fullscreen ? 'h-dvh max-h-dvh rounded-none' : 'max-h-[94vh] rounded-t-3xl sm:rounded-3xl'}"
       transition:fly={{ y: 300, duration: 300 }}
       role="dialog"
       onclick={(e) => e.stopPropagation()}
@@ -250,9 +252,15 @@
           <button
             onclick={toggleChecklistMode}
             class="p-2 rounded-2xl hover:bg-slate-100 transition-colors cursor-pointer {checklistMode ? 'text-green-500' : 'text-slate-400'}"
-            title="Mode checklist"
           >
             <ListChecks size={18} />
+          </button>
+          <!-- Fullscreen toggle -->
+          <button
+            onclick={() => fullscreen = !fullscreen}
+            class="p-2 rounded-2xl hover:bg-slate-100 transition-colors cursor-pointer text-slate-400"
+          >
+            {#if fullscreen}<Minimize2 size={18} />{:else}<Maximize2 size={18} />{/if}
           </button>
           <button
             onclick={() => togglePin(editingNote!)}

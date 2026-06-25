@@ -325,6 +325,20 @@
         msg.sender = profile!
         messages = [...messages, msg]
         scrollToBottom()
+
+        const otherIds = activeRoom?.type === 'direct'
+          ? (partnerProfile ? [partnerProfile.id] : [])
+          : participantIds.filter(id => id !== user.id)
+        if (otherIds.length > 0) {
+          const senderName = profile?.full_name || 'Seseorang'
+          const roomName = activeRoom?.name || 'Chat'
+          const label = item.type === 'image' ? 'mengirim foto' : 'mengirim file'
+          const type = item.type === 'image' ? 'chat_image' : 'chat_file'
+          notificationService.sendBulk(otherIds, type, roomName, `${senderName}: ${label}`, {
+            url: `/chat/${roomId}`,
+            roomId
+          }).catch(() => {})
+        }
       }
     } catch { toast.error('Gagal mengunggah media') }
     finally { isUploadingMedia = false }
@@ -353,6 +367,18 @@
           msg.sender = profile!
           messages = [...messages, msg]
           scrollToBottom()
+
+          const otherIds = activeRoom?.type === 'direct'
+            ? (partnerProfile ? [partnerProfile.id] : [])
+            : participantIds.filter(id => id !== user!.id)
+          if (otherIds.length > 0) {
+            const senderName = profile?.full_name || 'Seseorang'
+            const roomName = activeRoom?.name || 'Chat'
+            notificationService.sendBulk(otherIds, 'chat_voice_note', roomName, `${senderName}: mengirim voice note`, {
+              url: `/chat/${roomId}`,
+              roomId
+            }).catch(() => {})
+          }
         } catch { toast.error('Gagal mengirim VN') }
         finally { isUploadingMedia = false }
       }

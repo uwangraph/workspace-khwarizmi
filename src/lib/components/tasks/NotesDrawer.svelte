@@ -244,13 +244,13 @@
   function handleBackdropClick(e: MouseEvent) {
     if (e.target !== e.currentTarget) return
     if (longPressId) { longPressId = null; return }
-    if (editingNote) { saveNote(); editingNote = null; fullscreen = false }
-    else onClose()
+    if (editingNote) { saveNote(); editingNote = null }
+    else { fullscreen = false; onClose() }
   }
 
   function handleBack() {
-    if (editingNote) { saveNote(); editingNote = null; fullscreen = false }
-    else onClose()
+    if (editingNote) { saveNote(); editingNote = null }
+    else { fullscreen = false; onClose() }
   }
 </script>
 

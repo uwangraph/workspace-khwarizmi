@@ -1,0 +1,29 @@
+Options -MultiViews
+RewriteEngine On
+
+# Arahkan semua request ke index.html (SPA fallback)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [QSA,L]
+
+# MIME type untuk PWA manifest
+AddType application/manifest+json .webmanifest
+
+# MIME type untuk service worker
+AddType application/javascript .js
+
+# Header untuk service worker agar bisa mengontrol seluruh scope
+<FilesMatch "^sw\.js$">
+  Header set Service-Worker-Allowed "/"
+  Header set Cache-Control "no-cache, no-store, must-revalidate"
+</FilesMatch>
+
+# Jangan cache manifest dan service worker
+<FilesMatch "\.(webmanifest|json)$">
+  Header set Cache-Control "no-cache"
+</FilesMatch>
+
+# Cache aset statis (_app) selama 1 tahun
+<FilesMatch "^_app/">
+  Header set Cache-Control "public, max-age=31536000, immutable"
+</FilesMatch>

@@ -520,38 +520,38 @@
                   <!-- Long press quick actions -->
                   {#if longPressId === note.id}
                     <div
-                      class="absolute inset-0 rounded-[20px] bg-black/40 grid grid-cols-2 gap-2 z-10 backdrop-blur-[2px] p-3"
+                      class="absolute inset-0 rounded-[20px] bg-black/40 grid grid-cols-2 gap-1.5 z-10 backdrop-blur-[2px] p-2"
                       transition:fade={{ duration: 120 }}
                     >
                       <button
                         onclick={() => { togglePin(note); longPressId = null }}
-                        class="flex flex-col items-center justify-center gap-1.5 py-3 bg-white rounded-2xl shadow cursor-pointer"
+                        class="flex flex-col items-center justify-center gap-1 py-2 bg-white rounded-xl shadow cursor-pointer"
                       >
                         <span class="{note.is_pinned ? 'text-orange-500' : 'text-slate-500'}">
-                          {#if note.is_pinned}<PinOff size={18} />{:else}<Pin size={18} />{/if}
+                          {#if note.is_pinned}<PinOff size={14} />{:else}<Pin size={14} />{/if}
                         </span>
-                        <span class="text-[10px] font-black text-slate-600">{note.is_pinned ? 'Lepas' : 'Sematkan'}</span>
+                        <span class="text-[9px] font-black text-slate-600">{note.is_pinned ? 'Lepas' : 'Sematkan'}</span>
                       </button>
                       <button
                         onclick={() => duplicateNote(note)}
-                        class="flex flex-col items-center justify-center gap-1.5 py-3 bg-white rounded-2xl shadow cursor-pointer"
+                        class="flex flex-col items-center justify-center gap-1 py-2 bg-white rounded-xl shadow cursor-pointer"
                       >
-                        <Copy size={18} class="text-slate-500" />
-                        <span class="text-[10px] font-black text-slate-600">Duplikat</span>
+                        <Copy size={14} class="text-slate-500" />
+                        <span class="text-[9px] font-black text-slate-600">Duplikat</span>
                       </button>
                       <button
                         onclick={() => { deleteTargetId = note.id; longPressId = null }}
-                        class="flex flex-col items-center justify-center gap-1.5 py-3 bg-white rounded-2xl shadow cursor-pointer"
+                        class="flex flex-col items-center justify-center gap-1 py-2 bg-white rounded-xl shadow cursor-pointer"
                       >
-                        <Trash2 size={18} class="text-red-500" />
-                        <span class="text-[10px] font-black text-red-500">Hapus</span>
+                        <Trash2 size={14} class="text-red-500" />
+                        <span class="text-[9px] font-black text-red-500">Hapus</span>
                       </button>
                       <button
                         onclick={() => longPressId = null}
-                        class="flex flex-col items-center justify-center gap-1.5 py-3 bg-white/70 rounded-2xl cursor-pointer"
+                        class="flex flex-col items-center justify-center gap-1 py-2 bg-white/70 rounded-xl cursor-pointer"
                       >
-                        <X size={18} class="text-slate-400" />
-                        <span class="text-[10px] font-black text-slate-400">Batal</span>
+                        <X size={14} class="text-slate-400" />
+                        <span class="text-[9px] font-black text-slate-400">Batal</span>
                       </button>
                     </div>
                   {/if}

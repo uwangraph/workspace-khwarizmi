@@ -159,12 +159,13 @@
 
   async function saveNote() {
     if (!editingNote) return
+    const note = { ...editingNote }
     isSaving = true
     await supabase
       .from('notes')
-      .update({ title: editingNote.title, content: editingNote.content, color: editingNote.color })
-      .eq('id', editingNote.id)
-    notes = notes.map(n => n.id === editingNote!.id ? { ...n, ...editingNote! } : n)
+      .update({ title: note.title, content: note.content, color: note.color })
+      .eq('id', note.id)
+    notes = notes.map(n => n.id === note.id ? { ...n, ...note } : n)
     isSaving = false
   }
 

@@ -302,15 +302,15 @@
 {#if open}
   <!-- Backdrop -->
   <div
-    class="fixed inset-0 z-[55] flex items-end justify-center p-0 sm:items-center sm:p-4"
+    class="fixed inset-0 z-[55] flex p-0 {fullscreen ? 'items-start' : 'items-end justify-center sm:items-center sm:p-4'}"
     transition:fade={{ duration: 200 }}
     role="presentation"
     onclick={handleBackdropClick}
   >
     <!-- Sheet -->
     <div
-      class="relative flex w-full max-w-lg flex-col bg-white shadow-2xl overflow-hidden transition-all duration-300
-        {fullscreen ? 'h-dvh max-h-dvh rounded-none' : 'max-h-[94vh] rounded-t-3xl sm:rounded-3xl'}"
+      class="relative flex flex-col bg-white shadow-2xl overflow-hidden transition-all duration-300
+        {fullscreen ? 'w-full h-dvh max-h-dvh rounded-none' : 'w-full max-w-lg max-h-[94vh] rounded-t-3xl sm:rounded-3xl'}"
       transition:fly={{ y: 300, duration: 300 }}
       role="dialog"
       onclick={(e) => e.stopPropagation()}

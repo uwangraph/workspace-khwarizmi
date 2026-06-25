@@ -1,7 +1,7 @@
 <script lang="ts">
   import { supabase } from '$lib/supabase'
   import { fly, fade } from 'svelte/transition'
-  import { Pin, PinOff, Plus, Trash2, X, ChevronLeft } from 'lucide-svelte'
+  import { Pin, PinOff, Plus, Trash2, X, ChevronLeft, Search, CheckSquare, Square, ListChecks } from 'lucide-svelte'
 
   interface Note {
     id: string
@@ -29,15 +29,52 @@
     slate:  { bg: 'bg-slate-50',   border: 'border-slate-200',  dot: 'bg-slate-400',  activeBorder: 'border-slate-400'  },
   }
 
-  let notes       = $state<Note[]>([])
-  let isLoading   = $state(false)
-  let editingNote = $state<Note | null>(null)
-  let isSaving    = $state(false)
+  let notes         = $state<Note[]>([])
+  let isLoading     = $state(false)
+  let editingNote   = $state<Note | null>(null)
+  let isSaving      = $state(false)
   let saveTimeout: ReturnType<typeof setTimeout> | null = null
+  let searchQuery   = $state('')
+  let checklistMode = $state(false)
+  let longPressId   = $state<string | null>(null)
+  let longPressTimer: ReturnType<typeof setTimeout> | null = null
+  let newItemText   = $state('')
+
+  let filteredNotes = $derived(
+    searchQuery.trim()
+      ? notes.filter(n =>
+          n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          n.content.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : notes
+  )
+
+  let charCount = $derived(editingNote?.content.length ?? 0)
 
   $effect(() => {
     if (open && userId) loadNotes()
   })
+
+  $effect(() => {
+    if (editingNote) {
+      checklistMode = isChecklistContent(editingNote.content)
+    }
+  })
+
+  function isChecklistContent(content: string) {
+    if (!content.trim()) return false
+    return content.split('\n').every(line => !line.trim() || line.startsWith('[ ] ') || line.startsWith('[x] '))
+  }
+
+  function autoResize(node: HTMLTextAreaElement) {
+    function resize() {
+      node.style.height = 'auto'
+      node.style.height = node.scrollHeight + 'px'
+    }
+    resize()
+    node.addEventListener('input', resize)
+    return { destroy() { node.removeEventListener('input', resize) } }
+  }
 
   async function loadNotes() {
     isLoading = true
@@ -60,6 +97,7 @@
     if (data) {
       notes = [data as Note, ...notes]
       editingNote = data as Note
+      searchQuery = ''
     }
   }
 
@@ -97,6 +135,52 @@
     await supabase.from('notes').delete().eq('id', id)
     notes = notes.filter(n => n.id !== id)
     if (editingNote?.id === id) editingNote = null
+    longPressId = null
+  }
+
+  function toggleChecklistMode() {
+    if (!editingNote) return
+    if (checklistMode) {
+      editingNote.content = editingNote.content
+        .split('\n')
+        .map(line => line.replace(/^\[[ x]\] /, ''))
+        .join('\n')
+      checklistMode = false
+    } else {
+      editingNote.content = editingNote.content
+        .split('\n')
+        .map(line => line.trim() ? `[ ] ${line}` : line)
+        .join('\n')
+      checklistMode = true
+    }
+    handleInput()
+  }
+
+  function toggleCheckItem(lineIndex: number) {
+    if (!editingNote) return
+    const lines = editingNote.content.split('\n')
+    const line = lines[lineIndex]
+    if (line.startsWith('[x] ')) lines[lineIndex] = '[ ] ' + line.slice(4)
+    else if (line.startsWith('[ ] ')) lines[lineIndex] = '[x] ' + line.slice(4)
+    editingNote.content = lines.join('\n')
+    handleInput()
+  }
+
+  function addCheckItem() {
+    if (!editingNote || !newItemText.trim()) return
+    const sep = editingNote.content ? '\n' : ''
+    editingNote.content += sep + '[ ] ' + newItemText.trim()
+    newItemText = ''
+    handleInput()
+  }
+
+  function handleLongPressStart(id: string) {
+    longPressTimer = setTimeout(() => { longPressId = id }, 500)
+  }
+
+  function handleLongPressEnd() {
+    if (longPressTimer) clearTimeout(longPressTimer)
+    longPressTimer = null
   }
 
   function formatDate(iso: string) {
@@ -110,6 +194,7 @@
 
   function handleBackdropClick(e: MouseEvent) {
     if (e.target !== e.currentTarget) return
+    if (longPressId) { longPressId = null; return }
     if (editingNote) { saveNote(); editingNote = null }
     else onClose()
   }
@@ -161,6 +246,14 @@
               ></button>
             {/each}
           </div>
+          <!-- Checklist toggle -->
+          <button
+            onclick={toggleChecklistMode}
+            class="p-2 rounded-2xl hover:bg-slate-100 transition-colors cursor-pointer {checklistMode ? 'text-green-500' : 'text-slate-400'}"
+            title="Mode checklist"
+          >
+            <ListChecks size={18} />
+          </button>
           <button
             onclick={() => togglePin(editingNote!)}
             class="p-2 rounded-2xl hover:bg-slate-100 transition-colors cursor-pointer {editingNote.is_pinned ? 'text-orange-500' : 'text-slate-400'}"
@@ -179,7 +272,7 @@
           </button>
           <div class="flex-1 min-w-0">
             <h2 class="text-base font-black text-slate-800">Catatan Pribadi</h2>
-            <p class="text-xs text-slate-400 font-bold">{notes.length} catatan</p>
+            <p class="text-xs text-slate-400 font-bold">{filteredNotes.length} catatan</p>
           </div>
           <button
             onclick={createNote}
@@ -195,7 +288,7 @@
       <div class="flex-1 overflow-y-auto overscroll-contain">
         {#if editingNote}
           <!-- Editor -->
-          <div class="flex flex-col px-6 py-5 gap-3 min-h-[60vh]">
+          <div class="flex flex-col px-6 py-5 gap-3">
             <input
               bind:value={editingNote.title}
               oninput={handleInput}
@@ -203,14 +296,73 @@
               class="w-full text-xl font-black text-slate-800 bg-transparent border-none outline-none placeholder:text-slate-300 placeholder:font-bold"
             />
             <div class="w-full h-px bg-slate-100"></div>
-            <textarea
-              bind:value={editingNote.content}
-              oninput={handleInput}
-              placeholder="Tulis catatanmu di sini..."
-              class="w-full text-sm text-slate-700 bg-transparent border-none outline-none resize-none leading-relaxed placeholder:text-slate-300 min-h-[50vh]"
-            ></textarea>
+
+            {#if checklistMode}
+              <!-- Checklist view -->
+              <div class="flex flex-col gap-1 pb-2">
+                {#each editingNote.content.split('\n') as line, i}
+                  {#if line.startsWith('[ ] ') || line.startsWith('[x] ')}
+                    {@const checked = line.startsWith('[x] ')}
+                    <button
+                      onclick={() => toggleCheckItem(i)}
+                      class="flex items-start gap-3 text-left py-1.5 group cursor-pointer"
+                    >
+                      <span class="mt-0.5 flex-shrink-0 transition-colors {checked ? 'text-green-500' : 'text-slate-300'}">
+                        {#if checked}<CheckSquare size={18} />{:else}<Square size={18} />{/if}
+                      </span>
+                      <span class="text-sm leading-relaxed transition-all {checked ? 'line-through text-slate-400' : 'text-slate-700'}">{line.slice(4)}</span>
+                    </button>
+                  {/if}
+                {/each}
+                <!-- Add new item -->
+                <div class="flex items-center gap-3 mt-1">
+                  <span class="text-slate-200 flex-shrink-0"><Plus size={16} /></span>
+                  <input
+                    bind:value={newItemText}
+                    placeholder="Tambah item..."
+                    onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCheckItem() } }}
+                    class="text-sm text-slate-600 bg-transparent outline-none flex-1 placeholder:text-slate-300"
+                  />
+                  {#if newItemText.trim()}
+                    <button onclick={addCheckItem} class="text-xs font-black text-orange-500 cursor-pointer">Tambah</button>
+                  {/if}
+                </div>
+              </div>
+            {:else}
+              <!-- Plain textarea with auto-resize -->
+              <div class="relative">
+                <textarea
+                  bind:value={editingNote.content}
+                  oninput={handleInput}
+                  use:autoResize
+                  placeholder="Tulis catatanmu di sini..."
+                  class="w-full text-sm text-slate-700 bg-transparent border-none outline-none resize-none leading-relaxed placeholder:text-slate-300 min-h-[40vh]"
+                ></textarea>
+                {#if charCount > 0}
+                  <p class="text-[10px] text-slate-300 font-bold text-right mt-1">{charCount} karakter</p>
+                {/if}
+              </div>
+            {/if}
           </div>
+
         {:else}
+          <!-- Search bar -->
+          {#if notes.length > 2}
+            <div class="px-4 pt-3 pb-1">
+              <div class="flex items-center gap-2 bg-slate-100 rounded-2xl px-4 py-2.5">
+                <Search size={14} class="text-slate-400 flex-shrink-0" />
+                <input
+                  bind:value={searchQuery}
+                  placeholder="Cari catatan..."
+                  class="flex-1 text-sm bg-transparent outline-none text-slate-700 placeholder:text-slate-400"
+                />
+                {#if searchQuery}
+                  <button onclick={() => searchQuery = ''} class="text-slate-400 cursor-pointer"><X size={14} /></button>
+                {/if}
+              </div>
+            </div>
+          {/if}
+
           <!-- List -->
           {#if isLoading}
             <div class="flex items-center justify-center py-16">
@@ -224,27 +376,74 @@
                 <p class="text-sm text-slate-400 mt-1">Tap <span class="font-black text-orange-500">Baru</span> untuk mulai menulis</p>
               </div>
             </div>
+          {:else if filteredNotes.length === 0}
+            <div class="flex flex-col items-center justify-center py-16 gap-3 text-center px-8">
+              <Search size={32} class="text-slate-200" />
+              <p class="text-sm font-bold text-slate-400">Tidak ditemukan untuk "<span class="text-slate-600">{searchQuery}</span>"</p>
+            </div>
           {:else}
             <div class="p-4 grid grid-cols-2 gap-3">
-              {#each notes as note (note.id)}
+              {#each filteredNotes as note (note.id)}
                 {@const c = COLORS[note.color] ?? COLORS.yellow}
-                <button
-                  onclick={() => openNote(note)}
-                  class="text-left p-4 rounded-[20px] border-2 border-b-[5px] {c.bg} {c.border} flex flex-col gap-2 min-h-[130px] hover:shadow-sm transition-all active:translate-y-0.5 active:border-b-[2px] cursor-pointer relative"
-                >
-                  {#if note.is_pinned}
-                    <span class="absolute top-3 right-3 text-orange-400">
-                      <Pin size={11} />
-                    </span>
+                <div class="relative">
+                  <button
+                    onclick={() => { if (longPressId === note.id) { longPressId = null; return } openNote(note) }}
+                    ontouchstart={() => handleLongPressStart(note.id)}
+                    ontouchend={handleLongPressEnd}
+                    ontouchcancel={handleLongPressEnd}
+                    oncontextmenu={(e) => { e.preventDefault(); longPressId = note.id }}
+                    class="w-full text-left p-4 rounded-[20px] border-2 border-b-[5px] {c.bg} {c.border} flex flex-col gap-2 min-h-[130px] hover:shadow-sm transition-all active:translate-y-0.5 active:border-b-[2px] cursor-pointer"
+                  >
+                    {#if note.is_pinned}
+                      <span class="absolute top-3 right-3 text-orange-400">
+                        <Pin size={11} />
+                      </span>
+                    {/if}
+                    <p class="text-sm font-black text-slate-800 line-clamp-2 pr-4 leading-snug">
+                      {note.title || 'Tanpa judul'}
+                    </p>
+                    {#if note.content}
+                      <p class="text-xs text-slate-500 line-clamp-3 flex-1 leading-relaxed">
+                        {isChecklistContent(note.content)
+                          ? note.content.split('\n').filter(l => l.trim()).map(l => (l.startsWith('[x] ') ? '✓ ' : '○ ') + l.slice(4)).join('  ·  ')
+                          : note.content}
+                      </p>
+                    {/if}
+                    <p class="text-[10px] font-bold text-slate-400 mt-auto">{formatDate(note.updated_at)}</p>
+                  </button>
+
+                  <!-- Long press quick actions -->
+                  {#if longPressId === note.id}
+                    <div
+                      class="absolute inset-0 rounded-[20px] bg-black/30 flex items-center justify-center gap-3 z-10 backdrop-blur-[1px]"
+                      transition:fade={{ duration: 120 }}
+                    >
+                      <button
+                        onclick={() => { togglePin(note); longPressId = null }}
+                        class="flex flex-col items-center gap-1 p-3 bg-white rounded-2xl shadow-lg cursor-pointer"
+                      >
+                        <span class="{note.is_pinned ? 'text-orange-500' : 'text-slate-500'}">
+                          {#if note.is_pinned}<PinOff size={18} />{:else}<Pin size={18} />{/if}
+                        </span>
+                        <span class="text-[9px] font-black text-slate-500">{note.is_pinned ? 'Lepas' : 'Sematkan'}</span>
+                      </button>
+                      <button
+                        onclick={() => deleteNote(note.id)}
+                        class="flex flex-col items-center gap-1 p-3 bg-white rounded-2xl shadow-lg cursor-pointer"
+                      >
+                        <Trash2 size={18} class="text-red-500" />
+                        <span class="text-[9px] font-black text-red-500">Hapus</span>
+                      </button>
+                      <button
+                        onclick={() => longPressId = null}
+                        class="flex flex-col items-center gap-1 p-3 bg-white rounded-2xl shadow-lg cursor-pointer"
+                      >
+                        <X size={18} class="text-slate-400" />
+                        <span class="text-[9px] font-black text-slate-400">Batal</span>
+                      </button>
+                    </div>
                   {/if}
-                  <p class="text-sm font-black text-slate-800 line-clamp-2 pr-4 leading-snug">
-                    {note.title || 'Tanpa judul'}
-                  </p>
-                  {#if note.content}
-                    <p class="text-xs text-slate-500 line-clamp-3 flex-1 leading-relaxed">{note.content}</p>
-                  {/if}
-                  <p class="text-[10px] font-bold text-slate-400 mt-auto">{formatDate(note.updated_at)}</p>
-                </button>
+                </div>
               {/each}
             </div>
           {/if}

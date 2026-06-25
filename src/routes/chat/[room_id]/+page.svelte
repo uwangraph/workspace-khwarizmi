@@ -272,7 +272,8 @@
         const roomName = activeRoom?.name || 'Chat'
         notificationService.sendBulk(otherIds, 'chat_message', roomName, `${senderName}: ${content}`, {
           url: `/chat/${roomId}`,
-          roomId
+          roomId,
+          senderAvatarUrl: profile?.avatar_url ?? ''
         }).catch(() => {})
       }
     } catch { toast.error('Gagal mengirim pesan') }
@@ -336,7 +337,8 @@
           const type = item.type === 'image' ? 'chat_image' : 'chat_file'
           notificationService.sendBulk(otherIds, type, roomName, `${senderName}: ${label}`, {
             url: `/chat/${roomId}`,
-            roomId
+            roomId,
+            senderAvatarUrl: profile?.avatar_url ?? ''
           }).catch(() => {})
         }
       }
@@ -376,7 +378,8 @@
             const roomName = activeRoom?.name || 'Chat'
             notificationService.sendBulk(otherIds, 'chat_voice_note', roomName, `${senderName}: mengirim voice note`, {
               url: `/chat/${roomId}`,
-              roomId
+              roomId,
+              senderAvatarUrl: profile?.avatar_url ?? ''
             }).catch(() => {})
           }
         } catch { toast.error('Gagal mengirim VN') }

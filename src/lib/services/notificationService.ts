@@ -87,6 +87,11 @@ export const notificationService = {
   async requestNativePermissionAndGetToken(userId: string) {
     if (!userId) return null;
 
+    // Simpan user_id ke SharedPreferences Android agar ChatReplyReceiver bisa akses
+    if (typeof window !== 'undefined' && (window as any).NativeBridge) {
+      (window as any).NativeBridge.setPreference('user_id', userId);
+    }
+
     try {
       if (!nativePushListenersReady) {
         nativePushListenersReady = true;

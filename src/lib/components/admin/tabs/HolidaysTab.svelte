@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Holiday, SpecialRule } from '../_types'
-  import { CalendarDays, Plus, Trash2, Settings, X, CalendarCheck, CalendarOff, Calendar, Home, Clock, FileText, ClipboardList, PartyPopper, ArrowRight, Edit3 } from 'lucide-svelte'
+  import { CalendarDays, Plus, Trash2, Settings, X, CalendarCheck, CalendarOff, Calendar, Home, Clock, FileText, ClipboardList, PartyPopper, ArrowRight, Edit3, ChevronDown, ChevronUp } from 'lucide-svelte'
 
   interface Props {
     holidays: Holiday[]
@@ -16,6 +16,30 @@
   const todayISO = new Date().toISOString().split('T')[0]
 
   let sortedRules = $derived([...specialRules].sort((a, b) => a.date.localeCompare(b.date)))
+
+  type RuleGroup = { type: SpecialRule['type']; start_time: string | null; note: string | null; dates: string[]; rules: SpecialRule[] }
+  let groupedRules = $derived.by(() => {
+    const groups: RuleGroup[] = []
+    for (const rule of sortedRules) {
+      const last = groups[groups.length - 1]
+      if (last && last.type === rule.type && last.start_time === (rule.start_time ?? null)) {
+        const lastDate = new Date(last.dates[last.dates.length - 1])
+        const curDate  = new Date(rule.date)
+        const diff = Math.round((curDate.getTime() - lastDate.getTime()) / 86400000)
+        if (diff === 1) { last.dates.push(rule.date); last.rules.push(rule); continue }
+      }
+      groups.push({ type: rule.type, start_time: rule.start_time ?? null, note: rule.note ?? null, dates: [rule.date], rules: [rule] })
+    }
+    return groups
+  })
+
+  function formatRuleDates(dates: string[]) {
+    if (dates.length === 1)
+      return new Date(dates[0]).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    const start = new Date(dates[0]).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
+    const end   = new Date(dates[dates.length - 1]).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+    return `${start} – ${end} (${dates.length} hari)`
+  }
 
   // Group consecutive holidays with the same name
   let groupedHolidays = $derived.by(() => {
@@ -63,7 +87,21 @@
     wfa:         { label: 'WFA',         bg: 'bg-blue-100',   text: 'text-blue-800',  border: 'border-blue-300',  Icon: Home },
   }
 
-  let activeSection = $state<'holidays' | 'thursday'>('holidays')
+  let activeSection  = $state<'holidays' | 'thursday'>('holidays')
+  let expandedGroups    = $state<Set<number>>(new Set())
+  let expandedHolidays  = $state<Set<number>>(new Set())
+
+  function toggleGroup(idx: number) {
+    const s = new Set(expandedGroups)
+    s.has(idx) ? s.delete(idx) : s.add(idx)
+    expandedGroups = s
+  }
+
+  function toggleHoliday(idx: number) {
+    const s = new Set(expandedHolidays)
+    s.has(idx) ? s.delete(idx) : s.add(idx)
+    expandedHolidays = s
+  }
 </script>
 
 <div class="flex flex-col gap-6">
@@ -127,62 +165,86 @@
           <span class="text-xs font-black text-orange-600 bg-white px-3 py-1 rounded-xl border border-slate-200">{holidays.filter(h => h.date >= todayISO).length} Mendatang</span>
         </div>
         <div class="divide-y divide-slate-100">
-        {#each groupedHolidays as group}
-          {@const isRange = group.dates.length > 1}
-          {@const isPast  = group.dates[group.dates.length - 1] < todayISO}
-          {@const isToday = group.dates.includes(todayISO)}
+        {#each groupedHolidays as group, hidx}
+          {@const isRange  = group.dates.length > 1}
+          {@const isPast   = group.dates[group.dates.length - 1] < todayISO}
+          {@const isToday  = group.dates.includes(todayISO)}
           {@const upcoming = group.dates.some(d => isUpcoming(d))}
-          
-          <div class="flex items-center gap-4 p-5 {isToday ? 'bg-amber-50/80' : isPast ? 'opacity-60 bg-slate-50/50' : ''} hover:bg-slate-50/80 transition-colors border-b border-slate-100">
-            <div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 text-white shadow-xs border"
-                 style="{isToday ? 'background:linear-gradient(135deg,#F59E0B,#D97706); border-color:#B45309' : isPast ? 'background:#E2E8F0; color:#64748B; border-color:#CBD5E1' : 'background:linear-gradient(135deg,#F97316,#EA580C); border-color:#C2410C'}">
-              {#if isToday}
-                <PartyPopper size={24} class="animate-bounce" />
-              {:else}
-                <CalendarDays size={24} />
-              {/if}
-            </div>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2.5 flex-wrap mb-1">
-                <p class="text-base font-black text-slate-800 truncate" style="font-family:'Plus Jakarta Sans',sans-serif;">{group.name}</p>
+          {@const expanded = expandedHolidays.has(hidx)}
+
+          <div class="border-b border-slate-100">
+            <div class="flex items-center gap-4 p-5 {isToday ? 'bg-amber-50/80' : isPast ? 'opacity-60 bg-slate-50/50' : ''} hover:bg-slate-50/80 transition-colors">
+              <div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 text-white shadow-xs border"
+                   style="{isToday ? 'background:linear-gradient(135deg,#F59E0B,#D97706); border-color:#B45309' : isPast ? 'background:#E2E8F0; color:#64748B; border-color:#CBD5E1' : 'background:linear-gradient(135deg,#F97316,#EA580C); border-color:#C2410C'}">
                 {#if isToday}
-                  <span class="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-amber-500 text-white shadow-xs flex-shrink-0 tracking-wider uppercase">HARI INI</span>
-                {:else if upcoming && !isPast}
-                  <span class="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-orange-100 border border-orange-300 text-orange-700 shadow-xs flex-shrink-0 tracking-wider uppercase">SEGERA</span>
-                {/if}
-                {#if isRange}
-                  <span class="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-blue-100 border border-blue-300 text-blue-800 shadow-xs flex-shrink-0 tracking-wider uppercase">RENTANG</span>
+                  <PartyPopper size={24} class="animate-bounce" />
+                {:else}
+                  <CalendarDays size={24} />
                 {/if}
               </div>
-              <p class="text-xs text-slate-500 font-bold flex items-center gap-2">
-                {formatDisplayDate(group.dates)}
-              </p>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2.5 flex-wrap mb-1">
+                  <p class="text-base font-black text-slate-800 truncate" style="font-family:'Plus Jakarta Sans',sans-serif;">{group.name}</p>
+                  {#if isToday}
+                    <span class="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-amber-500 text-white shadow-xs flex-shrink-0 tracking-wider uppercase">HARI INI</span>
+                  {:else if upcoming && !isPast}
+                    <span class="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-orange-100 border border-orange-300 text-orange-700 shadow-xs flex-shrink-0 tracking-wider uppercase">SEGERA</span>
+                  {/if}
+                </div>
+                <p class="text-xs text-slate-500 font-bold">{formatDisplayDate(group.dates)}</p>
+              </div>
+
+              <div class="flex items-center gap-2 flex-shrink-0">
+                {#if isRange}
+                  <button onclick={() => toggleHoliday(hidx)}
+                          class="h-9 px-3 rounded-xl bg-slate-100 text-slate-600 border-2 border-b-[3px] border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 active:translate-y-0.5 active:border-b-[1px] transition-all flex items-center gap-1.5 cursor-pointer shadow-xs text-xs font-black">
+                    {#if expanded}<ChevronUp size={14} />{:else}<ChevronDown size={14} />{/if}
+                    {expanded ? 'Tutup' : `${group.dates.length} hari`}
+                  </button>
+                  <button onclick={() => { if (confirm(`Hapus rentang libur "${group.name}" (${group.dates.length} hari)?`)) group.originalHolidays.forEach(h => onDeleteHoliday(h)) }}
+                          class="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 border-2 border-b-[4px] border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-300 active:translate-y-0.5 active:border-b-[2px] transition-all flex items-center justify-center cursor-pointer shadow-xs">
+                    <Trash2 size={16} />
+                  </button>
+                {:else}
+                  <button onclick={() => onEditHoliday(group.originalHolidays[0])}
+                          class="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 border-2 border-b-[4px] border-slate-200 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300 active:translate-y-0.5 active:border-b-[2px] transition-all flex items-center justify-center cursor-pointer shadow-xs">
+                    <Edit3 size={16} />
+                  </button>
+                  <button onclick={() => onDeleteHoliday(group.originalHolidays[0])}
+                          class="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 border-2 border-b-[4px] border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-300 active:translate-y-0.5 active:border-b-[2px] transition-all flex items-center justify-center cursor-pointer shadow-xs flex-shrink-0">
+                    <Trash2 size={16} />
+                  </button>
+                {/if}
+              </div>
             </div>
-            
-            <div class="flex items-center gap-2 flex-shrink-0">
-              {#if !isRange}
-                <button onclick={() => onEditHoliday(group.originalHolidays[0])}
-                        class="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 border-2 border-b-[4px] border-slate-200 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300 active:translate-y-0.5 active:border-b-[2px] transition-all flex items-center justify-center cursor-pointer shadow-xs">
-                  <Edit3 size={16} />
-                </button>
-              {/if}
-              
-              {#if isRange}
-                <button onclick={() => {
-                  if (confirm(`Hapus seluruh rentang libur "${group.name}"?`)) {
-                    group.originalHolidays.forEach(h => onDeleteHoliday(h))
-                  }
-                }}
-                        class="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 border-2 border-b-[4px] border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-300 active:translate-y-0.5 active:border-b-[2px] transition-all flex items-center justify-center cursor-pointer shadow-xs">
-                  <Trash2 size={16} />
-                </button>
-              {:else}
-                <button onclick={() => onDeleteHoliday(group.originalHolidays[0])}
-                        class="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 border-2 border-b-[4px] border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-300 active:translate-y-0.5 active:border-b-[2px] transition-all flex items-center justify-center cursor-pointer shadow-xs flex-shrink-0">
-                  <Trash2 size={16} />
-                </button>
-              {/if}
-            </div>
+
+            {#if isRange && expanded}
+              <div class="border-t border-slate-100 bg-slate-50/60">
+                {#each group.originalHolidays as h}
+                  {@const hIsPast  = h.date < todayISO}
+                  {@const hIsToday = h.date === todayISO}
+                  <div class="flex items-center gap-3 px-5 py-3 border-b border-slate-100/80 last:border-0 {hIsToday ? 'bg-amber-50/60' : hIsPast ? 'opacity-60' : ''} hover:bg-white/60 transition-colors">
+                    <div class="w-1 self-stretch rounded-full mx-1 flex-shrink-0" style="background:#F97316"></div>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-sm font-bold text-slate-700">
+                        {new Date(h.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })}
+                      </p>
+                    </div>
+                    {#if hIsToday}<span class="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500 text-white flex-shrink-0">HARI INI</span>{/if}
+                    <div class="flex items-center gap-1.5 flex-shrink-0">
+                      <button onclick={() => onEditHoliday(h)}
+                              class="w-8 h-8 rounded-lg bg-white text-slate-500 border border-b-[3px] border-slate-200 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300 active:translate-y-0.5 transition-all flex items-center justify-center cursor-pointer">
+                        <Edit3 size={13} />
+                      </button>
+                      <button onclick={() => onDeleteHoliday(h)}
+                              class="w-8 h-8 rounded-lg bg-white text-slate-500 border border-b-[3px] border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-300 active:translate-y-0.5 transition-all flex items-center justify-center cursor-pointer">
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            {/if}
           </div>
         {/each}
         </div>
@@ -245,50 +307,99 @@
           <span class="text-xs font-black text-orange-600 bg-white px-3 py-1 rounded-xl border border-slate-200">{sortedRules.filter(r => r.date >= todayISO).length} Mendatang</span>
         </div>
         <div class="divide-y divide-slate-100">
-        {#each sortedRules as rule}
-          {@const ts = TYPE_STYLE[rule.type]}
-          {@const isPast  = rule.date < todayISO}
-          {@const isToday = rule.date === todayISO}
-          <div class="flex items-center gap-4 p-5 {isToday ? 'bg-orange-50/80' : isPast ? 'opacity-60 bg-slate-50/50' : ''} hover:bg-slate-50/80 transition-colors border-b border-slate-100">
-            <div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 text-white shadow-xs border"
-                 class:!text-slate-500={isPast && !isToday}
-                 class:bg-slate-200={isPast && !isToday}
-                 class:border-slate-300={isPast && !isToday}
-                 style={!isPast || isToday ? 'background:linear-gradient(135deg,#F97316,#EA580C); border-color:#C2410C' : ''}>
-              <ts.Icon size={24} />
-            </div>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2.5 flex-wrap mb-1.5">
-                <p class="text-base font-black text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">
-                  {new Date(rule.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
-                </p>
-                <span class="text-xs font-black px-3 py-1 rounded-xl border {ts.bg} {ts.text} {ts.border} shadow-xs uppercase tracking-wider leading-none">{ts.label}</span>
-                {#if isToday}<span class="text-xs font-black px-3 py-1 rounded-xl bg-orange-500 text-white shadow-xs uppercase tracking-wider leading-none">HARI INI</span>{/if}
+        {#each groupedRules as group, idx}
+          {@const ts       = TYPE_STYLE[group.type]}
+          {@const isRange  = group.dates.length > 1}
+          {@const isPast   = group.dates[group.dates.length - 1] < todayISO}
+          {@const isToday  = group.dates.includes(todayISO)}
+          {@const expanded = expandedGroups.has(idx)}
+
+          <!-- Header row (selalu tampil) -->
+          <div class="border-b border-slate-100">
+            <div class="flex items-center gap-4 p-5 {isToday ? 'bg-orange-50/80' : isPast ? 'opacity-60 bg-slate-50/50' : ''} hover:bg-slate-50/80 transition-colors">
+              <div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 text-white shadow-xs border"
+                   class:!text-slate-500={isPast && !isToday}
+                   class:bg-slate-200={isPast && !isToday}
+                   class:border-slate-300={isPast && !isToday}
+                   style={!isPast || isToday ? 'background:linear-gradient(135deg,#F97316,#EA580C); border-color:#C2410C' : ''}>
+                <ts.Icon size={24} />
               </div>
-              {#if rule.type === 'custom_time' && rule.start_time}
-                <p class="text-xs bg-amber-50 border border-amber-200 text-amber-800 font-black p-2 rounded-xl mt-1.5 inline-flex items-center gap-2 shadow-xs">
-                  <Clock size={14} class="text-amber-600" /> Masuk jam {rule.start_time}
-                </p>
-              {/if}
-              {#if rule.note}
-                <div class="bg-slate-50 border border-slate-200 p-2.5 rounded-xl mt-2 shadow-inner">
-                  <p class="text-xs font-bold text-slate-600 truncate flex items-center gap-2">
-                    <FileText size={14} class="text-slate-400 flex-shrink-0" /> {rule.note}
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2.5 flex-wrap mb-1">
+                  <p class="text-base font-black text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">
+                    {formatRuleDates(group.dates)}
                   </p>
+                  <span class="text-xs font-black px-3 py-1 rounded-xl border {ts.bg} {ts.text} {ts.border} shadow-xs uppercase tracking-wider leading-none">{ts.label}</span>
+                  {#if isToday}<span class="text-xs font-black px-3 py-1 rounded-xl bg-orange-500 text-white shadow-xs uppercase tracking-wider leading-none">HARI INI</span>{/if}
                 </div>
-              {/if}
+                {#if group.type === 'custom_time' && group.start_time}
+                  <p class="text-xs text-amber-700 font-bold flex items-center gap-1.5 mt-0.5">
+                    <Clock size={12} class="text-amber-500" /> Masuk jam {group.start_time}
+                  </p>
+                {/if}
+                {#if group.note && !isRange}
+                  <p class="text-xs text-slate-500 font-bold flex items-center gap-1.5 mt-0.5 truncate">
+                    <FileText size={12} class="text-slate-400 flex-shrink-0" /> {group.note}
+                  </p>
+                {/if}
+              </div>
+
+              <div class="flex items-center gap-2 flex-shrink-0">
+                {#if isRange}
+                  <!-- Expand/collapse button -->
+                  <button onclick={() => toggleGroup(idx)}
+                          class="h-9 px-3 rounded-xl bg-slate-100 text-slate-600 border-2 border-b-[3px] border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 active:translate-y-0.5 active:border-b-[1px] transition-all flex items-center gap-1.5 cursor-pointer shadow-xs text-xs font-black">
+                    {#if expanded}<ChevronUp size={14} />{:else}<ChevronDown size={14} />{/if}
+                    {expanded ? 'Tutup' : `${group.dates.length} hari`}
+                  </button>
+                  <button onclick={() => { if (confirm(`Hapus seluruh rentang (${group.dates.length} hari)?`)) group.rules.forEach(r => onDeleteSpecialRule(r)) }}
+                          class="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 border-2 border-b-[4px] border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-300 active:translate-y-0.5 active:border-b-[2px] transition-all flex items-center justify-center cursor-pointer shadow-xs">
+                    <Trash2 size={16} />
+                  </button>
+                {:else}
+                  <button onclick={() => onManageSpecial(group.rules[0])}
+                          class="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 border-2 border-b-[4px] border-slate-200 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300 active:translate-y-0.5 active:border-b-[2px] transition-all flex items-center justify-center cursor-pointer shadow-xs">
+                    <Edit3 size={16} />
+                  </button>
+                  <button onclick={() => onDeleteSpecialRule(group.rules[0])}
+                          class="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 border-2 border-b-[4px] border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-300 active:translate-y-0.5 active:border-b-[2px] transition-all flex items-center justify-center cursor-pointer shadow-xs">
+                    <Trash2 size={16} />
+                  </button>
+                {/if}
+              </div>
             </div>
-            
-            <div class="flex items-center gap-2 flex-shrink-0">
-              <button onclick={() => onManageSpecial(rule)}
-                      class="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 border-2 border-b-[4px] border-slate-200 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300 active:translate-y-0.5 active:border-b-[2px] transition-all flex items-center justify-center cursor-pointer shadow-xs">
-                <Edit3 size={16} />
-              </button>
-              <button onclick={() => onDeleteSpecialRule(rule)}
-                      class="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 border-2 border-b-[4px] border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-300 active:translate-y-0.5 active:border-b-[2px] transition-all flex items-center justify-center cursor-pointer shadow-xs flex-shrink-0">
-                <Trash2 size={16} />
-              </button>
-            </div>
+
+            <!-- Expanded individual rows -->
+            {#if isRange && expanded}
+              <div class="border-t border-slate-100 bg-slate-50/60">
+                {#each group.rules as rule}
+                  {@const rIsPast  = rule.date < todayISO}
+                  {@const rIsToday = rule.date === todayISO}
+                  <div class="flex items-center gap-3 px-5 py-3 border-b border-slate-100/80 last:border-0 {rIsToday ? 'bg-orange-50/60' : rIsPast ? 'opacity-60' : ''} hover:bg-white/60 transition-colors">
+                    <div class="w-1 self-stretch rounded-full mx-1 flex-shrink-0" style="background:#F97316"></div>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-sm font-bold text-slate-700">
+                        {new Date(rule.date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })}
+                      </p>
+                      {#if rule.note}
+                        <p class="text-xs text-slate-400 truncate">{rule.note}</p>
+                      {/if}
+                    </div>
+                    {#if rIsToday}<span class="text-[10px] font-black px-2 py-0.5 rounded-full bg-orange-500 text-white flex-shrink-0">HARI INI</span>{/if}
+                    <div class="flex items-center gap-1.5 flex-shrink-0">
+                      <button onclick={() => onManageSpecial(rule)}
+                              class="w-8 h-8 rounded-lg bg-white text-slate-500 border border-b-[3px] border-slate-200 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300 active:translate-y-0.5 transition-all flex items-center justify-center cursor-pointer">
+                        <Edit3 size={13} />
+                      </button>
+                      <button onclick={() => onDeleteSpecialRule(rule)}
+                              class="w-8 h-8 rounded-lg bg-white text-slate-500 border border-b-[3px] border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-300 active:translate-y-0.5 transition-all flex items-center justify-center cursor-pointer">
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            {/if}
           </div>
         {/each}
         </div>

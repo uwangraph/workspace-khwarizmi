@@ -342,26 +342,38 @@
   }
 
   // ── Special Rule Actions ──────────────────────────────────────────────────
-  async function saveSpecialRule(data: { date: string; type: SpecialRule['type']; start_time: string | null; active_sessions: number[] | null; note: string | null }) {
+  async function saveSpecialRule(data: { dates: string[]; type: SpecialRule['type']; start_time: string | null; active_sessions: number[] | null; note: string | null }) {
     isSavingSpecial = true
-    const { data: r, error } = await adminService.saveSpecialRule({ 
-      date: data.date, 
-      type: data.type, 
-      start_time: data.start_time, 
-      active_sessions: data.active_sessions,
-      note: data.note, 
-      created_by: profile?.id 
-    })
+    const results: SpecialRule[] = []
+    for (const date of data.dates) {
+      const { data: r, error } = await adminService.saveSpecialRule({
+        date,
+        type: data.type,
+        start_time: data.start_time,
+        active_sessions: data.active_sessions,
+        note: data.note,
+        created_by: profile?.id
+      })
+      if (error) {
+        isSavingSpecial = false
+        showToast('Gagal menyimpan aturan jadwal', 'error')
+        return
+      }
+      results.push(r as any as SpecialRule)
+    }
     isSavingSpecial = false
-    if (error) { showToast('Gagal menyimpan aturan jadwal', 'error'); return }
-    
-    const rule = r as any as SpecialRule
-    const existing = specialRules.findIndex(x => x.date === data.date)
-    if (existing >= 0) specialRules = specialRules.map((x, i) => i === existing ? rule : x)
-    else specialRules = [...specialRules, rule].sort((a, b) => a.date.localeCompare(b.date))
-    
+
+    let updated = [...specialRules]
+    for (const rule of results) {
+      const idx = updated.findIndex(x => x.date === rule.date)
+      if (idx >= 0) updated = updated.map((x, i) => i === idx ? rule : x)
+      else updated = [...updated, rule]
+    }
+    specialRules = updated.sort((a, b) => a.date.localeCompare(b.date))
+
     showSpecialRuleModal = false
-    showToast('Aturan jadwal khusus berhasil disimpan', 'success')
+    const label = data.dates.length > 1 ? `${data.dates.length} hari` : '1 hari'
+    showToast(`Aturan jadwal khusus berhasil disimpan (${label})`, 'success')
   }
 
   function handleDeleteSpecialRule(r: SpecialRule) { selectedSpecial = r; showDeleteSpecialModal = true }

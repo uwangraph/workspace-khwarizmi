@@ -435,18 +435,13 @@
               </div>
             {:else}
               <!-- Plain textarea -->
-              <div class="relative pb-4">
-                <textarea
-                  bind:value={editingNote.content}
-                  oninput={handleInput}
-                  use:autoResize
-                  placeholder="Tulis catatanmu di sini..."
-                  class="w-full text-sm text-slate-700 bg-transparent border-none outline-none resize-none leading-relaxed placeholder:text-slate-300 min-h-[40vh]"
-                ></textarea>
-                {#if charCount > 0}
-                  <p class="text-[10px] text-slate-300 font-bold text-right">{charCount} karakter</p>
-                {/if}
-              </div>
+              <textarea
+                bind:value={editingNote.content}
+                oninput={handleInput}
+                use:autoResize
+                placeholder="Tulis catatanmu di sini..."
+                class="w-full text-sm text-slate-700 bg-transparent border-none outline-none resize-none leading-relaxed placeholder:text-slate-300 min-h-[40vh]"
+              ></textarea>
             {/if}
           </div>
 
@@ -611,6 +606,11 @@
       <!-- Bottom toolbar (editor only) -->
       {#if editingNote}
         <div class="flex-shrink-0 border-t border-slate-100 px-4 py-2 flex items-center gap-1 bg-white">
+          <!-- Char counter -->
+          {#if charCount > 0}
+            <span class="text-[10px] font-bold text-slate-300 mr-1">{charCount}</span>
+          {/if}
+
           <!-- Undo / Redo -->
           <button onclick={undo} disabled={!canUndo}
             class="p-2 rounded-xl transition-colors {canUndo ? 'text-slate-600 hover:bg-slate-100 cursor-pointer' : 'text-slate-200 cursor-not-allowed'}">

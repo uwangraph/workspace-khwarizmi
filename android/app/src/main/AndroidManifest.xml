@@ -33,6 +33,13 @@
         <!-- Receiver untuk tombol Tolak di notifikasi -->
         <receiver android:name=".CallDeclineReceiver" android:exported="false" />
 
+        <!-- Receiver untuk tombol Balas di notifikasi chat -->
+        <receiver android:name=".ChatReplyReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="com.khwarizmi.workspace.REPLY_CHAT" />
+            </intent-filter>
+        </receiver>
+
         <!-- Custom FCM service untuk intercept panggilan masuk -->
         <service android:name=".CallFCMService" android:exported="false">
             <intent-filter android:priority="1">

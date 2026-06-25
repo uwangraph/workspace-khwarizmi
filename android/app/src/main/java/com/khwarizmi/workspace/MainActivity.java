@@ -11,6 +11,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        getBridge().getWebView().addJavascriptInterface(new NativeBridge(this), "NativeBridge");
         handleCallIntent(getIntent());
     }
 
@@ -34,10 +35,20 @@ public class MainActivity extends BridgeActivity {
 
     private void handleCallIntent(Intent intent) {
         if (intent == null) return;
+
         String callUrl = intent.getStringExtra("call_url");
-        if (callUrl == null || callUrl.isEmpty()) return;
-        getBridge().getWebView().post(() ->
-            getBridge().getWebView().loadUrl("https://localhost" + callUrl)
-        );
+        if (callUrl != null && !callUrl.isEmpty()) {
+            getBridge().getWebView().post(() ->
+                getBridge().getWebView().loadUrl("https://localhost" + callUrl)
+            );
+            return;
+        }
+
+        String chatUrl = intent.getStringExtra("chat_url");
+        if (chatUrl != null && !chatUrl.isEmpty()) {
+            getBridge().getWebView().post(() ->
+                getBridge().getWebView().loadUrl("https://localhost" + chatUrl)
+            );
+        }
     }
 }

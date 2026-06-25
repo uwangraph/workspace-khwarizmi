@@ -4,4 +4,6 @@
     <string name="title_activity_main">Khwarizmi Workspace</string>
     <string name="package_name">com.khwarizmi.workspace</string>
     <string name="custom_url_scheme">com.khwarizmi.workspace</string>
+    <string name="supabase_url">https://riykotdvxhabbplrogxj.supabase.co</string>
+    <string name="supabase_anon_key">sb_publishable_NFOJPBvmEboiluffSNN7TA_llYwlf8T</string>
 </resources>

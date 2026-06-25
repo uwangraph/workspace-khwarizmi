@@ -302,7 +302,7 @@
 {#if open}
   <!-- Backdrop -->
   <div
-    class="fixed inset-0 z-[55] flex items-end justify-center p-0 sm:items-center sm:p-4"
+    class="fixed inset-0 z-[55] flex items-end justify-center p-0 sm:items-center sm:p-4 bg-black/40"
     transition:fade={{ duration: 200 }}
     role="presentation"
     onclick={handleBackdropClick}

@@ -24,6 +24,8 @@ export default defineConfig({
         display: 'standalone',
         scope: '/',
         start_url: '/',
+        orientation: 'portrait',
+        lang: 'id',
         icons: [
           {
             src: 'logo-khwarizmi-192.png',
@@ -36,6 +38,12 @@ export default defineConfig({
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any'
+          },
+          {
+            src: 'logo-khwarizmi-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable'
           }
         ]
       },

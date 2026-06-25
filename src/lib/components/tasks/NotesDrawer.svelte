@@ -1,7 +1,7 @@
 <script lang="ts">
   import { supabase } from '$lib/supabase'
   import { fly, fade } from 'svelte/transition'
-  import { Pin, PinOff, Plus, Trash2, X, ChevronLeft, Search, CheckSquare, Square, ListChecks, Maximize2, Minimize2 } from 'lucide-svelte'
+  import { Pin, PinOff, Plus, Trash2, X, ChevronLeft, Search, CheckSquare, Square, ListChecks, Maximize2, Minimize2, Undo2, Redo2 } from 'lucide-svelte'
 
   interface Note {
     id: string
@@ -20,13 +20,13 @@
 
   let { userId, open, onClose }: Props = $props()
 
-  const COLORS: Record<string, { bg: string; border: string; dot: string; activeBorder: string }> = {
-    yellow: { bg: 'bg-yellow-50',  border: 'border-yellow-200', dot: 'bg-yellow-400', activeBorder: 'border-yellow-400' },
-    blue:   { bg: 'bg-blue-50',    border: 'border-blue-200',   dot: 'bg-blue-400',   activeBorder: 'border-blue-400'   },
-    green:  { bg: 'bg-green-50',   border: 'border-green-200',  dot: 'bg-green-400',  activeBorder: 'border-green-400'  },
-    pink:   { bg: 'bg-pink-50',    border: 'border-pink-200',   dot: 'bg-pink-400',   activeBorder: 'border-pink-400'   },
-    purple: { bg: 'bg-purple-50',  border: 'border-purple-200', dot: 'bg-purple-400', activeBorder: 'border-purple-400' },
-    slate:  { bg: 'bg-slate-50',   border: 'border-slate-200',  dot: 'bg-slate-400',  activeBorder: 'border-slate-400'  },
+  const COLORS: Record<string, { bg: string; border: string; dot: string }> = {
+    yellow: { bg: 'bg-yellow-50',  border: 'border-yellow-200', dot: 'bg-yellow-400' },
+    blue:   { bg: 'bg-blue-50',    border: 'border-blue-200',   dot: 'bg-blue-400'   },
+    green:  { bg: 'bg-green-50',   border: 'border-green-200',  dot: 'bg-green-400'  },
+    pink:   { bg: 'bg-pink-50',    border: 'border-pink-200',   dot: 'bg-pink-400'   },
+    purple: { bg: 'bg-purple-50',  border: 'border-purple-200', dot: 'bg-purple-400' },
+    slate:  { bg: 'bg-slate-50',   border: 'border-slate-200',  dot: 'bg-slate-400'  },
   }
 
   let notes         = $state<Note[]>([])
@@ -40,6 +40,14 @@
   let longPressTimer: ReturnType<typeof setTimeout> | null = null
   let newItemText   = $state('')
   let fullscreen    = $state(false)
+
+  // Undo/redo history
+  let history      = $state<{ title: string; content: string }[]>([])
+  let historyIndex = $state(-1)
+  let historyTimeout: ReturnType<typeof setTimeout> | null = null
+
+  let canUndo = $derived(historyIndex > 0)
+  let canRedo = $derived(historyIndex < history.length - 1)
 
   let filteredNotes = $derived(
     searchQuery.trim()
@@ -77,6 +85,35 @@
     return { destroy() { node.removeEventListener('input', resize) } }
   }
 
+  function pushHistory() {
+    if (!editingNote) return
+    // Drop redo branch
+    const trimmed = history.slice(0, historyIndex + 1)
+    const snapshot = { title: editingNote.title, content: editingNote.content }
+    history = [...trimmed, snapshot]
+    historyIndex = history.length - 1
+  }
+
+  function undo() {
+    if (!canUndo || !editingNote) return
+    historyIndex--
+    editingNote.title = history[historyIndex].title
+    editingNote.content = history[historyIndex].content
+    checklistMode = isChecklistContent(editingNote.content)
+    if (saveTimeout) clearTimeout(saveTimeout)
+    saveTimeout = setTimeout(() => saveNote(), 800)
+  }
+
+  function redo() {
+    if (!canRedo || !editingNote) return
+    historyIndex++
+    editingNote.title = history[historyIndex].title
+    editingNote.content = history[historyIndex].content
+    checklistMode = isChecklistContent(editingNote.content)
+    if (saveTimeout) clearTimeout(saveTimeout)
+    saveTimeout = setTimeout(() => saveNote(), 800)
+  }
+
   async function loadNotes() {
     isLoading = true
     const { data } = await supabase
@@ -99,17 +136,25 @@
       notes = [data as Note, ...notes]
       editingNote = data as Note
       searchQuery = ''
+      history = [{ title: '', content: '' }]
+      historyIndex = 0
     }
   }
 
   function openNote(note: Note) {
     editingNote = { ...note }
+    history = [{ title: note.title, content: note.content }]
+    historyIndex = 0
   }
 
   function handleInput() {
     if (!editingNote) return
+    // Debounce save
     if (saveTimeout) clearTimeout(saveTimeout)
     saveTimeout = setTimeout(() => saveNote(), 800)
+    // Debounce history push
+    if (historyTimeout) clearTimeout(historyTimeout)
+    historyTimeout = setTimeout(() => pushHistory(), 1000)
   }
 
   async function saveNote() {
@@ -154,6 +199,7 @@
         .join('\n')
       checklistMode = true
     }
+    pushHistory()
     handleInput()
   }
 
@@ -164,6 +210,7 @@
     if (line.startsWith('[x] ')) lines[lineIndex] = '[ ] ' + line.slice(4)
     else if (line.startsWith('[ ] ')) lines[lineIndex] = '[x] ' + line.slice(4)
     editingNote.content = lines.join('\n')
+    pushHistory()
     handleInput()
   }
 
@@ -172,6 +219,7 @@
     const sep = editingNote.content ? '\n' : ''
     editingNote.content += sep + '[ ] ' + newItemText.trim()
     newItemText = ''
+    pushHistory()
     handleInput()
   }
 
@@ -196,7 +244,7 @@
   function handleBackdropClick(e: MouseEvent) {
     if (e.target !== e.currentTarget) return
     if (longPressId) { longPressId = null; return }
-    if (editingNote) { saveNote(); editingNote = null }
+    if (editingNote) { saveNote(); editingNote = null; fullscreen = false }
     else onClose()
   }
 
@@ -222,40 +270,26 @@
       role="dialog"
       onclick={(e) => e.stopPropagation()}
     >
-      <!-- Handle -->
-      <div class="flex justify-center pt-3 pb-1 flex-shrink-0 sm:hidden">
-        <div class="w-10 h-1 bg-slate-200 rounded-full"></div>
-      </div>
+      <!-- Handle (hidden in fullscreen) -->
+      {#if !fullscreen}
+        <div class="flex justify-center pt-3 pb-1 flex-shrink-0 sm:hidden">
+          <div class="w-10 h-1 bg-slate-200 rounded-full"></div>
+        </div>
+      {/if}
 
       <!-- Header -->
-      <div class="flex items-center gap-3 px-6 py-4 border-b border-slate-100 flex-shrink-0">
+      <div class="flex items-center gap-2 px-4 py-3 border-b border-slate-100 flex-shrink-0">
         {#if editingNote}
-          <button onclick={handleBack} class="p-2 rounded-2xl hover:bg-slate-100 transition-colors text-slate-500 cursor-pointer -ml-1">
+          <!-- Editor header: back | title+status | fullscreen | pin | delete -->
+          <button onclick={handleBack} class="p-2 rounded-2xl hover:bg-slate-100 transition-colors text-slate-500 cursor-pointer">
             <ChevronLeft size={20} />
           </button>
           <div class="flex-1 min-w-0">
-            <p class="text-xs font-black text-slate-400 uppercase tracking-widest">Catatan Pribadi</p>
+            <p class="text-xs font-black text-slate-400 uppercase tracking-widest">Catatan</p>
             <p class="text-[10px] {isSaving ? 'text-orange-400' : 'text-slate-300'} font-bold transition-colors">
               {isSaving ? 'Menyimpan...' : 'Tersimpan otomatis'}
             </p>
           </div>
-          <!-- Color picker -->
-          <div class="flex items-center gap-2">
-            {#each Object.entries(COLORS) as [key, val]}
-              <button
-                onclick={() => { if (editingNote) { editingNote.color = key; handleInput() } }}
-                class="w-5 h-5 rounded-full {val.dot} cursor-pointer transition-transform {editingNote.color === key ? 'scale-125 ring-2 ring-offset-1 ring-slate-300' : 'opacity-50 hover:opacity-80'}"
-              ></button>
-            {/each}
-          </div>
-          <!-- Checklist toggle -->
-          <button
-            onclick={toggleChecklistMode}
-            class="p-2 rounded-2xl hover:bg-slate-100 transition-colors cursor-pointer {checklistMode ? 'text-green-500' : 'text-slate-400'}"
-          >
-            <ListChecks size={18} />
-          </button>
-          <!-- Fullscreen toggle -->
           <button
             onclick={() => fullscreen = !fullscreen}
             class="p-2 rounded-2xl hover:bg-slate-100 transition-colors cursor-pointer text-slate-400"
@@ -275,7 +309,8 @@
             <Trash2 size={18} />
           </button>
         {:else}
-          <button onclick={onClose} class="p-2 rounded-2xl hover:bg-slate-100 transition-colors text-slate-400 cursor-pointer -ml-1">
+          <!-- List header: close | title+count | fullscreen | new -->
+          <button onclick={onClose} class="p-2 rounded-2xl hover:bg-slate-100 transition-colors text-slate-400 cursor-pointer">
             <X size={20} />
           </button>
           <div class="flex-1 min-w-0">
@@ -302,7 +337,7 @@
       <div class="flex-1 overflow-y-auto overscroll-contain">
         {#if editingNote}
           <!-- Editor -->
-          <div class="flex flex-col px-6 py-5 gap-3">
+          <div class="flex flex-col px-5 py-4 gap-3">
             <input
               bind:value={editingNote.title}
               oninput={handleInput}
@@ -313,13 +348,13 @@
 
             {#if checklistMode}
               <!-- Checklist view -->
-              <div class="flex flex-col gap-1 pb-2">
+              <div class="flex flex-col gap-0.5 pb-4">
                 {#each editingNote.content.split('\n') as line, i}
                   {#if line.startsWith('[ ] ') || line.startsWith('[x] ')}
                     {@const checked = line.startsWith('[x] ')}
                     <button
                       onclick={() => toggleCheckItem(i)}
-                      class="flex items-start gap-3 text-left py-1.5 group cursor-pointer"
+                      class="flex items-start gap-3 text-left py-2 cursor-pointer group"
                     >
                       <span class="mt-0.5 flex-shrink-0 transition-colors {checked ? 'text-green-500' : 'text-slate-300'}">
                         {#if checked}<CheckSquare size={18} />{:else}<Square size={18} />{/if}
@@ -329,22 +364,22 @@
                   {/if}
                 {/each}
                 <!-- Add new item -->
-                <div class="flex items-center gap-3 mt-1">
-                  <span class="text-slate-200 flex-shrink-0"><Plus size={16} /></span>
+                <div class="flex items-center gap-3 mt-2 pt-2 border-t border-dashed border-slate-100">
+                  <span class="text-slate-200 flex-shrink-0"><Plus size={15} /></span>
                   <input
                     bind:value={newItemText}
-                    placeholder="Tambah item..."
+                    placeholder="Tambah item baru..."
                     onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCheckItem() } }}
                     class="text-sm text-slate-600 bg-transparent outline-none flex-1 placeholder:text-slate-300"
                   />
                   {#if newItemText.trim()}
-                    <button onclick={addCheckItem} class="text-xs font-black text-orange-500 cursor-pointer">Tambah</button>
+                    <button onclick={addCheckItem} class="text-xs font-black text-orange-500 cursor-pointer px-1">Tambah</button>
                   {/if}
                 </div>
               </div>
             {:else}
-              <!-- Plain textarea with auto-resize -->
-              <div class="relative">
+              <!-- Plain textarea -->
+              <div class="relative pb-4">
                 <textarea
                   bind:value={editingNote.content}
                   oninput={handleInput}
@@ -353,7 +388,7 @@
                   class="w-full text-sm text-slate-700 bg-transparent border-none outline-none resize-none leading-relaxed placeholder:text-slate-300 min-h-[40vh]"
                 ></textarea>
                 {#if charCount > 0}
-                  <p class="text-[10px] text-slate-300 font-bold text-right mt-1">{charCount} karakter</p>
+                  <p class="text-[10px] text-slate-300 font-bold text-right">{charCount} karakter</p>
                 {/if}
               </div>
             {/if}
@@ -463,6 +498,52 @@
           {/if}
         {/if}
       </div>
+
+      <!-- Bottom toolbar (editor only) -->
+      {#if editingNote}
+        <div class="flex-shrink-0 border-t border-slate-100 px-4 py-2 flex items-center gap-1 bg-white">
+          <!-- Undo / Redo -->
+          <button
+            onclick={undo}
+            disabled={!canUndo}
+            class="p-2 rounded-xl transition-colors cursor-pointer {canUndo ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-200 cursor-not-allowed'}"
+          >
+            <Undo2 size={17} />
+          </button>
+          <button
+            onclick={redo}
+            disabled={!canRedo}
+            class="p-2 rounded-xl transition-colors cursor-pointer {canRedo ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-200 cursor-not-allowed'}"
+          >
+            <Redo2 size={17} />
+          </button>
+
+          <!-- Divider -->
+          <div class="w-px h-5 bg-slate-150 mx-1 bg-slate-200"></div>
+
+          <!-- Checklist toggle -->
+          <button
+            onclick={toggleChecklistMode}
+            class="p-2 rounded-xl transition-colors cursor-pointer {checklistMode ? 'text-green-500 bg-green-50' : 'text-slate-400 hover:bg-slate-100'}"
+          >
+            <ListChecks size={17} />
+          </button>
+
+          <!-- Divider -->
+          <div class="w-px h-5 bg-slate-200 mx-1"></div>
+
+          <!-- Color picker -->
+          <div class="flex items-center gap-2 flex-1 justify-end">
+            {#each Object.entries(COLORS) as [key, val]}
+              <button
+                onclick={() => { if (editingNote) { editingNote.color = key; handleInput() } }}
+                class="w-5 h-5 rounded-full {val.dot} cursor-pointer transition-transform
+                  {editingNote.color === key ? 'scale-125 ring-2 ring-offset-1 ring-slate-300' : 'opacity-40 hover:opacity-70'}"
+              ></button>
+            {/each}
+          </div>
+        </div>
+      {/if}
     </div>
   </div>
 {/if}

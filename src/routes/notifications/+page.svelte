@@ -14,7 +14,7 @@
   import type { AppNotification } from '$lib/type'
   import { Check, Bell, Search, RefreshCw, Trash2, X, Send, Reply } from 'lucide-svelte'
 
-  type NotifType = 'task_collaboration_invite'|'task_deadline_today'|'collaboration_accepted'|'collaboration_rejected'|'task_completed'|'task_ready_review'|'task_deleted'|'task_assigned'|'task_revision'|'leave_request'|'workload_alert'|'task_comment'|(string & {})
+  type NotifType = 'task_collaboration_invite'|'task_deadline_today'|'collaboration_accepted'|'collaboration_rejected'|'task_completed'|'task_ready_review'|'task_deleted'|'task_assigned'|'task_revision'|'leave_request'|'workload_alert'|'task_comment'|'chat_message'|'chat_image'|'chat_file'|'chat_voice_note'|'call'|(string & {})
   // Use AppNotification from type.ts to avoid shadowing the browser's Notification API
   type PageNotification = AppNotification & { type: NotifType }
 
@@ -91,6 +91,11 @@
     leave_request:  {bg:'bg-orange-50',  color:'text-orange-500',  path:'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'},
     workload_alert: {bg:'bg-yellow-50',  color:'text-yellow-600',  path:'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'},
     task_comment:   {bg:'bg-indigo-50',  color:'text-indigo-500',  path:'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z'},
+    chat_message:   {bg:'bg-blue-50',    color:'text-blue-500',    path:'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z'},
+    call:           {bg:'bg-green-50',   color:'text-green-500',   path:'M15 10l4.553-2.069A1 1 0 0121 8.876V15.12a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z'},
+    chat_image:     {bg:'bg-sky-50',     color:'text-sky-500',     path:'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z'},
+    chat_file:      {bg:'bg-teal-50',    color:'text-teal-500',    path:'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'},
+    chat_voice_note:{bg:'bg-violet-50',  color:'text-violet-500',  path:'M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z'},
   }
   const DEFAULT_ICON = {bg:'bg-slate-50',color:'text-slate-500',path:'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'}
   const getIcon = (t: string) => ICON_MAP[t] ?? DEFAULT_ICON
@@ -129,14 +134,18 @@
   $effect(() => { notifSearch; currentPage = 1 })
 
   function getNavUrl(n: PageNotification) {
+    const data = n.data as Record<string, string> | null
     switch (n.type) {
       case 'task_collaboration_invite': case 'task_assigned': case 'task_deadline_today':
-      case 'task_ready_review': case 'task_revision': case 'task_completed': case 'task_deleted': return '/tasks'
-      case 'collaboration_accepted': case 'collaboration_rejected': return '/absensi'
-      case 'leave_request': return '/admin'
-      case 'workload_alert': return '/admin'
+      case 'task_ready_review': case 'task_revision': case 'task_completed': case 'task_deleted':
       case 'task_comment': return '/tasks'
-      default: return '/'
+      case 'collaboration_accepted': case 'collaboration_rejected': return '/tasks'
+      case 'leave_request': return data?.url || '/absensi'
+      case 'workload_alert': return '/admin'
+      case 'chat_message': case 'chat_image': case 'chat_file': case 'chat_voice_note':
+        return data?.url || '/chat'
+      case 'call': return data?.url || '/'
+      default: return data?.url || '/notifications'
     }
   }
 

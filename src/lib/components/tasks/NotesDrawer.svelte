@@ -520,38 +520,38 @@
                   <!-- Long press quick actions -->
                   {#if longPressId === note.id}
                     <div
-                      class="absolute inset-0 rounded-[20px] bg-black/30 flex items-center justify-center gap-3 z-10 backdrop-blur-[1px]"
+                      class="absolute inset-0 rounded-[20px] bg-black/40 flex flex-col items-stretch justify-center gap-1.5 z-10 backdrop-blur-[2px] p-3"
                       transition:fade={{ duration: 120 }}
                     >
                       <button
                         onclick={() => { togglePin(note); longPressId = null }}
-                        class="flex flex-col items-center gap-1 p-3 bg-white rounded-2xl shadow-lg cursor-pointer"
+                        class="flex items-center gap-2.5 px-4 py-2.5 bg-white rounded-2xl shadow cursor-pointer"
                       >
                         <span class="{note.is_pinned ? 'text-orange-500' : 'text-slate-500'}">
-                          {#if note.is_pinned}<PinOff size={18} />{:else}<Pin size={18} />{/if}
+                          {#if note.is_pinned}<PinOff size={16} />{:else}<Pin size={16} />{/if}
                         </span>
-                        <span class="text-[9px] font-black text-slate-500">{note.is_pinned ? 'Lepas' : 'Sematkan'}</span>
+                        <span class="text-xs font-black text-slate-700">{note.is_pinned ? 'Lepas sematan' : 'Sematkan'}</span>
                       </button>
                       <button
                         onclick={() => duplicateNote(note)}
-                        class="flex flex-col items-center gap-1 p-3 bg-white rounded-2xl shadow-lg cursor-pointer"
+                        class="flex items-center gap-2.5 px-4 py-2.5 bg-white rounded-2xl shadow cursor-pointer"
                       >
-                        <Copy size={18} class="text-slate-500" />
-                        <span class="text-[9px] font-black text-slate-500">Duplikat</span>
+                        <Copy size={16} class="text-slate-500" />
+                        <span class="text-xs font-black text-slate-700">Duplikat</span>
                       </button>
                       <button
                         onclick={() => { deleteTargetId = note.id; longPressId = null }}
-                        class="flex flex-col items-center gap-1 p-3 bg-white rounded-2xl shadow-lg cursor-pointer"
+                        class="flex items-center gap-2.5 px-4 py-2.5 bg-white rounded-2xl shadow cursor-pointer"
                       >
-                        <Trash2 size={18} class="text-red-500" />
-                        <span class="text-[9px] font-black text-red-500">Hapus</span>
+                        <Trash2 size={16} class="text-red-500" />
+                        <span class="text-xs font-black text-red-500">Hapus</span>
                       </button>
                       <button
                         onclick={() => longPressId = null}
-                        class="flex flex-col items-center gap-1 p-3 bg-white rounded-2xl shadow-lg cursor-pointer"
+                        class="flex items-center gap-2.5 px-4 py-2.5 bg-white/70 rounded-2xl cursor-pointer"
                       >
-                        <X size={18} class="text-slate-400" />
-                        <span class="text-[9px] font-black text-slate-400">Batal</span>
+                        <X size={16} class="text-slate-400" />
+                        <span class="text-xs font-black text-slate-500">Batal</span>
                       </button>
                     </div>
                   {/if}
@@ -627,12 +627,6 @@
           <button onclick={toggleChecklistMode}
             class="p-2 rounded-xl transition-colors cursor-pointer {checklistMode ? 'text-green-500 bg-green-50' : 'text-slate-400 hover:bg-slate-100'}">
             <ListChecks size={17} />
-          </button>
-
-          <!-- Duplicate -->
-          <button onclick={() => duplicateNote(editingNote!)}
-            class="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer">
-            <Copy size={17} />
           </button>
 
           <!-- Share / Copy -->

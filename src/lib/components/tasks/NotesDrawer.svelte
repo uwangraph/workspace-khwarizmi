@@ -39,7 +39,8 @@
   let longPressId   = $state<string | null>(null)
   let longPressTimer: ReturnType<typeof setTimeout> | null = null
   let newItemText   = $state('')
-  let fullscreen    = $state(false)
+  let fullscreen      = $state(false)
+  let confirmDelete   = $state(false)
 
   // Undo/redo history
   let history      = $state<{ title: string; content: string }[]>([])
@@ -145,6 +146,7 @@
     editingNote = { ...note }
     history = [{ title: note.title, content: note.content }]
     historyIndex = 0
+    confirmDelete = false
   }
 
   function handleInput() {
@@ -179,9 +181,12 @@
   }
 
   async function deleteNote(id: string) {
+    if (saveTimeout) { clearTimeout(saveTimeout); saveTimeout = null }
+    if (historyTimeout) { clearTimeout(historyTimeout); historyTimeout = null }
     await supabase.from('notes').delete().eq('id', id)
     notes = notes.filter(n => n.id !== id)
     if (editingNote?.id === id) editingNote = null
+    confirmDelete = false
     longPressId = null
   }
 
@@ -250,7 +255,7 @@
   }
 
   function handleBack() {
-    if (editingNote) { saveNote(); editingNote = null }
+    if (editingNote) { saveNote(); editingNote = null; confirmDelete = false }
     else { fullscreen = false; onClose() }
   }
 </script>
@@ -303,12 +308,29 @@
           >
             {#if editingNote.is_pinned}<PinOff size={18} />{:else}<Pin size={18} />{/if}
           </button>
-          <button
-            onclick={() => deleteNote(editingNote!.id)}
-            class="p-2 rounded-2xl hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
-          >
-            <Trash2 size={18} />
-          </button>
+          {#if confirmDelete}
+            <div class="flex items-center gap-1" transition:fade={{ duration: 100 }}>
+              <button
+                onclick={() => deleteNote(editingNote!.id)}
+                class="px-3 py-1.5 rounded-xl bg-red-500 text-white text-xs font-black cursor-pointer hover:bg-red-600 transition-colors"
+              >
+                Hapus
+              </button>
+              <button
+                onclick={() => confirmDelete = false}
+                class="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-500 text-xs font-black cursor-pointer hover:bg-slate-200 transition-colors"
+              >
+                Batal
+              </button>
+            </div>
+          {:else}
+            <button
+              onclick={() => confirmDelete = true}
+              class="p-2 rounded-2xl hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
+            >
+              <Trash2 size={18} />
+            </button>
+          {/if}
         {:else}
           <!-- List header: close | title+count | fullscreen | new -->
           <button onclick={onClose} class="p-2 rounded-2xl hover:bg-slate-100 transition-colors text-slate-400 cursor-pointer">

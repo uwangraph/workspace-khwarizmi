@@ -8,7 +8,8 @@
     Share2, Copy, CheckCheck,
     Bold, Italic, Underline, Strikethrough,
     AlignLeft, AlignCenter, AlignRight,
-    List, ListOrdered, Heading2,
+    List, ListOrdered, Heading1, Heading2, Heading3,
+    Indent, Outdent, Highlighter, Eraser,
     Undo2, Redo2
   } from 'lucide-svelte'
 
@@ -51,12 +52,22 @@
   let fullscreen     = $state(false)
   let deleteTargetId = $state<string | null>(null)
   let copied         = $state(false)
-  let editorRef      = $state<HTMLDivElement | null>(null)
+  let editorRef           = $state<HTMLDivElement | null>(null)
+  let showHighlightPicker = $state(false)
+
+  const HIGHLIGHT_COLORS = [
+    { color: '#FEF08A', label: 'Kuning' },
+    { color: '#BBF7D0', label: 'Hijau'  },
+    { color: '#BFDBFE', label: 'Biru'   },
+    { color: '#FBCFE8', label: 'Pink'   },
+    { color: '#FED7AA', label: 'Oranye' },
+    { color: '#E9D5FF', label: 'Ungu'   },
+  ]
 
   // Format state for toolbar
   let fmt = $state({
     bold: false, italic: false, underline: false, strike: false,
-    h2: false,
+    h1: false, h2: false, h3: false,
     left: false, center: false, right: false,
     ul: false, ol: false,
   })
@@ -111,16 +122,18 @@
     try {
       const block = document.queryCommandValue('formatBlock').toLowerCase()
       fmt = {
-        bold:   document.queryCommandState('bold'),
-        italic: document.queryCommandState('italic'),
+        bold:      document.queryCommandState('bold'),
+        italic:    document.queryCommandState('italic'),
         underline: document.queryCommandState('underline'),
-        strike: document.queryCommandState('strikeThrough'),
-        h2:     block === 'h2' || block === 'h1',
-        left:   document.queryCommandState('justifyLeft'),
-        center: document.queryCommandState('justifyCenter'),
-        right:  document.queryCommandState('justifyRight'),
-        ul:     document.queryCommandState('insertUnorderedList'),
-        ol:     document.queryCommandState('insertOrderedList'),
+        strike:    document.queryCommandState('strikeThrough'),
+        h1:        block === 'h1',
+        h2:        block === 'h2',
+        h3:        block === 'h3',
+        left:      document.queryCommandState('justifyLeft'),
+        center:    document.queryCommandState('justifyCenter'),
+        right:     document.queryCommandState('justifyRight'),
+        ul:        document.queryCommandState('insertUnorderedList'),
+        ol:        document.queryCommandState('insertOrderedList'),
       }
     } catch {}
   }
@@ -135,11 +148,30 @@
     refreshFmt()
   }
 
-  function toggleHeading(e: MouseEvent) {
+  function toggleHeading(e: MouseEvent, level: 'h1' | 'h2' | 'h3') {
     e.preventDefault()
     editorRef?.focus()
     const block = document.queryCommandValue('formatBlock').toLowerCase()
-    document.execCommand('formatBlock', false, (block === 'h2' || block === 'h1') ? 'p' : 'h2')
+    document.execCommand('formatBlock', false, block === level ? 'p' : level)
+    if (editingNote && editorRef) editingNote.content = editorRef.innerHTML
+    handleInput()
+    refreshFmt()
+  }
+
+  function applyHighlight(e: MouseEvent, color: string) {
+    e.preventDefault()
+    editorRef?.focus()
+    document.execCommand('hiliteColor', false, color)
+    if (editingNote && editorRef) editingNote.content = editorRef.innerHTML
+    handleInput()
+    showHighlightPicker = false
+  }
+
+  function clearFormatting(e: MouseEvent) {
+    e.preventDefault()
+    editorRef?.focus()
+    document.execCommand('removeFormat', false, '')
+    document.execCommand('formatBlock', false, 'p')
     if (editingNote && editorRef) editingNote.content = editorRef.innerHTML
     handleInput()
     refreshFmt()
@@ -455,10 +487,12 @@
                 if ((e.ctrlKey || e.metaKey) && e.key === 'u') { e.preventDefault(); execFormat(e as any, 'underline') }
               }}
               class="w-full text-sm text-slate-700 bg-transparent outline-none leading-relaxed min-h-[40vh] pb-4
-                [&_h2]:text-lg [&_h2]:font-black [&_h2]:text-slate-800 [&_h2]:my-1
+                [&_h1]:text-2xl [&_h1]:font-black [&_h1]:text-slate-800 [&_h1]:my-2
+                [&_h2]:text-xl  [&_h2]:font-black [&_h2]:text-slate-800 [&_h2]:my-1.5
+                [&_h3]:text-base [&_h3]:font-bold [&_h3]:text-slate-700 [&_h3]:my-1
                 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-1
                 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-1
-                [&_li]:my-0.5
+                [&_li]:my-0.5 [&_blockquote]:border-l-4 [&_blockquote]:border-slate-200 [&_blockquote]:pl-3 [&_blockquote]:text-slate-500
                 empty:before:content-[attr(data-placeholder)] empty:before:text-slate-300"
               data-placeholder="Tulis catatanmu di sini..."
               role="textbox"
@@ -592,6 +626,27 @@
     <!-- Formatting toolbar (editor only) -->
     {#if editingNote}
       <div class="flex-shrink-0 border-t border-slate-100 bg-white">
+
+        <!-- Highlight color picker (conditionally shown) -->
+        {#if showHighlightPicker}
+          <div class="flex items-center gap-2 px-4 py-2 border-b border-slate-100" transition:fade={{ duration: 100 }}>
+            <span class="text-[10px] font-black text-slate-400 uppercase tracking-wide flex-shrink-0">Sorot</span>
+            {#each HIGHLIGHT_COLORS as { color, label }}
+              <button
+                onmousedown={(e) => applyHighlight(e, color)}
+                title={label}
+                class="w-6 h-6 rounded-full border border-slate-200 cursor-pointer hover:scale-110 transition-transform flex-shrink-0"
+                style="background-color: {color}"
+              ></button>
+            {/each}
+            <button
+              onmousedown={(e) => applyHighlight(e, 'transparent')}
+              class="w-6 h-6 rounded-full border-2 border-dashed border-slate-300 flex items-center justify-center cursor-pointer hover:border-red-300 flex-shrink-0">
+              <X size={10} class="text-slate-400" />
+            </button>
+          </div>
+        {/if}
+
         <!-- Scrollable format row -->
         <div class="flex items-center gap-0.5 px-2 py-1.5 overflow-x-auto scrollbar-none">
 
@@ -627,10 +682,18 @@
 
           <div class="w-px h-5 bg-slate-200 mx-1 flex-shrink-0"></div>
 
-          <!-- Heading -->
-          <button onmousedown={toggleHeading}
+          <!-- Headings H1 / H2 / H3 -->
+          <button onmousedown={(e) => toggleHeading(e, 'h1')}
+            class="p-2 rounded-xl transition-colors cursor-pointer flex-shrink-0 {fmt.h1 ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-100'}">
+            <Heading1 size={17} />
+          </button>
+          <button onmousedown={(e) => toggleHeading(e, 'h2')}
             class="p-2 rounded-xl transition-colors cursor-pointer flex-shrink-0 {fmt.h2 ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-100'}">
             <Heading2 size={17} />
+          </button>
+          <button onmousedown={(e) => toggleHeading(e, 'h3')}
+            class="p-2 rounded-xl transition-colors cursor-pointer flex-shrink-0 {fmt.h3 ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-100'}">
+            <Heading3 size={17} />
           </button>
 
           <div class="w-px h-5 bg-slate-200 mx-1 flex-shrink-0"></div>
@@ -659,6 +722,31 @@
           <button onmousedown={(e) => execFormat(e, 'insertOrderedList')}
             class="p-2 rounded-xl transition-colors cursor-pointer flex-shrink-0 {fmt.ol ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-100'}">
             <ListOrdered size={17} />
+          </button>
+
+          <!-- Indent / Outdent -->
+          <button onmousedown={(e) => execFormat(e, 'outdent')}
+            class="p-2 rounded-xl text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer flex-shrink-0">
+            <Outdent size={17} />
+          </button>
+          <button onmousedown={(e) => execFormat(e, 'indent')}
+            class="p-2 rounded-xl text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer flex-shrink-0">
+            <Indent size={17} />
+          </button>
+
+          <div class="w-px h-5 bg-slate-200 mx-1 flex-shrink-0"></div>
+
+          <!-- Highlight -->
+          <button
+            onmousedown={(e) => { e.preventDefault(); showHighlightPicker = !showHighlightPicker }}
+            class="p-2 rounded-xl transition-colors cursor-pointer flex-shrink-0 {showHighlightPicker ? 'bg-yellow-100 text-yellow-600' : 'text-slate-500 hover:bg-slate-100'}">
+            <Highlighter size={17} />
+          </button>
+
+          <!-- Clear formatting -->
+          <button onmousedown={clearFormatting}
+            class="p-2 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-red-400 transition-colors cursor-pointer flex-shrink-0">
+            <Eraser size={17} />
           </button>
 
           <div class="w-px h-5 bg-slate-200 mx-1 flex-shrink-0"></div>

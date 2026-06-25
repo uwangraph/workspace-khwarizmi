@@ -283,6 +283,12 @@
             <p class="text-xs text-slate-400 font-bold">{filteredNotes.length} catatan</p>
           </div>
           <button
+            onclick={() => fullscreen = !fullscreen}
+            class="p-2 rounded-2xl hover:bg-slate-100 transition-colors cursor-pointer text-slate-400"
+          >
+            {#if fullscreen}<Minimize2 size={18} />{:else}<Maximize2 size={18} />{/if}
+          </button>
+          <button
             onclick={createNote}
             class="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl border-2 border-b-[4px] border-orange-700 bg-orange-500 text-white text-xs font-black shadow-sm hover:bg-orange-600 transition-all active:translate-y-0.5 cursor-pointer"
           >

@@ -205,15 +205,15 @@
       <HeroCard {heroDate} greeting={getGreeting()} firstName={getFirstName()} {gpsActive} {totalIn} {totalSessions} {taskActive} {completionRate} />
 
       {#if profile?.role === 'admin'}
-        <section class="relative overflow-hidden rounded-[32px] p-7 border-2 border-b-[8px] border-indigo-300 bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/20">
+        <section class="relative overflow-hidden rounded-[32px] p-7 border-2 border-b-[8px] text-white shadow-lg" style="border-color:#1a9980; background:linear-gradient(to right,#2BB89A,#1a9980); box-shadow:0 10px 30px #2BB89A33">
           <div class="relative z-10 flex items-center justify-between gap-5">
             <div class="flex-1">
               <div class="flex items-center gap-2.5 mb-5">
-                <ShieldCheck size={28} strokeWidth={2.5} class="text-indigo-200" />
+                <ShieldCheck size={28} strokeWidth={2.5} class="text-white/70" />
                 <h3 class="text-xl sm:text-2xl font-black tracking-tight leading-none" style="font-family:'Plus Jakarta Sans',sans-serif;">Mode Admin Aktif</h3>
               </div>
               <div class="relative inline-block">
-                <a href="/admin" class="inline-flex items-center gap-2.5 bg-white text-indigo-600 hover:bg-indigo-50 active:translate-y-0.5 active:border-b-[2px] transition-all text-sm font-black py-3.5 px-6 rounded-2xl border-2 border-b-[4px] border-indigo-200 shadow-sm cursor-pointer">
+                <a href="/admin" class="inline-flex items-center gap-2.5 bg-white active:translate-y-0.5 active:border-b-[2px] transition-all text-sm font-black py-3.5 px-6 rounded-2xl border-2 border-b-[4px] shadow-sm cursor-pointer" style="color:#1a9980; border-color:#1a9980aa">
                   Masuk Panel Admin <ArrowRight size={18} strokeWidth={2.5} />
                 </a>
                 {#if pendingLeavesCount > 0}

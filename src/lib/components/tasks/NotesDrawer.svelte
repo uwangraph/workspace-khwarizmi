@@ -1,7 +1,7 @@
 <script lang="ts">
   import { supabase } from '$lib/supabase'
   import { fly, fade } from 'svelte/transition'
-  import { Pin, PinOff, Plus, Trash2, X, ChevronLeft, Search, CheckSquare, Square, ListChecks, Maximize2, Minimize2, Undo2, Redo2 } from 'lucide-svelte'
+  import { Pin, PinOff, Plus, Trash2, X, ChevronLeft, Search, CheckSquare, Square, ListChecks, Maximize2, Minimize2, Undo2, Redo2, Share2, Copy, CheckCheck } from 'lucide-svelte'
 
   interface Note {
     id: string
@@ -41,6 +41,7 @@
   let newItemText   = $state('')
   let fullscreen      = $state(false)
   let deleteTargetId  = $state<string | null>(null)
+  let copied          = $state(false)
 
   let deleteTargetNote = $derived(notes.find(n => n.id === deleteTargetId) ?? null)
 
@@ -230,6 +231,43 @@
     handleInput()
   }
 
+  async function shareNote() {
+    if (!editingNote) return
+    const lines = editingNote.content.split('\n').map(l =>
+      l.startsWith('[x] ') ? '✓ ' + l.slice(4) : l.startsWith('[ ] ') ? '○ ' + l.slice(4) : l
+    )
+    const text = [editingNote.title, '', ...lines].filter((l, i) => i !== 1 || lines.length).join('\n').trim()
+    if (navigator.share) {
+      await navigator.share({ title: editingNote.title || 'Catatan', text }).catch(() => {})
+    } else {
+      await navigator.clipboard.writeText(text)
+      copied = true
+      setTimeout(() => copied = false, 2000)
+    }
+  }
+
+  async function duplicateNote(source: Note) {
+    const { data } = await supabase
+      .from('notes')
+      .insert({ user_id: userId, title: source.title ? `Salinan: ${source.title}` : '', content: source.content, color: source.color })
+      .select()
+      .single()
+    if (data) {
+      notes = [data as Note, ...notes]
+      longPressId = null
+    }
+  }
+
+  function clearCompleted() {
+    if (!editingNote) return
+    editingNote.content = editingNote.content
+      .split('\n')
+      .filter(line => !line.startsWith('[x] '))
+      .join('\n')
+    pushHistory()
+    handleInput()
+  }
+
   function handleLongPressStart(id: string) {
     longPressTimer = setTimeout(() => { longPressId = id }, 500)
   }
@@ -370,6 +408,17 @@
                     </button>
                   {/if}
                 {/each}
+                <!-- Clear completed -->
+                {#if editingNote.content.includes('[x] ')}
+                  <button
+                    onclick={clearCompleted}
+                    class="flex items-center gap-1.5 mt-3 text-xs font-black text-slate-400 hover:text-red-400 transition-colors cursor-pointer self-start"
+                  >
+                    <CheckCheck size={13} />
+                    Bersihkan yang selesai
+                  </button>
+                {/if}
+
                 <!-- Add new item -->
                 <div class="flex items-center gap-3 mt-2 pt-2 border-t border-dashed border-slate-100">
                   <span class="text-slate-200 flex-shrink-0"><Plus size={15} /></span>
@@ -484,6 +533,13 @@
                         <span class="text-[9px] font-black text-slate-500">{note.is_pinned ? 'Lepas' : 'Sematkan'}</span>
                       </button>
                       <button
+                        onclick={() => duplicateNote(note)}
+                        class="flex flex-col items-center gap-1 p-3 bg-white rounded-2xl shadow-lg cursor-pointer"
+                      >
+                        <Copy size={18} class="text-slate-500" />
+                        <span class="text-[9px] font-black text-slate-500">Duplikat</span>
+                      </button>
+                      <button
                         onclick={() => { deleteTargetId = note.id; longPressId = null }}
                         class="flex flex-col items-center gap-1 p-3 bg-white rounded-2xl shadow-lg cursor-pointer"
                       >
@@ -556,33 +612,35 @@
       {#if editingNote}
         <div class="flex-shrink-0 border-t border-slate-100 px-4 py-2 flex items-center gap-1 bg-white">
           <!-- Undo / Redo -->
-          <button
-            onclick={undo}
-            disabled={!canUndo}
-            class="p-2 rounded-xl transition-colors cursor-pointer {canUndo ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-200 cursor-not-allowed'}"
-          >
+          <button onclick={undo} disabled={!canUndo}
+            class="p-2 rounded-xl transition-colors {canUndo ? 'text-slate-600 hover:bg-slate-100 cursor-pointer' : 'text-slate-200 cursor-not-allowed'}">
             <Undo2 size={17} />
           </button>
-          <button
-            onclick={redo}
-            disabled={!canRedo}
-            class="p-2 rounded-xl transition-colors cursor-pointer {canRedo ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-200 cursor-not-allowed'}"
-          >
+          <button onclick={redo} disabled={!canRedo}
+            class="p-2 rounded-xl transition-colors {canRedo ? 'text-slate-600 hover:bg-slate-100 cursor-pointer' : 'text-slate-200 cursor-not-allowed'}">
             <Redo2 size={17} />
           </button>
 
-          <!-- Divider -->
-          <div class="w-px h-5 bg-slate-150 mx-1 bg-slate-200"></div>
+          <div class="w-px h-5 bg-slate-200 mx-1"></div>
 
           <!-- Checklist toggle -->
-          <button
-            onclick={toggleChecklistMode}
-            class="p-2 rounded-xl transition-colors cursor-pointer {checklistMode ? 'text-green-500 bg-green-50' : 'text-slate-400 hover:bg-slate-100'}"
-          >
+          <button onclick={toggleChecklistMode}
+            class="p-2 rounded-xl transition-colors cursor-pointer {checklistMode ? 'text-green-500 bg-green-50' : 'text-slate-400 hover:bg-slate-100'}">
             <ListChecks size={17} />
           </button>
 
-          <!-- Divider -->
+          <!-- Duplicate -->
+          <button onclick={() => duplicateNote(editingNote!)}
+            class="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer">
+            <Copy size={17} />
+          </button>
+
+          <!-- Share / Copy -->
+          <button onclick={shareNote}
+            class="p-2 rounded-xl transition-colors cursor-pointer {copied ? 'text-green-500 bg-green-50' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}">
+            {#if copied}<CheckCheck size={17} />{:else}<Share2 size={17} />{/if}
+          </button>
+
           <div class="w-px h-5 bg-slate-200 mx-1"></div>
 
           <!-- Color picker -->

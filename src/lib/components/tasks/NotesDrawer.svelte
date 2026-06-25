@@ -40,7 +40,9 @@
   let longPressTimer: ReturnType<typeof setTimeout> | null = null
   let newItemText   = $state('')
   let fullscreen      = $state(false)
-  let confirmDelete   = $state(false)
+  let deleteTargetId  = $state<string | null>(null)
+
+  let deleteTargetNote = $derived(notes.find(n => n.id === deleteTargetId) ?? null)
 
   // Undo/redo history
   let history      = $state<{ title: string; content: string }[]>([])
@@ -146,7 +148,6 @@
     editingNote = { ...note }
     history = [{ title: note.title, content: note.content }]
     historyIndex = 0
-    confirmDelete = false
   }
 
   function handleInput() {
@@ -186,7 +187,7 @@
     await supabase.from('notes').delete().eq('id', id)
     notes = notes.filter(n => n.id !== id)
     if (editingNote?.id === id) editingNote = null
-    confirmDelete = false
+    deleteTargetId = null
     longPressId = null
   }
 
@@ -255,7 +256,7 @@
   }
 
   function handleBack() {
-    if (editingNote) { saveNote(); editingNote = null; confirmDelete = false }
+    if (editingNote) { saveNote(); editingNote = null }
     else { fullscreen = false; onClose() }
   }
 </script>
@@ -308,29 +309,12 @@
           >
             {#if editingNote.is_pinned}<PinOff size={18} />{:else}<Pin size={18} />{/if}
           </button>
-          {#if confirmDelete}
-            <div class="flex items-center gap-1" transition:fade={{ duration: 100 }}>
-              <button
-                onclick={() => deleteNote(editingNote!.id)}
-                class="px-3 py-1.5 rounded-xl bg-red-500 text-white text-xs font-black cursor-pointer hover:bg-red-600 transition-colors"
-              >
-                Hapus
-              </button>
-              <button
-                onclick={() => confirmDelete = false}
-                class="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-500 text-xs font-black cursor-pointer hover:bg-slate-200 transition-colors"
-              >
-                Batal
-              </button>
-            </div>
-          {:else}
-            <button
-              onclick={() => confirmDelete = true}
-              class="p-2 rounded-2xl hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
-            >
-              <Trash2 size={18} />
-            </button>
-          {/if}
+          <button
+            onclick={() => deleteTargetId = editingNote!.id}
+            class="p-2 rounded-2xl hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
+          >
+            <Trash2 size={18} />
+          </button>
         {:else}
           <!-- List header: close | title+count | fullscreen | new -->
           <button onclick={onClose} class="p-2 rounded-2xl hover:bg-slate-100 transition-colors text-slate-400 cursor-pointer">
@@ -500,7 +484,7 @@
                         <span class="text-[9px] font-black text-slate-500">{note.is_pinned ? 'Lepas' : 'Sematkan'}</span>
                       </button>
                       <button
-                        onclick={() => deleteNote(note.id)}
+                        onclick={() => { deleteTargetId = note.id; longPressId = null }}
                         class="flex flex-col items-center gap-1 p-3 bg-white rounded-2xl shadow-lg cursor-pointer"
                       >
                         <Trash2 size={18} class="text-red-500" />
@@ -521,6 +505,52 @@
           {/if}
         {/if}
       </div>
+
+      <!-- Delete confirmation modal -->
+      {#if deleteTargetId}
+        <div
+          class="absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-6"
+          transition:fade={{ duration: 150 }}
+          onclick={() => deleteTargetId = null}
+          role="presentation"
+        >
+          <div
+            class="w-full max-w-xs bg-white rounded-3xl shadow-2xl overflow-hidden"
+            onclick={(e) => e.stopPropagation()}
+            transition:fly={{ y: 20, duration: 200 }}
+          >
+            <!-- Icon -->
+            <div class="flex justify-center pt-6 pb-3">
+              <div class="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center">
+                <Trash2 size={26} class="text-red-500" />
+              </div>
+            </div>
+            <!-- Text -->
+            <div class="px-6 pb-2 text-center">
+              <p class="font-black text-slate-800 text-base">Hapus catatan?</p>
+              <p class="text-sm text-slate-400 mt-1 line-clamp-2">
+                "{deleteTargetNote?.title || 'Tanpa judul'}"
+              </p>
+              <p class="text-xs text-slate-400 mt-2">Catatan yang dihapus tidak bisa dikembalikan.</p>
+            </div>
+            <!-- Actions -->
+            <div class="flex gap-3 px-6 py-5">
+              <button
+                onclick={() => deleteTargetId = null}
+                class="flex-1 py-3 rounded-2xl bg-slate-100 text-slate-600 text-sm font-black hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                onclick={() => deleteNote(deleteTargetId!)}
+                class="flex-1 py-3 rounded-2xl border-2 border-b-[4px] border-red-700 bg-red-500 text-white text-sm font-black hover:bg-red-600 transition-all active:translate-y-0.5 active:border-b-[2px] cursor-pointer"
+              >
+                Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      {/if}
 
       <!-- Bottom toolbar (editor only) -->
       {#if editingNote}

@@ -479,6 +479,14 @@
     if (error) { showToast('Gagal mengupdate status izin', 'error'); return }
     allLeaves = allLeaves.map(l => l.id === leave.id ? { ...l, status, approved_by: profile!.id, rejection_note: note || null } : l)
     showToast(`Izin berhasil di-${status === 'approved' ? 'setujui' : 'tolak'}`, 'success')
+
+    const leaveType = leave.type === 'sakit' ? 'Sakit' : 'Izin'
+    if (status === 'approved') {
+      notificationService.send(leave.user_id, 'leave_request', `${leaveType} Disetujui`, `Pengajuan ${leaveType.toLowerCase()} kamu pada ${new Date(leave.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long' })} telah disetujui.`, { url: '/absensi' }).catch(() => {})
+    } else {
+      notificationService.send(leave.user_id, 'leave_request', `${leaveType} Ditolak`, `Pengajuan ${leaveType.toLowerCase()} kamu pada ${new Date(leave.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long' })} ditolak${note ? `: ${note}` : '.'}`, { url: '/absensi' }).catch(() => {})
+    }
+
     showRejectLeaveModal = false
     rejectingLeave = null
   }

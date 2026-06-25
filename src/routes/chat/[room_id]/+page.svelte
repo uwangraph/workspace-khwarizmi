@@ -21,6 +21,7 @@
   import RoomInfo from '$lib/components/chat/RoomInfo.svelte'
   import ForwardModal from '$lib/components/chat/ForwardModal.svelte'
   import { markRoomAsRead } from '$lib/stores/chatReadStore'
+  import { globalRooms } from '$lib/stores/globalChatStore'
   import { X, Star, Forward, Trash2, Pin, ArrowDown } from 'lucide-svelte'
   import toast from 'svelte-french-toast'
 
@@ -174,6 +175,9 @@
       // hanya disembunyikan dari tampilan user ini saja
       myClearedAt = await chatService.clearChatForUser(roomId, user.id)
       messages = []
+      globalRooms.update(rooms => rooms.map(r =>
+        r.id === roomId ? { ...r, last_message: null } : r
+      ))
       toast.success('Chat berhasil dibersihkan')
     } catch (e) {
       console.error('[ClearChat] Error:', e)

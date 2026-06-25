@@ -556,21 +556,12 @@
         <p class="text-xs font-bold text-slate-400 mt-1">Khwarizmi Workspace</p>
       </div>
     </div>
-    <div class="flex items-center gap-4">
-      <a href="/chat" class="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white border-2 border-b-[4px] border-slate-200 hover:border-indigo-500 hover:text-indigo-600 text-xs font-black text-slate-600 active:translate-y-0.5 active:border-b-[2px] transition-all" title="Obrolan">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-        </svg>
-        Obrolan
-      </a>
-      <a href="/" class="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white border-2 border-b-[4px] border-slate-200 hover:border-slate-400 hover:text-slate-800 text-xs font-black text-slate-600 active:translate-y-0.5 active:border-b-[2px] transition-all" title="Dashboard">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-          <polyline points="9 22 9 12 15 12 15 22"/>
-        </svg>
-        Beranda
-      </a>
-    </div>
+    <a href="/" class="w-10 h-10 rounded-2xl bg-white border-2 border-b-[4px] border-slate-200 hover:border-slate-400 hover:text-slate-800 text-slate-500 flex items-center justify-center active:translate-y-0.5 active:border-b-[2px] transition-all" title="Beranda">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+        <polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+    </a>
   </header>
 
   {#if isLoading}

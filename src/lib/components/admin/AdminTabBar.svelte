@@ -21,7 +21,7 @@
 </script>
 
 <div class="sticky top-[64px] z-40 bg-white/90 backdrop-blur-md border-b-[4px] border-slate-200 py-2.5 px-4 shadow-xs">
-  <div class="max-w-6xl mx-auto flex items-center gap-1.5">
+  <div class="max-w-6xl mx-auto flex items-center justify-center gap-1.5">
     {#each TABS as tab}
       {@const isActive = activeTab === tab.id}
       <button

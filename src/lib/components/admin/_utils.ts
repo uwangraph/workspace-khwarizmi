@@ -11,12 +11,12 @@ export const STATUS_LABEL: Record<string, string> = {
   done:         'Selesai',
 }
 
-export const STATUS_STYLE: Record<string, { bg: string; text: string; bar: string }> = {
-  not_started: { bg: 'bg-slate-100', text: 'text-slate-600', bar: 'bg-slate-200' },
-  in_progress:  { bg: 'bg-blue-50',   text: 'text-blue-700',  bar: 'bg-blue-400'  },
-  review:       { bg: 'bg-purple-50', text: 'text-purple-700', bar: 'bg-purple-400' },
-  revision:     { bg: 'bg-amber-50',  text: 'text-amber-700',  bar: 'bg-amber-400'  },
-  done:         { bg: 'bg-green-50',  text: 'text-green-700',  bar: 'bg-green-400'  },
+export const STATUS_STYLE: Record<string, { bg: string; text: string; bar: string; badge: string }> = {
+  not_started: { bg: 'bg-slate-100', text: 'text-slate-600', bar: 'bg-slate-200', badge: 'bg-slate-50 text-slate-500 border-slate-200' },
+  in_progress:  { bg: 'bg-blue-50',   text: 'text-blue-700',  bar: 'bg-blue-400',   badge: 'bg-blue-50 text-blue-600 border-blue-200'   },
+  review:       { bg: 'bg-purple-50', text: 'text-purple-700', bar: 'bg-purple-400', badge: 'bg-purple-50 text-purple-600 border-purple-200' },
+  revision:     { bg: 'bg-amber-50',  text: 'text-amber-700',  bar: 'bg-amber-400',  badge: 'bg-amber-50 text-amber-600 border-amber-200'  },
+  done:         { bg: 'bg-green-50',  text: 'text-green-700',  bar: 'bg-green-400',  badge: 'bg-green-50 text-green-600 border-green-200'  },
 }
 
 export const PRIORITY_DOT: Record<string, string> = {

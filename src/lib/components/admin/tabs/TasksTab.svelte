@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Profile, Task, TaskAssignment } from '$lib/components/admin/_types'
   import { STATUS_LABEL, STATUS_STYLE, PRIORITY_DOT, getInitials, formatDate } from '$lib/components/admin/_utils'
-  import { Search, Eye, Trash2, ClipboardList, Bell } from 'lucide-svelte'
+  import { Search, Eye, Trash2, ClipboardList, Bell, MoreVertical } from 'lucide-svelte'
 
   interface Props {
     allTasks: Task[]
@@ -50,15 +50,16 @@
   let isUserDropdownOpen = $state(false)
   let userDropdownSearch = $state('')
 
-  let filteredUsersForDropdown = $derived(allUsers.filter(u => 
+  let filteredUsersForDropdown = $derived(allUsers.filter(u =>
     !userDropdownSearch || u.full_name.toLowerCase().includes(userDropdownSearch.toLowerCase())
   ))
 
+  let openMenuId = $state<string | null>(null)
+
   function handleBodyClick(e: MouseEvent) {
     const target = e.target as HTMLElement;
-    if (!target.closest('.custom-user-dropdown')) {
-      isUserDropdownOpen = false;
-    }
+    if (!target.closest('.custom-user-dropdown')) isUserDropdownOpen = false
+    if (!target.closest('.task-menu')) openMenuId = null
   }
 </script>
 
@@ -115,19 +116,19 @@
   </div>
 
   <!-- Status filter: pill tabs -->
-  <div class="flex gap-2 overflow-x-auto no-scrollbar pb-2 pt-1 px-1">
+  <div class="flex gap-1.5 overflow-x-auto no-scrollbar pb-1 pt-0.5 px-1">
     {#each [
-      { val: 'all',           label: 'Semua'    },
-      { val: 'overdue',       label: 'Overdue'  },
-      { val: 'high_priority', label: 'Prioritas' },
-      { val: 'not_started',   label: 'Belum'    },
-      { val: 'in_progress',   label: 'Dikerjakan'},
-      { val: 'review',        label: 'Review'   },
-      { val: 'revision',      label: 'Revisi'   },
-      { val: 'done',          label: 'Selesai'  },
+      { val: 'all',           label: 'Semua',     inactive: 'bg-slate-100 text-slate-500'  },
+      { val: 'overdue',       label: 'Overdue',   inactive: 'bg-red-50 text-red-400'       },
+      { val: 'high_priority', label: 'Prioritas', inactive: 'bg-amber-50 text-amber-500'   },
+      { val: 'not_started',   label: 'Belum',     inactive: 'bg-slate-100 text-slate-500'  },
+      { val: 'in_progress',   label: 'Dikerjakan',inactive: 'bg-blue-50 text-blue-500'     },
+      { val: 'review',        label: 'Review',    inactive: 'bg-purple-50 text-purple-500' },
+      { val: 'revision',      label: 'Revisi',    inactive: 'bg-amber-50 text-amber-600'   },
+      { val: 'done',          label: 'Selesai',   inactive: 'bg-green-50 text-green-600'   },
     ] as f}
       <button onclick={() => taskFilter = f.val as any}
-              class="px-4 py-2.5 rounded-2xl font-black text-xs transition-all flex-shrink-0 cursor-pointer active:translate-y-0.5 border-2 {taskFilter === f.val ? 'bg-orange-100 text-orange-600 border-b-[4px] border-orange-500 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}"
+              class="px-3.5 py-2 rounded-2xl font-black text-xs transition-all flex-shrink-0 cursor-pointer active:scale-95 {taskFilter === f.val ? 'bg-orange-500 text-white shadow-sm' : f.inactive}"
               style="font-family:'Plus Jakarta Sans',sans-serif;">
         {f.label}
       </button>
@@ -144,56 +145,64 @@
       <p class="text-sm font-black text-slate-500">Tidak ada tugas ditemukan</p>
     </div>
   {:else}
-      <div class="bg-white rounded-[24px] border-2 border-b-[6px] border-slate-200 overflow-hidden grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100 shadow-xs">
+      <div class="bg-white rounded-[24px] border-2 border-b-[6px] border-slate-200 grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100 shadow-xs">
         {#each paginated as task}
         {@const ss = STATUS_STYLE[task.status]}
         {@const assignees = getAssignees(task.id)}
         {@const overdue = isOverdue(task)}
-        <div class="task-row group flex items-center gap-4 p-4 hover:bg-slate-50/80 transition-colors cursor-pointer border-b border-slate-100"
+        <div class="task-row group flex items-center gap-3 pl-3 pr-4 py-3.5 hover:bg-slate-50/60 transition-colors cursor-pointer border-b border-slate-100 relative"
              onclick={() => onViewTask(task)}>
 
-          <!-- Priority vertical pill -->
-          <div class="w-3 h-12 rounded-full flex-shrink-0 shadow-inner" style="background:{PRIORITY_DOT[task.priority]}"></div>
+          <!-- Priority bar -->
+          <div class="w-[3px] self-stretch rounded-full flex-shrink-0" style="background:{PRIORITY_DOT[task.priority]}"></div>
 
           <!-- Main content -->
           <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2.5">
-              <p class="text-base font-black text-slate-800 truncate" style="font-family:'Plus Jakarta Sans',sans-serif;">{task.title}</p>
+            <div class="flex items-center gap-2">
+              <p class="text-sm font-black text-slate-800 truncate" style="font-family:'Plus Jakarta Sans',sans-serif;">{task.title}</p>
               {#if overdue}
-                <span class="text-[10px] font-black text-white bg-red-500 px-2 py-0.5 rounded-full flex-shrink-0 border border-red-600 shadow-xs uppercase tracking-wider">Overdue</span>
+                <span class="text-[9px] font-black text-red-500 flex-shrink-0 uppercase tracking-wider">Overdue</span>
               {/if}
             </div>
-            <p class="text-xs font-bold text-slate-400 mt-1 truncate">
-              <span class="text-slate-600">{getUserName(task.created_by)}</span>
-              {#if task.due_date} <span class="mx-1 text-slate-300">·</span> <span class="text-orange-500">{formatDate(task.due_date)}</span>{/if}
-              {#if assignees.length > 0} <span class="mx-1 text-slate-300">·</span> {assignees.slice(0,2).map(a => a.full_name.split(' ')[0]).join(', ')}{assignees.length > 2 ? ` +${assignees.length-2}` : ''}{/if}
-            </p>
+            <div class="flex items-center gap-2 mt-1 flex-wrap">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border {ss.badge}">{STATUS_LABEL[task.status]}</span>
+              {#if task.due_date}
+                <span class="text-[11px] font-bold text-orange-500">{formatDate(task.due_date)}</span>
+              {/if}
+              {#if assignees.length > 0}
+                <span class="text-[11px] font-bold text-slate-400">{assignees.slice(0,2).map(a => a.full_name.split(' ')[0]).join(', ')}{assignees.length > 2 ? ` +${assignees.length-2}` : ''}</span>
+              {/if}
+            </div>
             {#if task.progress > 0}
-              <div class="mt-2.5 h-2 bg-slate-100 rounded-full overflow-hidden w-28 p-0.5 border border-slate-200/50 shadow-inner">
+              <div class="mt-2 h-1.5 bg-slate-200 rounded-full overflow-hidden w-28">
                 <div class="h-full rounded-full bg-gradient-to-r from-orange-400 to-orange-500 transition-all" style="width:{task.progress}%"></div>
               </div>
             {/if}
           </div>
 
-          <!-- Status badge -->
-          <span class="text-[10px] font-black px-2.5 py-1 rounded-full flex-shrink-0 {ss.bg} {ss.text} border border-slate-200/50 uppercase tracking-wider">
-            {STATUS_LABEL[task.status]}
-          </span>
-
-          <!-- Action buttons -->
-          <div class="flex gap-1.5 flex-shrink-0">
-            <button onclick={e => { e.stopPropagation(); onViewTask(task) }}
-                    class="w-10 h-10 rounded-xl border-2 border-b-[4px] border-slate-200 bg-white hover:border-orange-500 flex items-center justify-center text-slate-500 hover:text-orange-600 active:translate-y-0.5 active:border-b-[2px] transition-all cursor-pointer" title="Detail">
-              <Eye size={16} />
+          <!-- Titik tiga -->
+          <div class="relative task-menu flex-shrink-0">
+            <button onclick={e => { e.stopPropagation(); openMenuId = openMenuId === task.id ? null : task.id }}
+                    class="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all cursor-pointer">
+              <MoreVertical size={16} />
             </button>
-            <button onclick={e => { e.stopPropagation(); onRemindTask(task) }}
-                    class="w-10 h-10 rounded-xl border-2 border-b-[4px] border-slate-200 bg-white hover:border-amber-500 flex items-center justify-center text-slate-500 hover:text-amber-600 active:translate-y-0.5 active:border-b-[2px] transition-all cursor-pointer" title="Kirim Pengingat">
-              <Bell size={16} />
-            </button>
-            <button onclick={e => { e.stopPropagation(); onDeleteTask(task) }}
-                    class="w-10 h-10 rounded-xl border-2 border-b-[4px] border-slate-200 bg-white hover:border-red-500 flex items-center justify-center text-slate-500 hover:text-red-500 active:translate-y-0.5 active:border-b-[2px] transition-all cursor-pointer">
-              <Trash2 size={16} />
-            </button>
+            {#if openMenuId === task.id}
+              <div class="absolute right-0 top-full mt-1 w-44 bg-white rounded-2xl border-2 border-b-[4px] border-slate-200 shadow-xl z-[9999] overflow-hidden py-1">
+                <button onclick={e => { e.stopPropagation(); openMenuId = null; onViewTask(task) }}
+                        class="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-orange-50 hover:text-orange-600 transition-colors cursor-pointer">
+                  <Eye size={14} /> Lihat Detail
+                </button>
+                <button onclick={e => { e.stopPropagation(); openMenuId = null; onRemindTask(task) }}
+                        class="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-amber-50 hover:text-amber-600 transition-colors cursor-pointer">
+                  <Bell size={14} /> Kirim Pengingat
+                </button>
+                <div class="mx-3 my-1 border-t border-slate-100"></div>
+                <button onclick={e => { e.stopPropagation(); openMenuId = null; onDeleteTask(task) }}
+                        class="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-red-500 hover:bg-red-50 transition-colors cursor-pointer">
+                  <Trash2 size={14} /> Hapus Tugas
+                </button>
+              </div>
+            {/if}
           </div>
         </div>
       {/each}

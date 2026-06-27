@@ -205,11 +205,11 @@
 
     <!-- Grid -->
     <div class="bg-white rounded-[24px] shadow-xs border-2 border-b-[6px] border-slate-200 overflow-hidden">
-      <div class="grid bg-slate-50 border-b-2 border-slate-100 p-4"
-           style="grid-template-columns: 1fr {activeSessions.map(() => 'auto').join(' ')}">
-        <span class="text-xs font-black text-slate-500 uppercase tracking-wider">Pengguna</span>
+      <!-- Header -->
+      <div class="flex items-center bg-slate-50 border-b-2 border-slate-100 px-4 py-3 gap-2">
+        <span class="flex-1 text-[10px] font-black text-slate-500 uppercase tracking-wider">Pengguna</span>
         {#each activeSessions as s}
-          <span class="text-xs font-black text-slate-500 uppercase tracking-wider text-center w-16">{s.label}</span>
+          <span class="w-12 text-[10px] font-black text-slate-500 uppercase tracking-wider text-center flex-shrink-0">{s.label}</span>
         {/each}
       </div>
       {#if filtered.length === 0}
@@ -220,39 +220,40 @@
           {@const userAtt = getUserAtt(u.id)}
           {@const userLeaves = allLeaves.filter(l => l.user_id === u.id && l.date === attendanceDate && l.status !== 'rejected')}
           <div role="button" tabindex="0" onclick={() => selectedDetailUser = u} onkeydown={(e) => e.key === 'Enter' && (selectedDetailUser = u)}
-               class="grid items-center p-4 hover:bg-slate-50/80 transition-colors cursor-pointer text-left"
-               style="grid-template-columns: 1fr {activeSessions.map(() => 'auto').join(' ')}; gap: 12px;">
-            <div class="flex items-center gap-3 min-w-0">
-              <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xs font-black text-white overflow-hidden shadow-sm border border-orange-300"
+               class="flex items-center gap-2 px-4 py-3 hover:bg-slate-50/80 transition-colors cursor-pointer">
+            <!-- User info -->
+            <div class="flex items-center gap-2.5 flex-1 min-w-0">
+              <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-xs font-black text-white overflow-hidden shadow-sm border border-orange-300"
                    style="background:linear-gradient(135deg,#F97316,#EA580C)">
                 {#if u.avatar_url}<img src={u.avatar_url} alt="" class="w-full h-full object-cover" />{:else}{getInitials(u.full_name)}{/if}
               </div>
               <div class="min-w-0">
                 <p class="text-sm font-black text-slate-800 truncate" style="font-family:'Plus Jakarta Sans',sans-serif;">{u.full_name}</p>
-                <p class="text-[10px] font-bold text-slate-400">{u.position || 'Anggota'}</p>
+                <p class="text-[10px] font-bold text-slate-400 truncate">{u.position || 'Anggota'}</p>
               </div>
             </div>
+            <!-- Session cells -->
             {#each activeSessions as s}
               {@const att = userAtt.find(a => a.session_id === s.id)}
               {@const leave = userLeaves.find(l => l.session_id === null || l.session_id === s.id)}
-              <div class="w-16 text-center flex items-center justify-center">
+              <div class="w-12 flex-shrink-0 flex items-center justify-center">
                 {#if att?.clock_out}
-                  <div class="flex flex-col items-center gap-1 bg-green-50 border-2 border-green-200 p-1.5 rounded-xl w-full">
-                    <div class="w-6 h-6 rounded-lg bg-green-500 flex items-center justify-center shadow-xs"><CheckCircle2 size={14} class="text-white" /></div>
-                    <span class="text-[10px] text-green-700 font-black leading-none">{formatTime(att.clock_in)}</span>
+                  <div class="w-9 h-9 rounded-xl bg-green-500 flex flex-col items-center justify-center shadow-xs border-2 border-green-600 gap-0.5" title="In: {formatTime(att.clock_in)} · Out: {formatTime(att.clock_out)}">
+                    <CheckCircle2 size={13} class="text-white" />
+                    <span class="text-[8px] text-white font-black leading-none">{formatTime(att.clock_in)}</span>
                   </div>
                 {:else if att?.clock_in}
-                  <div class="flex flex-col items-center gap-1 bg-orange-50 border-2 border-orange-200 p-1.5 rounded-xl w-full">
-                    <div class="w-6 h-6 rounded-lg bg-orange-500 flex items-center justify-center shadow-xs"><Clock size={14} class="text-white" /></div>
-                    <span class="text-[10px] text-orange-700 font-black leading-none">{formatTime(att.clock_in)}</span>
+                  <div class="w-9 h-9 rounded-xl bg-orange-400 flex flex-col items-center justify-center shadow-xs border-2 border-orange-600 gap-0.5" title="In: {formatTime(att.clock_in)}">
+                    <Clock size={13} class="text-white" />
+                    <span class="text-[8px] text-white font-black leading-none">{formatTime(att.clock_in)}</span>
                   </div>
                 {:else if leave}
-                  <div class="w-10 h-10 rounded-xl border-2 {leave.type === 'sakit' ? 'bg-red-50 text-red-500 border-red-200' : 'bg-orange-50 text-orange-500 border-orange-200'} flex items-center justify-center shadow-xs" title="{leave.type} ({leave.status})">
-                    <FileText size={16} />
+                  <div class="w-9 h-9 rounded-xl border-2 {leave.type === 'sakit' ? 'bg-red-50 text-red-400 border-red-200' : 'bg-amber-50 text-amber-400 border-amber-200'} flex items-center justify-center" title="{leave.type}">
+                    <FileText size={14} />
                   </div>
                 {:else}
-                  <div class="w-10 h-10 rounded-xl border-2 {dateIsHoliday || dateIsFriday ? 'bg-amber-50 border-amber-200 text-base' : 'bg-slate-50 border-slate-200'} flex items-center justify-center shadow-xs">
-                    {#if dateIsHoliday || dateIsFriday}<span>🎉</span>{:else}<X size={14} class="text-slate-300" />{/if}
+                  <div class="w-9 h-9 rounded-xl border-2 {dateIsHoliday || dateIsFriday ? 'bg-amber-50 border-amber-100 text-sm' : 'bg-slate-50 border-slate-100'} flex items-center justify-center">
+                    {#if dateIsHoliday || dateIsFriday}<span>🎉</span>{:else}<X size={13} class="text-slate-200" />{/if}
                   </div>
                 {/if}
               </div>
@@ -288,42 +289,41 @@
     {/if}
 
     <div class="bg-white rounded-[24px] shadow-xs border-2 border-b-[6px] border-slate-200 overflow-hidden">
-      <div class="p-4 border-b-2 border-slate-100 bg-slate-50 flex items-center justify-between">
-        <span class="text-xs font-black text-slate-500 uppercase tracking-wider">Pengguna</span>
-        <span class="text-xs font-black text-slate-500 uppercase tracking-wider">Hadir / Kerja / Telat</span>
+      <div class="px-4 py-3 border-b-2 border-slate-100 bg-slate-50 flex items-center justify-between">
+        <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Pengguna</span>
+        <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Hadir · Kehadiran · Telat</span>
       </div>
       {#if filtered.length === 0}
         <div class="py-16 text-center"><p class="text-sm font-black text-slate-400">Tidak ada pengguna</p></div>
       {:else}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+        <div class="divide-y divide-slate-100">
           {#each paginated as u}
             {@const stat = getMonthlyAttendanceStat(u.id, attendanceMonth, monthlyAttendance, holidays)}
-            <div class="p-5 hover:bg-slate-50/80 transition-colors border-b border-slate-100 flex flex-col gap-3">
-              <div class="flex items-center justify-between gap-3">
-                <div class="flex items-center gap-3 min-w-0">
-                  <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xs font-black text-white overflow-hidden shadow-sm border border-orange-300"
-                       style="background:linear-gradient(135deg,#F97316,#EA580C)">
-                    {#if u.avatar_url}<img src={u.avatar_url} alt="" class="w-full h-full object-cover" />{:else}{getInitials(u.full_name)}{/if}
-                  </div>
-                  <div class="min-w-0">
-                    <p class="text-sm font-black text-slate-800 truncate" style="font-family:'Plus Jakarta Sans',sans-serif;">{u.full_name}</p>
-                    <p class="text-[10px] font-bold text-slate-400">{u.position || 'Anggota'}</p>
-                  </div>
+            {@const color = stat.presentRate >= 80 ? '#22C55E' : stat.presentRate >= 50 ? '#F59E0B' : '#EF4444'}
+            {@const colorClass = stat.presentRate >= 80 ? 'bg-green-50 text-green-600 border-green-200' : stat.presentRate >= 50 ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-red-50 text-red-600 border-red-200'}
+            <div class="px-4 py-3.5 hover:bg-slate-50/60 transition-colors flex flex-col gap-2.5">
+              <!-- Baris 1: avatar + nama + stats -->
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-xs font-black text-white overflow-hidden shadow-sm border border-orange-300"
+                     style="background:linear-gradient(135deg,#F97316,#EA580C)">
+                  {#if u.avatar_url}<img src={u.avatar_url} alt="" class="w-full h-full object-cover" />{:else}{getInitials(u.full_name)}{/if}
                 </div>
-                <div class="text-right flex-shrink-0">
-                  <p class="text-base font-black text-slate-800">{stat.totalPresentDays}<span class="text-xs font-bold text-slate-400">/{stat.totalWorkingDays}hr</span></p>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-black text-slate-800 truncate leading-tight" style="font-family:'Plus Jakarta Sans',sans-serif;">{u.full_name}</p>
+                  <p class="text-[10px] font-bold text-slate-400">{u.position || 'Anggota'}</p>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                  <span class="text-sm font-black text-slate-700">{stat.totalPresentDays}<span class="text-xs font-bold text-slate-400">/{stat.totalWorkingDays}</span></span>
+                  <span class="text-xs font-black px-2 py-0.5 rounded-lg border {colorClass}">{stat.presentRate}%</span>
                   {#if stat.totalLate > 0}
-                    <span class="text-[10px] font-black px-2 py-0.5 rounded-full bg-red-100 border border-red-200 text-red-600 inline-block mt-0.5">{stat.totalLate}× telat</span>
+                    <span class="text-[10px] font-black px-2 py-0.5 rounded-lg bg-red-50 border border-red-200 text-red-500">{stat.totalLate}×</span>
                   {/if}
                 </div>
               </div>
-              <div class="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/60 shadow-inner">
-                <div class="h-full rounded-full transition-all"
-                     style="width:{Math.min(stat.presentRate,100)}%; background:{stat.presentRate>=80?'linear-gradient(90deg,#22C55E,#34D399)':stat.presentRate>=50?'linear-gradient(90deg,#F59E0B,#FBBF24)':'linear-gradient(90deg,#EF4444,#F87171)'}"></div>
-              </div>
-              <div class="flex justify-between items-center">
-                <span class="text-xs font-bold text-slate-400">Tingkat Kehadiran</span>
-                <span class="text-xs font-black px-2 py-0.5 rounded-lg border {stat.presentRate>=80?'bg-green-50 text-green-600 border-green-200':stat.presentRate>=50?'bg-amber-50 text-amber-600 border-amber-200':'bg-red-50 text-red-600 border-red-200'}">{stat.presentRate}%</span>
+              <!-- Baris 2: progress bar -->
+              <div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div class="h-full rounded-full transition-all duration-500"
+                     style="width:{Math.min(stat.presentRate,100)}%; background:{color}"></div>
               </div>
             </div>
           {/each}

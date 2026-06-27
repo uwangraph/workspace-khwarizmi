@@ -1,0 +1,11 @@
+// Mock for $env/static/public
+export const PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
+export const PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
+export const PUBLIC_FIREBASE_API_KEY = 'test-firebase-key'
+export const PUBLIC_FIREBASE_AUTH_DOMAIN = 'test.firebaseapp.com'
+export const PUBLIC_FIREBASE_PROJECT_ID = 'test-project'
+export const PUBLIC_FIREBASE_STORAGE_BUCKET = 'test-bucket'
+export const PUBLIC_FIREBASE_MESSAGING_SENDER_ID = '123456'
+export const PUBLIC_FIREBASE_APP_ID = '1:123456:web:abc'
+export const PUBLIC_FIREBASE_MEASUREMENT_ID = 'G-TEST'
+export const PUBLIC_FIREBASE_VAPID_KEY = 'test-vapid-key'

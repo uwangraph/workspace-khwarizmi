@@ -4,6 +4,11 @@ import tailwindcss from '@tailwindcss/vite'
 import { SvelteKitPWA } from '@vite-pwa/sveltekit'
 
 export default defineConfig({
+  server: {
+    watch: {
+      ignored: ['**/migrations/**']
+    }
+  },
   plugins: [
     tailwindcss(),
     sveltekit(),
@@ -19,6 +24,8 @@ export default defineConfig({
         display: 'standalone',
         scope: '/',
         start_url: '/',
+        orientation: 'portrait',
+        lang: 'id',
         icons: [
           {
             src: 'logo-khwarizmi-192.png',
@@ -30,7 +37,7 @@ export default defineConfig({
             src: 'logo-khwarizmi-512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any'
+            purpose: 'any maskable'
           }
         ]
       },

@@ -38,6 +38,7 @@
 
   // Forgot password state
   let forgotEmail = $state('')
+  let regEmail = $state('')
 
   async function handleLogin() {
     errorMsg = ''

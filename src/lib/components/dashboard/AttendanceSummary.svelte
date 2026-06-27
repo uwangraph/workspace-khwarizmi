@@ -6,31 +6,32 @@
   }
   let { attendance, sessions }: Props = $props()
 </script>
-<section class="flex flex-col gap-2">
+
+<section class="flex flex-col gap-3">
   <div class="flex justify-between items-center px-1">
-    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Absensi Hari Ini</p>
-    <a href="/absensi" class="text-[10px] font-bold text-orange-600 flex items-center gap-1 cursor-pointer hover:text-orange-700 transition-colors">
-      Detail Absensi <ArrowRight size={12} />
+    <h3 class="text-lg font-black text-slate-800 tracking-tight" style="font-family:'Plus Jakarta Sans',sans-serif;">Presensi Hari Ini</h3>
+    <a href="/absensi" class="text-xs font-extrabold text-orange-600 bg-orange-50 hover:bg-orange-100 px-3 py-1.5 rounded-xl flex items-center gap-1 transition-colors cursor-pointer">
+      Detail <ArrowRight size={14} strokeWidth={2.5} />
     </a>
   </div>
-  <div class="bg-white rounded-2xl border border-slate-100 overflow-hidden divide-y divide-slate-50">
+  <div class="flex flex-col gap-3">
     {#each sessions as s}
       {@const log = attendance.find(a => a.session_id === s.id)}
-      <div class="flex items-center justify-between p-4">
-        <div class="flex items-center gap-3">
-          <div class="w-2 h-2 rounded-full {log?.clock_out ? 'bg-green-500' : log?.clock_in ? 'bg-orange-500' : 'bg-slate-200'}"></div>
+      <div class="bg-white rounded-[24px] border-2 border-b-[6px] border-slate-200 p-5 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <div class="w-3.5 h-3.5 rounded-full {log?.clock_out ? 'bg-emerald-500 ring-4 ring-emerald-100' : log?.clock_in ? 'bg-orange-500 ring-4 ring-orange-100' : 'bg-slate-200'}"></div>
           <div>
-            <p class="text-sm font-semibold text-slate-800">{s.label}</p>
-            <p class="text-[10px] text-slate-400">{s.time}</p>
+            <p class="text-base font-extrabold text-slate-800">{s.label}</p>
+            <p class="text-xs font-bold text-slate-400 mt-0.5">{s.time}</p>
           </div>
         </div>
-        <div class="text-right">
+        <div>
           {#if log?.clock_out}
-            <span class="text-[9px] font-bold px-2 py-1 bg-green-50 text-green-600 rounded-lg">SELESAI</span>
+            <span class="inline-block text-xs font-extrabold px-3.5 py-1.5 bg-emerald-100 text-emerald-700 rounded-xl">SELESAI</span>
           {:else if log?.clock_in}
-            <span class="text-[9px] font-bold px-2 py-1 bg-orange-50 text-orange-600 rounded-lg">AKTIF</span>
+            <span class="inline-block text-xs font-extrabold px-3.5 py-1.5 bg-orange-100 text-orange-700 rounded-xl">AKTIF</span>
           {:else}
-            <span class="text-[9px] font-bold px-2 py-1 bg-slate-50 text-slate-400 rounded-lg">BELUM</span>
+            <span class="inline-block text-xs font-extrabold px-3.5 py-1.5 bg-slate-100 text-slate-400 rounded-xl">BELUM</span>
           {/if}
         </div>
       </div>

@@ -8,7 +8,7 @@
     onClose: () => void
     onSubmit: (message: string) => void
   }
-  let { user, onClose, onSubmit } = $props<Props>()
+  let { user, onClose, onSubmit }: Props = $props()
 
   let message = $state('')
   let isSubmitting = $state(false)

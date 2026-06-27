@@ -6,7 +6,7 @@
     onConfirm: () => void
     onClose: () => void
   }
-  let { title, message, isDeleting = false, onConfirm, onClose } = $props<Props>()
+  let { title, message, isDeleting = false, onConfirm, onClose }: Props = $props()
 </script>
 
 <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center"

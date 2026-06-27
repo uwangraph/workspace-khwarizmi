@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
+    import { appearanceStore } from '$lib/stores/appearanceStore';
     import './layout.css';
     import { page } from '$app/stores';
     import { Toaster, toast } from 'svelte-french-toast';
@@ -19,14 +20,14 @@
     import { X, AlertTriangle, RefreshCw } from 'lucide-svelte';
 
     // ── Constants & Layout ──────────────────────────────
-    const hiddenNavRoutes = ['/auth', '/login', '/register', '/admin', '/notifications', '/docs'];
+    const hiddenNavRoutes = ['/auth', '/login', '/register', '/admin', '/notifications', '/docs', '/meeting'];
     const showNav = $derived(
         !hiddenNavRoutes.some((route) => $page.url.pathname.startsWith(route)) &&
         // Sembunyikan nav hanya di dalam ruang chat (sub-route), bukan di halaman daftar /chat
         !($page.url.pathname.startsWith('/chat/') && $page.url.pathname.length > 6)
     );
 
-    const fullWidthRoutes = ['/admin', '/auth', '/login', '/register', '/docs'];
+    const fullWidthRoutes = ['/admin', '/auth', '/login', '/register', '/docs', '/meeting'];
     const isFullWidthLayout = $derived(
         fullWidthRoutes.some((route) => $page.url.pathname.startsWith(route))
     );
@@ -39,6 +40,18 @@
     let showIOSInstallBanner = $state(false);
     let audio: HTMLAudioElement;
 
+    // ── Call State ─────────────────────────────────────
+    let callUserProfile = $state<{ full_name: string; avatar_url?: string } | null>(null)
+    let activeCallRoomName = $derived(
+        $callState.status !== 'idle' && 'roomName' in $callState ? $callState.roomName ?? '' : ''
+    )
+    let activeCallKind = $derived(
+        ($callState.status === 'calling' || $callState.status === 'ongoing') ? $callState.kind : null
+    )
+    let incomingCallerAvatar = $derived(
+        $callState.status === 'incoming' ? $callState.callerAvatar ?? '' : ''
+    )
+
     // ── Deletion State ─────────────────────────────────
     import { setContext } from 'svelte';
     import { writable } from 'svelte/store';
@@ -50,6 +63,7 @@
     let isCancelingDeletion = $state(false);
     let chatReplyText = $state('');
     let isReplyingChat = $state(false);
+    let hydratedIncomingCallFromPush = false;
 
     // Provide deletion state to all pages
     const deletionStore = writable(false);
@@ -59,10 +73,122 @@
     // ── Global Heartbeat (Online Status) ────────────────
     import { authService } from '$lib/services/authService';
     import { refreshGlobalChat } from '$lib/stores/globalChatStore';
+    import { callService } from '$lib/services/callService';
+    import { callState } from '$lib/stores/callStore';
+    import IncomingCallBanner from '$lib/components/chat/IncomingCallBanner.svelte';
+    import IncomingCallScreen from '$lib/components/chat/IncomingCallScreen.svelte';
+    import VideoCallOverlay from '$lib/components/chat/VideoCallOverlay.svelte';
+    import WhatsAppCallOverlay from '$lib/components/chat/WhatsAppCallOverlay.svelte';
+    import PreJoinScreen from '$lib/components/chat/PreJoinScreen.svelte';
+    import MinimizedCallBanner from '$lib/components/chat/MinimizedCallBanner.svelte';
+
+
+    $effect(() => {
+        if (user) {
+            callService.subscribeGlobal(user.id)
+            // Fetch profile name & avatar for accepting calls
+            supabase.from('profiles').select('full_name, avatar_url').eq('id', user.id).single()
+                .then(({ data }) => { if (data) callUserProfile = data as any })
+        }
+        return () => {
+            callService.unsubscribeGlobal()
+        }
+    })
+
+    function handleAcceptCall(roomId: string, roomName: string) {
+        // Meeting: lewati prejoin dulu
+        if (!user) return
+        callService.prepareCall(roomId, roomName, 'join')
+    }
+
+    async function handleAcceptChatCall(roomId: string, roomName: string, voiceOnly: boolean) {
+        // Chat call: langsung join tanpa prejoin
+        if (!user) return
+        const userName = callUserProfile?.full_name || 'Pengguna'
+        try {
+            await callService.getLocalStream(!voiceOnly, true)
+        } catch {
+            toast.error(voiceOnly ? 'Izin mikrofon diperlukan' : 'Izin kamera/mikrofon diperlukan')
+            callService.declineCall()
+            return
+        }
+        try {
+            await callService.joinCall(roomId, roomName, user.id, userName, { kind: 'call', voiceOnly })
+        } catch (e) {
+            console.error('Failed to join chat call:', e)
+            toast.error('Gagal bergabung ke panggilan')
+            callService.declineCall()
+        }
+    }
+
+    async function handlePreJoin() {
+        const cs = $callState
+        if (cs.status !== 'prejoin' || !user) return
+        const userName = callUserProfile?.full_name || 'Pengguna'
+        try {
+            if (cs.mode === 'start') {
+                await callService.startCall(cs.roomId, cs.roomName, user.id, userName, cs.participantIds ?? [user.id], { kind: 'meeting' })
+            } else {
+                await callService.joinCall(cs.roomId, cs.roomName, user.id, userName, { kind: 'meeting' })
+            }
+        } catch (e) {
+            console.error('Pre-join failed:', e)
+            toast.error('Gagal terhubung ke rapat')
+            callService.cancelPreJoin()
+        }
+    }
+
+    function handlePreJoinCancel() {
+        callService.cancelPreJoin()
+    }
+
+    function hydrateIncomingCallFromPush() {
+        if (hydratedIncomingCallFromPush || !user || typeof window === 'undefined') return;
+
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('incoming_call') !== '1') return;
+
+        const roomId = params.get('call_room_id') || $page.params.room_id;
+        const callerId = params.get('caller_id') || '';
+        if (!roomId || callerId === user.id) return;
+
+        hydratedIncomingCallFromPush = true;
+        const roomName = params.get('call_room_name') || 'Panggilan';
+        const callerName = params.get('caller_name') || 'Pengguna';
+        const kind = params.get('call_kind') === 'meeting' ? 'meeting' : 'call';
+        const voiceOnly = params.get('voice_only') === 'true';
+        const autoAccept = params.get('auto_accept') === '1';
+
+        // Set callState langsung dari URL params (tidak menunggu Realtime),
+        // sehingga jika auto_accept=1, $effect bisa langsung memicu accept
+        callState.set({
+            status: 'incoming',
+            roomId,
+            roomName,
+            callerId,
+            callerName,
+            kind,
+            voiceOnly
+        });
+
+        const cleanUrl = new URL(window.location.href);
+        [
+            'incoming_call',
+            'call_room_id',
+            'call_room_name',
+            'caller_id',
+            'caller_name',
+            'call_kind',
+            'voice_only',
+            'auto_accept'
+        ].forEach((key) => cleanUrl.searchParams.delete(key));
+        history.replaceState(history.state, '', cleanUrl);
+    }
 
     $effect(() => {
         let interval: any;
         if (user) {
+            hydrateIncomingCallFromPush();
             // Update immediately
             authService.updateLastSeen(user.id);
             // Update every 30 seconds
@@ -134,38 +260,45 @@
                 }
             });
 
-            // Meminta izin FCM memerlukan interaksi pengguna (User Gesture) di iOS & Android PWA.
-            // Jika sudah diizinkan, langsung ambil token. Jika belum, tunggu klik pertama.
-            const initFCM = () => {
-                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-                const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-                
-                // Di iOS, push notification web hanya bekerja di mode Standalone (PWA)
-                if (isIOS && !isStandalone) {
-                    console.log('[Layout] FCM skipped: iOS requires PWA Mode for Push Notifications.');
+            // Di native Android (Capacitor), langsung register tanpa cek Web Notification API
+            // karena Android WebView tidak punya 'Notification' in window
+            import('@capacitor/core').then(({ Capacitor }) => {
+                if (Capacitor.isNativePlatform()) {
+                    notificationService.requestPermissionAndGetToken(user.id);
                     return;
                 }
 
-                if ('Notification' in window) {
-                    if (Notification.permission !== 'denied') {
-                        notificationService.requestPermissionAndGetToken(user.id);
-                    } else {
-                        console.warn('[Layout] FCM skipped: Notification permission denied.');
-                    }
-                }
-            };
+                // Web path: butuh interaksi user di iOS PWA / browser biasa
+                const initFCM = () => {
+                    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+                    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
 
-            if ('Notification' in window && Notification.permission === 'granted') {
-                initFCM();
-            } else {
-                const onFirstInteraction = () => {
-                    initFCM();
-                    document.removeEventListener('click', onFirstInteraction);
-                    document.removeEventListener('touchstart', onFirstInteraction);
+                    if (isIOS && !isStandalone) {
+                        console.log('[Layout] FCM skipped: iOS requires PWA Mode for Push Notifications.');
+                        return;
+                    }
+
+                    if ('Notification' in window) {
+                        if (Notification.permission !== 'denied') {
+                            notificationService.requestPermissionAndGetToken(user.id);
+                        } else {
+                            console.warn('[Layout] FCM skipped: Notification permission denied.');
+                        }
+                    }
                 };
-                document.addEventListener('click', onFirstInteraction);
-                document.addEventListener('touchstart', onFirstInteraction, { passive: true });
-            }
+
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    initFCM();
+                } else {
+                    const onFirstInteraction = () => {
+                        initFCM();
+                        document.removeEventListener('click', onFirstInteraction);
+                        document.removeEventListener('touchstart', onFirstInteraction);
+                    };
+                    document.addEventListener('click', onFirstInteraction);
+                    document.addEventListener('touchstart', onFirstInteraction, { passive: true });
+                }
+            });
         }
 
         return () => {
@@ -200,6 +333,7 @@
             showIOSInstallBanner = false;
         });
 
+        appearanceStore.init();
         checkDeletionStatus();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -319,6 +453,9 @@
 </script>
 
 <svelte:head>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=DM+Sans:wght@400;500;600;700;800&family=Nunito:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet" />
     <link rel="icon" type="image/png" href="/logo-khwarizmi.png" />
     <link rel="apple-touch-icon" href="/logo-khwarizmi.png" />
 </svelte:head>
@@ -328,7 +465,28 @@
 		? 'relative min-h-screen bg-slate-50 pt-[env(safe-area-inset-top)]'
 		: 'relative mx-auto min-h-screen max-w-xl overflow-hidden bg-white pt-[env(safe-area-inset-top)] shadow-2xl sm:border-x sm:border-slate-200'}
 >
-    {#if shouldShowChatPopup}
+    <IncomingCallBanner onAccept={handleAcceptCall} />
+    <IncomingCallScreen onAccept={handleAcceptChatCall} />
+
+    {#if $callState.status === 'prejoin'}
+        <PreJoinScreen
+            userName={callUserProfile?.full_name || ''}
+            onJoin={handlePreJoin}
+            onCancel={handlePreJoinCancel}
+        />
+    {:else if ($callState.status === 'calling' || $callState.status === 'ongoing')}
+        {#if $callState.isMinimized}
+            <MinimizedCallBanner roomName={activeCallRoomName} kind={activeCallKind || 'meeting'} />
+        {:else}
+            {#if activeCallKind === 'call'}
+                <WhatsAppCallOverlay partnerAvatarUrl={incomingCallerAvatar} />
+            {:else}
+                <VideoCallOverlay roomName={activeCallRoomName} />
+            {/if}
+        {/if}
+    {/if}
+
+    {#if shouldShowChatPopup && $callState.status === 'idle'}
         <div class="fixed inset-x-4 top-[calc(env(safe-area-inset-top)+14px)] z-[130] sm:left-auto sm:right-6 sm:w-[360px]" transition:fade>
             <div class="overflow-hidden rounded-[28px] border border-orange-100 bg-white/95 shadow-2xl backdrop-blur-xl">
                 <div class="flex items-start gap-3 px-4 py-4 hover:bg-orange-50/60 transition-colors">
@@ -420,7 +578,7 @@
 		position="bottom-center"
 		toastOptions={{
 			style:
-				"font-family:'Inter',sans-serif; font-size:13px; font-weight:500; border-radius:16px; padding:10px 16px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.05);"
+				"font-family:var(--app-font-family); font-size:13px; font-weight:500; border-radius:16px; padding:10px 16px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.05);"
 		}}
 	/>
 

@@ -12,6 +12,12 @@
   let confirmPassword = $state('')
   let showCurrentPw = $state(false)
   let showNewPw = $state(false)
+
+  type PwField = [string, string, (v: string) => void, boolean, () => void]
+  let pwFields = $derived<PwField[]>([
+    ['Password Lama', currentPassword, (v) => currentPassword = v, showCurrentPw, () => showCurrentPw = !showCurrentPw],
+    ['Password Baru',  newPassword,    (v) => newPassword = v,     showNewPw,     () => showNewPw = !showNewPw],
+  ])
   let passwordError = $state('')
   let isLoading = $state(false)
 
@@ -63,12 +69,11 @@
     </div>
 
     <div class="px-8 pb-8 overflow-y-auto scrollbar-hide flex flex-col gap-6">
-      {#each [['Password Lama', currentPassword, (v: string) => currentPassword = v, showCurrentPw, () => showCurrentPw = !showCurrentPw],
-              ['Password Baru', newPassword,     (v: string) => newPassword = v,      showNewPw,     () => showNewPw = !showNewPw]] as [label, value, setter, show, toggle]}
+      {#each pwFields as [label, value, setter, show, toggle]}
         <div class="space-y-1.5 relative">
           <label class="ml-0.5 text-[11px] font-semibold text-slate-500">{label}</label>
           <div class="relative">
-            <input type={show ? 'text' : 'password'} value={value} oninput={(e) => setter((e.target as HTMLInputElement).value)}
+            <input type={show ? 'text' : 'password'} {value} oninput={(e) => setter((e.target as HTMLInputElement).value)}
                    placeholder="••••••••"
                    onkeydown={(e) => e.key === 'Enter' && changePassword()}
                    class="w-full px-4 py-2.5 pr-11 rounded-xl border border-slate-200 text-sm text-slate-700 bg-white focus:border-orange-500 focus:outline-none transition-all placeholder:text-slate-200" />

@@ -43,6 +43,29 @@ serve(async (req) => {
     // 3. Dapatkan Access Token Google (OAuth2 v1)
     const accessToken = await getAccessToken(serviceAccount)
 
+    const stringData = data ? Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)])) : {}
+    const isCall = stringData.type === 'call' || stringData.kind === 'call' || stringData.kind === 'meeting'
+    const roomId = stringData.roomId || stringData.room_id
+    const path = stringData.kind === 'meeting' ? '/meeting/' : '/chat/'
+    const callLink = isCall && roomId
+      ? `${path}${encodeURIComponent(roomId)}?${new URLSearchParams({
+          incoming_call: '1',
+          call_room_id: roomId,
+          call_room_name: stringData.roomName || stringData.room_name || 'Panggilan',
+          caller_id: stringData.callerId || stringData.caller_id || '',
+          caller_name: stringData.callerName || stringData.caller_name || 'Pengguna',
+          call_kind: stringData.kind || 'call',
+          voice_only: stringData.voiceOnly || stringData.voice_only || 'false'
+        }).toString()}`
+      : (stringData.url || '/notifications')
+    const siteUrl = Deno.env.get('PUBLIC_SITE_URL') || Deno.env.get('SITE_URL') || ''
+    const absoluteCallLink = siteUrl && callLink.startsWith('/')
+      ? `${siteUrl.replace(/\/$/, '')}${callLink}`
+      : callLink
+    const fcmOptions = absoluteCallLink.startsWith('https://')
+      ? { link: absoluteCallLink }
+      : undefined
+
     // 4. Kirim ke setiap token (Multicast)
     const results = await Promise.all(tokenRows.map(async (row: any) => {
       const fcmResponse = await fetch(
@@ -56,8 +79,33 @@ serve(async (req) => {
           body: JSON.stringify({
             message: {
               token: row.token,
-              notification: { title, body: message },
-              data: data ? Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)])) : {}
+              // Call: data-only agar CallFCMService handle full-screen intent + ringtone
+              // Non-call: pakai notification block agar FCM handle langsung
+              ...(isCall ? {} : { notification: { title, body: message } }),
+              data: {
+                ...stringData,
+                title,
+                message,
+                url: callLink
+              },
+              android: {
+                priority: 'high',
+                ...(isCall ? {} : {
+                  notification: {
+                    channel_id: 'chat_messages_v2',
+                    default_sound: true,
+                    default_vibrate_timings: true
+                  }
+                })
+              },
+              webpush: isCall ? undefined : {
+                fcm_options: fcmOptions,
+                notification: {
+                  icon: '/logo-khwarizmi-192.png',
+                  badge: '/logo-khwarizmi-192.png',
+                  requireInteraction: false
+                }
+              }
             }
           })
         }

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { slide } from 'svelte/transition'
-  import { ArrowLeft, Search, X, Hash, Info, Palette, MoreVertical } from 'lucide-svelte'
+  import { ArrowLeft, Search, X, Hash, Info, Palette, MoreVertical, Video, Phone, Trash2 } from 'lucide-svelte'
   import { goto } from '$app/navigation'
   import type { ChatRoom, Profile } from '$lib/type'
 
@@ -19,6 +19,9 @@
     onWallpaperUpload,
     onColorSelect,
     onInfo,
+    onVideoCall,
+    onVoiceCall,
+    onClearChat,
     getStatusText
   }: {
     activeRoom: ChatRoom | null,
@@ -35,6 +38,9 @@
     onWallpaperUpload: () => void,
     onColorSelect: () => void,
     onInfo: () => void,
+    onVideoCall?: () => void,
+    onVoiceCall?: () => void,
+    onClearChat?: () => void,
     getStatusText: (p: Profile | null) => string
   } = $props()
 
@@ -86,6 +92,26 @@
       </div>
     </button>
 
+    {#if onVoiceCall}
+      <button
+        onclick={onVoiceCall}
+        title="Panggilan Suara"
+        class="p-2 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-full transition-all"
+      >
+        <Phone size={20} />
+      </button>
+    {/if}
+
+    {#if onVideoCall}
+      <button
+        onclick={onVideoCall}
+        title="Video Call"
+        class="p-2 text-slate-400 hover:text-orange-500 hover:bg-orange-50 rounded-full transition-all"
+      >
+        <Video size={20} />
+      </button>
+    {/if}
+
     <div class="relative">
       <button onclick={() => showMainMenu = !showMainMenu} class="p-2 text-slate-400 hover:text-orange-500 hover:bg-orange-50 rounded-full transition-all">
         <MoreVertical size={20} />
@@ -102,6 +128,11 @@
           <button onclick={() => { showMainMenu = false; showWallpaperMenu = true }} class="w-full px-4 py-2.5 text-left text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2">
             <Palette size={16} /> Ganti Wallpaper
           </button>
+          {#if onClearChat}
+            <button onclick={() => { showMainMenu = false; onClearChat() }} class="w-full px-4 py-2.5 text-left text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2">
+              <Trash2 size={16} /> Bersihkan Chat
+            </button>
+          {/if}
         </div>
       {/if}
 

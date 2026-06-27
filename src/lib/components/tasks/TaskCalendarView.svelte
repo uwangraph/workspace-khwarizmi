@@ -1,20 +1,17 @@
 <script lang="ts">
   import { fade } from 'svelte/transition'
   import { X, ChevronLeft, ChevronRight } from 'lucide-svelte'
+  import type { Task as BaseTask } from '$lib/type'
 
-  interface Task { 
-    id: string; 
-    title: string; 
-    status: string; 
-    priority: string; 
-    due_date: string | null;
+  type Task = BaseTask & {
     isPending?: boolean;
   }
 
   interface Props {
     tasks: Task[]
-    onTaskClick: (task: Task) => void
+    onTaskClick: (task: BaseTask) => void
   }
+
 
   let { tasks, onTaskClick }: Props = $props()
 

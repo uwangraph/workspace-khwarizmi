@@ -7,6 +7,36 @@
   --color-body-bg: #e2e8f0;
 }
 
+@font-face {
+  font-family: 'DIN Rounded';
+  src: url('/fonts/DIN Next Rounded LT W01 Regular.ttf') format('truetype');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400 500;
+}
+
+@font-face {
+  font-family: 'DIN Rounded';
+  src: url('/fonts/DIN Next Rounded LT W04 Medium.otf') format('opentype');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 600 900;
+}
+
+:root {
+  --app-font-family: 'DIN Rounded', 'Nunito', sans-serif;
+  --app-font-size-px: 16px;
+}
+
+html {
+  font-size: var(--app-font-size-px);
+}
+
 body {
   background-color: var(--color-body-bg);
+}
+
+body,
+body *:not(code):not(pre):not(kbd):not(samp):not(.font-mono):not([class*='font-mono']) {
+  font-family: var(--app-font-family) !important;
 }

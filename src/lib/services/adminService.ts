@@ -140,7 +140,7 @@ export const adminService = {
         body: JSON.stringify({ action: 'save-special-rule', rule })
       })
       const result = await res.json()
-      if (!res.ok) return { data: null, error: result.error }
+      if (!res.ok) { console.error('[saveSpecialRule] error:', result.error, 'rule:', rule); return { data: null, error: result.error } }
       return { data: result.data, error: null }
     } catch (err: any) {
       return { data: null, error: err.message }

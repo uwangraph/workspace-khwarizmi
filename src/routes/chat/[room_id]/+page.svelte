@@ -5,8 +5,11 @@
   import { goto } from '$app/navigation'
   import { authService } from '$lib/services/authService'
   import { chatService } from '$lib/services/chatService'
+  import { notificationService } from '$lib/services/notificationService'
   import { supabase } from '$lib/supabase'
   import type { Profile, ChatRoom, ChatMessage } from '$lib/type'
+  import { callService } from '$lib/services/callService'
+  import { callState } from '$lib/stores/callStore'
   import AppHeader from '$lib/components/shared/AppHeader.svelte'
   import LoadingSpinner from '$lib/components/shared/LoadingSpinner.svelte'
   import NewChatModal from '$lib/components/chat/NewChatModal.svelte'
@@ -18,16 +21,19 @@
   import RoomInfo from '$lib/components/chat/RoomInfo.svelte'
   import ForwardModal from '$lib/components/chat/ForwardModal.svelte'
   import { markRoomAsRead } from '$lib/stores/chatReadStore'
+  import { globalRooms } from '$lib/stores/globalChatStore'
   import { X, Star, Forward, Trash2, Pin, ArrowDown } from 'lucide-svelte'
   import toast from 'svelte-french-toast'
 
-  const roomId = $derived($page.params.room_id)
+  const roomId = $derived($page.params.room_id ?? '')
 
   let user: any = $state(null)
   let profile = $state<Profile | null>(null)
   let activeRoom = $state<ChatRoom | null>(null)
+  let showClearChatModal = $state(false)
   let activeRoomDetails = $state<any>(null)
   let messages = $state<ChatMessage[]>([])
+  let myClearedAt = $state<string | null>(null)
   let isLoading = $state(true)
   let subscription: any
   let typingSubscription: any
@@ -100,7 +106,7 @@
   let filteredMessages = $derived(
     searchQuery.trim() === '' 
       ? messages 
-      : messages.filter(m => m.type === 'text' && m.content.toLowerCase().includes(searchQuery.toLowerCase()))
+      : messages.filter(m => m.type === 'text' && m.content?.toLowerCase().includes(searchQuery.toLowerCase()))
   )
 
   // Wallpaper
@@ -151,7 +157,60 @@
       : ''
   )
 
+  async function handleVideoCall() {
+    await startChatCall(false)
+  }
+
+  async function handleVoiceCall() {
+    await startChatCall(true)
+  }
+
+  async function handleClearChat() {
+    showClearChatModal = true
+  }
+
+  async function performClearChat() {
+    try {
+      // Simpan cleared_at di chat_participants — pesan lama tidak dihapus dari DB,
+      // hanya disembunyikan dari tampilan user ini saja
+      myClearedAt = await chatService.clearChatForUser(roomId, user.id)
+      messages = []
+      globalRooms.update(rooms => rooms.map(r =>
+        r.id === roomId ? { ...r, last_message: null } : r
+      ))
+      toast.success('Chat berhasil dibersihkan')
+    } catch (e) {
+      console.error('[ClearChat] Error:', e)
+      toast.error('Gagal membersihkan chat: ' + (e as any).message)
+    }
+  }
+
+  async function startChatCall(voiceOnly: boolean) {
+    if (!user || !activeRoom || !profile) return
+    const ids = activeRoom.type === 'group'
+      ? participantIds
+      : [user.id, ...(partnerProfile ? [partnerProfile.id] : [])]
+    try {
+      await callService.getLocalStream(!voiceOnly, true)
+    } catch {
+      toast.error(voiceOnly ? 'Izin mikrofon diperlukan' : 'Izin kamera/mikrofon diperlukan')
+      return
+    }
+    try {
+      await callService.startCall(
+        roomId, activeRoom.name ?? 'Panggilan',
+        user.id, profile.full_name, ids,
+        { kind: 'call', voiceOnly, callerAvatar: profile.avatar_url ?? undefined }
+      )
+    } catch (e) {
+      console.error('Failed to start call:', e)
+      toast.error('Gagal memulai panggilan')
+    }
+  }
+
   onDestroy(() => {
+    callState.update(s => (s.status === 'calling' || s.status === 'ongoing' ? { ...s, isMinimized: true } : s))
+
     if (statusInterval) clearInterval(statusInterval)
     if (partnerStatusChannel) supabase.removeChannel(partnerStatusChannel)
     if (partnerReadChannel) supabase.removeChannel(partnerReadChannel)
@@ -207,6 +266,20 @@
       messages = [...messages, msg]
       replyingTo = null
       scrollToBottom()
+
+      // Kirim push notification ke peserta lain
+      const otherIds = activeRoom?.type === 'direct'
+        ? (partnerProfile ? [partnerProfile.id] : [])
+        : participantIds.filter(id => id !== user.id)
+      if (otherIds.length > 0) {
+        const senderName = profile?.full_name || 'Seseorang'
+        const roomName = activeRoom?.name || 'Chat'
+        notificationService.sendBulk(otherIds, 'chat_message', roomName, `${senderName}: ${content}`, {
+          url: `/chat/${roomId}`,
+          roomId,
+          senderAvatarUrl: profile?.avatar_url ?? ''
+        }).catch(() => {})
+      }
     } catch { toast.error('Gagal mengirim pesan') }
     finally { isSending = false }
   }
@@ -257,6 +330,21 @@
         msg.sender = profile!
         messages = [...messages, msg]
         scrollToBottom()
+
+        const otherIds = activeRoom?.type === 'direct'
+          ? (partnerProfile ? [partnerProfile.id] : [])
+          : participantIds.filter(id => id !== user.id)
+        if (otherIds.length > 0) {
+          const senderName = profile?.full_name || 'Seseorang'
+          const roomName = activeRoom?.name || 'Chat'
+          const label = item.type === 'image' ? 'mengirim foto' : 'mengirim file'
+          const type = item.type === 'image' ? 'chat_image' : 'chat_file'
+          notificationService.sendBulk(otherIds, type, roomName, `${senderName}: ${label}`, {
+            url: `/chat/${roomId}`,
+            roomId,
+            senderAvatarUrl: profile?.avatar_url ?? ''
+          }).catch(() => {})
+        }
       }
     } catch { toast.error('Gagal mengunggah media') }
     finally { isUploadingMedia = false }
@@ -285,6 +373,19 @@
           msg.sender = profile!
           messages = [...messages, msg]
           scrollToBottom()
+
+          const otherIds = activeRoom?.type === 'direct'
+            ? (partnerProfile ? [partnerProfile.id] : [])
+            : participantIds.filter(id => id !== user!.id)
+          if (otherIds.length > 0) {
+            const senderName = profile?.full_name || 'Seseorang'
+            const roomName = activeRoom?.name || 'Chat'
+            notificationService.sendBulk(otherIds, 'chat_voice_note', roomName, `${senderName}: mengirim voice note`, {
+              url: `/chat/${roomId}`,
+              roomId,
+              senderAvatarUrl: profile?.avatar_url ?? ''
+            }).catch(() => {})
+          }
         } catch { toast.error('Gagal mengirim VN') }
         finally { isUploadingMedia = false }
       }
@@ -423,7 +524,8 @@
     }
   }
 
-  onMount(async () => {
+  onMount(() => {
+    ;(async () => {
     try {
       const authUser = await authService.getUser()
       if (!authUser) { goto('/auth'); return }
@@ -499,7 +601,17 @@
         }
       }
       if (!activeRoom) { toast.error('Ruang chat tidak ditemukan'); goto('/chat'); return }
-      const fMsgs = await chatService.getMessages(roomId)
+
+      // Ambil cleared_at milik user ini untuk filter pesan yang sudah dibersihkan
+      const { data: myParticipant } = await supabase
+        .from('chat_participants')
+        .select('cleared_at')
+        .eq('room_id', roomId)
+        .eq('user_id', authUser.id)
+        .maybeSingle()
+      myClearedAt = myParticipant?.cleared_at ?? null
+
+      const fMsgs = await chatService.getMessages(roomId, 50, undefined, myClearedAt)
       messages = fMsgs
       starredMessages = fMsgs.filter(m => m.metadata?.is_starred).map(m => m.id)
       pinnedMessage = fMsgs.find(m => m.metadata?.is_pinned) || null
@@ -589,6 +701,7 @@
       tick().then(() => scrollToBottom('auto'))
     }
 
+    })()
     return () => {
       subscription?.unsubscribe()
       typingSubscription?.unsubscribe?.()
@@ -626,6 +739,15 @@
     });
   }
   function formatTime(iso: string) { return new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) }
+  function formatDateLabel(iso: string) {
+    const date = new Date(iso)
+    const today = new Date()
+    const yesterday = new Date(today)
+    yesterday.setDate(today.getDate() - 1)
+    if (date.toDateString() === today.toDateString()) return 'Hari Ini'
+    if (date.toDateString() === yesterday.toDateString()) return 'Kemarin'
+    return date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })
+  }
   function scrollToMessage(id: string) { const el = document.getElementById(`msg-${id}`); if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('highlight-msg'); setTimeout(() => el.classList.remove('highlight-msg'), 2000) } }
   function formatRecordingTime(s: number) { const m = Math.floor(s / 60); const sec = s % 60; return `${m}:${sec.toString().padStart(2, '0')}` }
   function getUrlPreview(text: string) { const match = text.match(/https?:\/\/[^\s]+/); return match ? match[0] : null }
@@ -670,7 +792,7 @@
   
   {#if isLoading}
     <div class="flex-1 flex items-center justify-center">
-      <LoadingSpinner label="Memuat pesan..." />
+      <LoadingSpinner message="Memuat pesan..." />
     </div>
   {:else}
     <ChatHeader
@@ -680,9 +802,20 @@
       onWallpaperUpload={() => wallpaperInputRef?.click()}
       onColorSelect={() => colorInputRef?.click()}
       onInfo={openRoomInfo}
+      onVideoCall={handleVideoCall}
+      onVoiceCall={handleVoiceCall}
+      onClearChat={handleClearChat}
       {getStatusText}
     />
 
+    <ConfirmModal
+      bind:show={showClearChatModal}
+      title="Bersihkan Chat"
+      message="Yakin ingin menghapus semua pesan di obrolan ini? Tindakan ini tidak dapat dibatalkan."
+      confirmText="Ya, Bersihkan"
+      type="danger"
+      onConfirm={performClearChat}
+    />
     <input bind:this={wallpaperInputRef} type="file" class="hidden" accept="image/*" onchange={(e) => {
       const file = (e.target as HTMLInputElement).files?.[0]
       if (file) {
@@ -744,7 +877,7 @@
             {#if i === 0 || new Date(msg.created_at).toDateString() !== new Date(filteredMessages[i-1].created_at).toDateString()}
               <div class="flex justify-center my-8">
                 <span class="px-4 py-1.5 bg-slate-100/80 backdrop-blur-sm text-[10px] font-extrabold text-slate-500 rounded-full uppercase tracking-widest border border-slate-200/50 shadow-sm">
-                  {new Date(msg.created_at).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })}
+                  {formatDateLabel(msg.created_at)}
                 </span>
               </div>
             {/if}
@@ -780,7 +913,7 @@
               onStar={toggleStar}
               onPin={handlePin}
               onForward={(m) => showForwardModal = m}
-              onEdit={(m) => { editingMessage = m; newMessage = m.content }}
+              onEdit={(m) => { editingMessage = m; newMessage = m.content ?? '' }}
               onCopy={(c) => { navigator.clipboard.writeText(c); toast.success('Teks disalin') }}
               onInfo={(m) => showMessageInfo = m}
               onDelete={(id) => { messageIdToDelete = id; showDeleteConfirm = true }}

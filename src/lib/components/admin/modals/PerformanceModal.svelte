@@ -14,7 +14,7 @@
     attendanceMonth: string
     onClose: () => void
   }
-  let { user, tasks, assignments, attendance, holidays, attendanceMonth, onClose } = $props<Props>()
+  let { user, tasks, assignments, attendance, holidays, attendanceMonth, onClose }: Props = $props()
   let activeFilter = $state<'none' | 'done' | 'overdue'>('none')
 
   let perf = $derived(getUserPerformanceStats(user.id, tasks, assignments))

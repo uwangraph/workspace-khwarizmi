@@ -1,6 +1,6 @@
 <script lang="ts">
   import { fade, slide } from 'svelte/transition'
-  import { Send, Paperclip, Mic, Hash, ArrowLeft, Image as ImageIcon, ListTodo, Check, CheckCheck, X, Plus, Trash2, Maximize2, Play, Pause, ChevronDown, Reply, Edit2, Copy, Search, ExternalLink, Palette, Pin, Info, FileText, Star, Forward, CheckSquare, MessageSquare } from 'lucide-svelte'
+  import { Send, Paperclip, Mic, Hash, ArrowLeft, Image as ImageIcon, ListTodo, Check, CheckCheck, X, Plus, Trash2, Maximize2, Play, Pause, ChevronDown, Reply, Edit2, Copy, Search, ExternalLink, Palette, Pin, Info, FileText, Star, Forward, CheckSquare, MessageSquare, Phone, PhoneMissed, Video, VideoOff } from 'lucide-svelte'
   import type { ChatMessage, Profile } from '$lib/type'
 
   let { 
@@ -341,7 +341,46 @@
             <CheckCheck size={11} class={isRead ? 'text-blue-500' : 'text-slate-400'} strokeWidth={3} />
           {/if}
         </div>
+      {:else if msg.type === 'call'}
+        <div class="min-w-[180px] py-1 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0
+                      {msg.metadata?.call_status === 'missed' ? 'bg-red-50 text-red-500' : 'bg-slate-50 text-slate-500'}">
+            {#if msg.metadata?.kind === 'video'}
+              {#if msg.metadata?.call_status === 'missed'}
+                <VideoOff size={18} />
+              {:else}
+                <Video size={18} />
+              {/if}
+            {:else}
+              {#if msg.metadata?.call_status === 'missed'}
+                <PhoneMissed size={18} />
+              {:else}
+                <Phone size={18} />
+              {/if}
+            {/if}
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="font-bold text-xs truncate {msg.metadata?.call_status === 'missed' ? 'text-red-600' : 'text-slate-700'}">
+              {msg.content}
+            </p>
+            <p class="text-[10px] font-medium text-slate-400 mt-0.5">
+              {msg.metadata?.kind === 'video' ? 'Panggilan Video' : 'Panggilan Suara'}
+            </p>
+          </div>
+        </div>
+        <div class="flex items-center justify-end gap-1 mt-1 -mb-0.5 ml-4">
+          <span class="text-[9px] font-medium {isMe ? 'text-orange-700/60' : 'text-emerald-700/60'}">
+            {#if starredMessages.includes(msg.id)}
+              <Star size={10} class="inline-block mr-1 fill-yellow-500 text-yellow-500" />
+            {/if}
+            {formatTime(msg.created_at)}
+          </span>
+          {#if isMe}
+            <CheckCheck size={11} class={isRead ? 'text-blue-500' : 'text-slate-400'} strokeWidth={3} />
+          {/if}
+        </div>
       {/if}
+
 
       {#if msg.metadata?.reactions && Object.keys(msg.metadata.reactions).length > 0}
         <div class="absolute -bottom-3 {isMe ? 'left-0' : 'right-0'} flex -space-x-1 items-center bg-white border border-slate-100 rounded-full px-1.5 py-0.5 shadow-sm z-10 scale-90 origin-top">

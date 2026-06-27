@@ -16,7 +16,7 @@
     onSave: (data: SaveData) => Promise<void>
     onClose: () => void
   }
-  let { user, isSubmitting = false, onSave, onClose } = $props<Props>()
+  let { user, isSubmitting = false, onSave, onClose }: Props = $props()
 
   let editFullName  = $state(user.full_name)
   let editPhone     = $state(user.phone || '')

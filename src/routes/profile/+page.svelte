@@ -36,6 +36,12 @@
 	import { unreadCount } from '$lib/stores/notificationStore';
 	import { getContext } from 'svelte';
 	import type { Writable } from 'svelte/store';
+	import {
+		appearanceStore,
+		FONT_OPTIONS,
+		FONT_SIZE_OPTIONS,
+		type FontSizeKey
+	} from '$lib/stores/appearanceStore';
 
 	let user = $state<User | null>(null);
 	let profile = $state<UserProfileType | null>(null);
@@ -55,6 +61,16 @@
 	let editJoinedAt = $state('');
 	let editBirthDate = $state('');
 	let editPosition = $state('');
+
+	type EditField = [string, string, (v: string) => void, string, string]
+	let editFields = $derived<EditField[]>([
+		['Nama Lengkap *', editName, (v) => (editName = v), 'text', 'Masukkan nama lengkap'],
+		['Jabatan / Posisi', editPosition, (v) => (editPosition = v), 'text', 'Contoh: Creative Designer'],
+		['Nomor WhatsApp', editPhone, (v) => (editPhone = v), 'tel', '08xxx'],
+		['Alamat Lengkap', editAddress, (v) => (editAddress = v), 'text', 'Nama jalan, kota...'],
+		['Tanggal Bergabung', editJoinedAt, (v) => (editJoinedAt = v), 'date', ''],
+		['Tanggal Lahir', editBirthDate, (v) => (editBirthDate = v), 'date', ''],
+	])
 	let avatarPreview = $state<string | null>(null);
 	let croppedBlob = $state<Blob | null>(null);
 	let uploadingAvatar = $state(false);
@@ -102,6 +118,8 @@
 
 	const deletionStore = getContext<Writable<boolean>>('deletionStore');
 	let isDataHidden = $state(false);
+	let selectedFontFamilyId = $state('din-rounded');
+	let selectedFontSize = $state<FontSizeKey>('medium');
 
 	$effect(() => {
 		const unsubscribe = deletionStore?.subscribe((value) => {
@@ -113,6 +131,14 @@
 				// If data was hidden but now it's not, we might need to reload stats
 				// But loadData handles the initial load anyway
 			}
+		});
+		return unsubscribe;
+	});
+
+	$effect(() => {
+		const unsubscribe = appearanceStore.subscribe((value) => {
+			selectedFontFamilyId = value.fontFamilyId;
+			selectedFontSize = value.fontSize;
 		});
 		return unsubscribe;
 	});
@@ -340,13 +366,9 @@
 
 <svelte:head>
 	<title>Profil — Khwarizmi Workspace</title>
-	<link
-		href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"
-		rel="stylesheet"
-	/>
 </svelte:head>
 
-<div class="min-h-screen bg-[#FFF9F0]/30 pb-28" style="font-family:'Inter',sans-serif;">
+<div class="min-h-screen bg-[#FFF9F0]/30 pb-28">
 	<header
 		class="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-50 bg-white/80 px-5 py-4 backdrop-blur-xl"
 	>
@@ -365,10 +387,7 @@
 			>
 		</a>
 		<div class="flex-1">
-			<span
-				class="text-base font-bold text-slate-800"
-				style="font-family:'Plus Jakarta Sans',sans-serif;">Pengaturan</span
-			>
+			<span class="text-base font-bold text-slate-800">Pengaturan</span>
 			<p class="mt-0.5 text-[10px] text-slate-400">Kelola profil & keamanan akun</p>
 		</div>
 	</header>
@@ -471,11 +490,71 @@
 				]}
 			/>
 
+			<section class="overflow-hidden rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
+				<div class="mb-4">
+					<p class="text-base font-black text-slate-800">Tampilan & Teks</p>
+					<p class="mt-1 text-xs text-slate-400">Atur font dan ukuran teks untuk seluruh aplikasi.</p>
+				</div>
+
+				<div class="mb-5">
+					<label for="font-family-select" class="mb-2 block text-[11px] font-black uppercase tracking-wider text-slate-500">Font Family</label>
+					<div class="relative">
+						<select
+							id="font-family-select"
+							onchange={(e) => appearanceStore.setFontFamily((e.target as HTMLSelectElement).value)}
+							class="w-full appearance-none rounded-2xl border-2 border-slate-200 bg-white px-4 py-3 pr-10 text-sm font-bold text-slate-700 transition-colors focus:border-orange-500 focus:outline-none"
+							style={`font-family: ${FONT_OPTIONS.find((o) => o.id === selectedFontFamilyId)?.cssValue}`}
+						>
+							{#each FONT_OPTIONS as option}
+								<option value={option.id} selected={selectedFontFamilyId === option.id} style={`font-family: ${option.cssValue}`}>
+									{option.label}
+								</option>
+							{/each}
+						</select>
+						<div class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9" /></svg>
+						</div>
+					</div>
+				</div>
+
+				<div class="mb-2">
+					<div class="mb-3 flex items-center justify-between">
+						<p class="text-[11px] font-black uppercase tracking-wider text-slate-500">Ukuran Teks</p>
+						<span class="text-xs font-bold text-orange-600">
+							{FONT_SIZE_OPTIONS.find((s) => s.id === selectedFontSize)?.label}
+							({FONT_SIZE_OPTIONS.find((s) => s.id === selectedFontSize)?.px}px)
+						</span>
+					</div>
+					<input
+						type="range"
+						min="0"
+						max="3"
+						step="1"
+						value={FONT_SIZE_OPTIONS.findIndex((s) => s.id === selectedFontSize)}
+						oninput={(e) => appearanceStore.setFontSize(FONT_SIZE_OPTIONS[+(e.target as HTMLInputElement).value].id)}
+						class="w-full accent-orange-500"
+					/>
+					<div class="mt-1.5 flex justify-between px-0.5">
+						{#each FONT_SIZE_OPTIONS as size}
+							<span class="text-[10px] text-slate-400">{size.label}</span>
+						{/each}
+					</div>
+				</div>
+
+				<button
+					type="button"
+					onclick={() => appearanceStore.reset()}
+					class="mt-4 w-full rounded-2xl border-2 border-b-[4px] border-slate-200 bg-slate-50 py-3 text-xs font-black text-slate-600 transition-all hover:bg-slate-100 active:translate-y-0.5"
+				>
+					Reset ke Default
+				</button>
+			</section>
+
 			<button
 				onclick={() => (showLogoutModal = true)}
-				class="mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-red-50 bg-white py-3.5 text-sm font-semibold text-red-500 shadow-sm transition-all hover:bg-red-50 active:scale-[0.98]"
+				class="mt-4 flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-2xl border-2 border-b-[6px] border-red-200 bg-red-50 py-4 text-sm font-black text-red-600 shadow-sm transition-all hover:bg-red-100 active:translate-y-0.5"
 			>
-				<LogOut size={15} /> Keluar dari Akun
+				<LogOut size={18} strokeWidth={2.5} /> Keluar dari Akun
 			</button>
 		</main>
 	{/if}
@@ -506,7 +585,6 @@
 				</div>
 				<h4
 					class="mb-1 text-lg font-bold text-slate-800"
-					style="font-family:'Plus Jakarta Sans',sans-serif;"
 				>
 					Keluar dari Akun?
 				</h4>
@@ -533,7 +611,7 @@
 <!-- Edit Profile Modal -->
 {#if showEditModal}
 	<div
-		class="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4"
+		class="fixed inset-0 z-[1000] flex items-end justify-center p-0 sm:items-center sm:p-4"
 		style="background:rgba(15, 23, 42, 0.4); backdrop-filter:blur(8px);"
 		onclick={() => (showEditModal = false)}
 	>
@@ -548,10 +626,7 @@
 
 			<div class="flex items-center justify-between px-8 py-6">
 				<div class="flex flex-col">
-					<h3
-						class="text-lg font-bold text-slate-800"
-						style="font-family:'Plus Jakarta Sans',sans-serif;"
-					>
+					<h3 class="text-lg font-bold text-slate-800">
 						Edit Profil
 					</h3>
 					<p class="text-[11px] text-slate-400">Sesuaikan informasi publik Anda</p>
@@ -595,7 +670,7 @@
 				</div>
 
 				<div class="grid grid-cols-1 gap-5">
-					{#each [['Nama Lengkap *', editName, (v: string) => (editName = v), 'text', 'Masukkan nama lengkap'], ['Jabatan / Posisi', editPosition, (v: string) => (editPosition = v), 'text', 'Contoh: Creative Designer'], ['Nomor WhatsApp', editPhone, (v: string) => (editPhone = v), 'tel', '08xxx'], ['Alamat Lengkap', editAddress, (v: string) => (editAddress = v), 'text', 'Nama jalan, kota...'], ['Tanggal Bergabung', editJoinedAt, (v: string) => (editJoinedAt = v), 'date', ''], ['Tanggal Lahir', editBirthDate, (v: string) => (editBirthDate = v), 'date', '']] as [label, value, setter, type, placeholder]}
+					{#each editFields as [label, value, setter, type, placeholder]}
 						<div class="space-y-1.5">
 							<label class="ml-0.5 text-[11px] font-semibold text-slate-500">{label}</label>
 							<input

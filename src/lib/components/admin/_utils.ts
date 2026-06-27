@@ -1,5 +1,5 @@
 // ── Shared Utilities & Constants — Admin Panel ──────────────────────────────
-import type { AttendanceRecord, Holiday, Task, TaskAssignment, ThursdayRule } from './_types'
+import type { AttendanceRecord, Holiday, Task, TaskAssignment, SpecialRule } from './_types'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -32,10 +32,10 @@ export const PRIORITY_WEIGHT: Record<string, number> = {
 }
 
 export const SESSIONS = [
-  { id: 1, label: 'Pagi' },
-  { id: 2, label: 'Siang' },
-  { id: 3, label: 'Sore' },
-  { id: 4, label: 'Lembur' },
+  { id: 1, label: 'Pagi',   name: 'Sesi Pagi',  start: '08:00', end: '11:30' },
+  { id: 2, label: 'Siang',  name: 'Sesi Siang', start: '13:30', end: '15:00' },
+  { id: 3, label: 'Sore',   name: 'Sesi Sore',  start: '16:00', end: '17:00' },
+  { id: 4, label: 'Lembur', name: 'Lembur',     start: '20:00', end: '23:59' },
 ]
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

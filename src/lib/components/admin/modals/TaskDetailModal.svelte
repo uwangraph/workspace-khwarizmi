@@ -15,7 +15,7 @@
     onRemindAll?: (t: Task) => void
     currentUserId?: string
   }
-  let { task, allUsers, allAssignments, onUpdateStatus, onDelete, onClose, onRemindMember, onRemindAll, currentUserId } = $props<Props>()
+  let { task, allUsers, allAssignments, onUpdateStatus, onDelete, onClose, onRemindMember, onRemindAll, currentUserId }: Props = $props()
 
   let ss        = $derived(STATUS_STYLE[task.status])
   let assignees = $derived(

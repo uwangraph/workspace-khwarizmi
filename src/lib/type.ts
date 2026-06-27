@@ -5,11 +5,13 @@ export interface Profile {
   full_name: string
   role: UserRole
   avatar_url?: string | null
+  email?: string | null
   phone?: string | null
   position?: string | null
   address?: string | null
   birth_date?: string | null
   joined_at?: string | null
+  last_seen?: string | null
   created_at: string
 }
 
@@ -87,6 +89,9 @@ export interface ChatRoom {
   type: 'group' | 'direct'
   created_by: string
   created_at: string
+  partner_avatar?: string | null
+  last_read_at?: string | null
+  unread_count?: number
 }
 
 export interface ChatParticipant {
@@ -100,7 +105,7 @@ export interface ChatMessage {
   id: string
   room_id: string
   sender_id: string
-  type: 'text' | 'image' | 'file' | 'audio' | 'poll'
+  type: 'text' | 'image' | 'file' | 'audio' | 'poll' | 'call'
   content: string | null
   metadata: any | null
   created_at: string

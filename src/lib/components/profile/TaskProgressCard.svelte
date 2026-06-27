@@ -4,30 +4,30 @@
   }
   let { done, inProgress, review, todo, total, rate }: Props = $props()
   let breakdown = $derived([
-    { label: 'Selesai',     val: done,       dot: '#22C55E' },
+    { label: 'Selesai',     val: done,       dot: '#10B981' },
     { label: 'Dikerjakan',  val: inProgress,  dot: '#3B82F6' },
     { label: 'Review',      val: review,      dot: '#A855F7' },
-    { label: 'Belum Mulai', val: todo,        dot: '#CBD5E1' },
+    { label: 'Belum Mulai', val: todo,        dot: '#94A3B8' },
   ])
 </script>
 
-<div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-50">
-  <div class="flex items-center justify-between mb-3">
-    <p class="text-sm font-bold text-slate-700" style="font-family:'Plus Jakarta Sans',sans-serif;">Progress Tugas</p>
-    <span class="text-sm font-bold text-orange-500">{rate}%</span>
+<div class="bg-white rounded-[24px] p-6 shadow-sm border-2 border-b-[6px] border-slate-200 transition-all hover:border-slate-300">
+  <div class="flex items-center justify-between mb-4">
+    <p class="text-base font-extrabold text-slate-800" style="font-family:'Plus Jakarta Sans',sans-serif;">Progress Tugas</p>
+    <span class="text-base font-black text-orange-500">{rate}%</span>
   </div>
-  <div class="h-2.5 bg-slate-100 rounded-full overflow-hidden mb-4">
+  <div class="h-3.5 bg-slate-100 rounded-full overflow-hidden mb-5 shadow-inner">
     <div class="h-full rounded-full transition-all duration-700"
          style="width:{rate}%; background: linear-gradient(90deg, #F97316, #FBBF24);"></div>
   </div>
-  <div class="grid grid-cols-2 gap-2">
+  <div class="grid grid-cols-2 gap-3">
     {#each breakdown as item}
-      <div class="flex items-center justify-between bg-slate-50 rounded-xl px-3 py-2.5">
-        <div class="flex items-center gap-2">
-          <div class="w-2 h-2 rounded-full flex-shrink-0" style="background:{item.dot};"></div>
-          <span class="text-xs text-slate-500">{item.label}</span>
+      <div class="flex items-center justify-between bg-slate-50 border-2 border-b-[4px] border-slate-200 rounded-2xl px-4 py-3 shadow-sm">
+        <div class="flex items-center gap-2.5">
+          <div class="w-2.5 h-2.5 rounded-full flex-shrink-0 shadow-inner" style="background:{item.dot};"></div>
+          <span class="text-xs font-bold text-slate-600">{item.label}</span>
         </div>
-        <span class="text-sm font-bold text-slate-700">{item.val}</span>
+        <span class="text-sm font-black text-slate-800">{item.val}</span>
       </div>
     {/each}
   </div>

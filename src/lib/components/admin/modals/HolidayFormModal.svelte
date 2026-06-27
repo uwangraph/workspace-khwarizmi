@@ -8,7 +8,7 @@
     onSave: (data: { id?: string; date: string; name: string } | { startDate: string; endDate: string; name: string }) => Promise<void>
     onClose: () => void
   }
-  let { holiday = null, isSubmitting = false, onSave, onClose } = $props<Props>()
+  let { holiday = null, isSubmitting = false, onSave, onClose }: Props = $props()
 
   let mode = $state<'single' | 'range'>('single')
   let holidayDate = $state(holiday?.date || '')

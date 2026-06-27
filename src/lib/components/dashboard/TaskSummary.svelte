@@ -11,38 +11,43 @@
   }
   let { recentTasks, formatDue, statusLabel, priorityDot }: Props = $props()
 </script>
-<section class="flex flex-col gap-2">
+
+<section class="flex flex-col gap-3">
   <div class="flex justify-between items-center px-1">
-    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tugas Utama</p>
-    <a href="/tasks" class="text-[10px] font-bold text-green-600 flex items-center gap-1 cursor-pointer hover:text-green-700 transition-colors">
-      Manajemen Task <ArrowRight size={12} />
+    <h3 class="text-lg font-black text-slate-800 tracking-tight" style="font-family:'Plus Jakarta Sans',sans-serif;">Tugas Utama</h3>
+    <a href="/tasks" class="text-xs font-extrabold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-xl flex items-center gap-1 transition-colors cursor-pointer">
+      Manajemen <ArrowRight size={14} strokeWidth={2.5} />
     </a>
   </div>
   {#if recentTasks.length === 0}
-    <div class="bg-white rounded-2xl border border-dashed border-slate-200 p-8 text-center">
-      <CheckCircle2 size={32} class="text-green-200 mx-auto mb-2" />
-      <p class="text-xs font-semibold text-slate-400">Tidak ada tugas mendesak</p>
+    <div class="bg-white rounded-[24px] border-2 border-b-[6px] border-slate-200 p-8 text-center">
+      <CheckCircle2 size={40} strokeWidth={2.5} class="text-emerald-400 mx-auto mb-3" />
+      <p class="text-sm font-extrabold text-slate-500">Tidak ada tugas mendesak</p>
     </div>
   {:else}
-    <div class="bg-white rounded-2xl border border-slate-100 overflow-hidden divide-y divide-slate-50">
+    <div class="flex flex-col gap-3">
       {#each recentTasks as task}
         {@const due = formatDue(task.due_date)}
-        <a href="/tasks" class="flex items-center gap-3 p-4 hover:bg-slate-50 transition-colors cursor-pointer">
-          <div class="w-1.5 h-6 rounded-full" style="background: {priorityDot[task.priority]}"></div>
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-semibold text-slate-800 truncate">{task.title}</p>
-            <div class="flex items-center gap-3 mt-1">
-              <span class="text-[9px] font-medium text-slate-400">{statusLabel[task.status]}</span>
-              {#if due}
-                <span class="text-[9px] font-bold flex items-center gap-1" style="color: {due.color}">
-                  <Clock size={10} /> {due.label}
-                </span>
-              {/if}
+        <a href="/tasks" class="block bg-white rounded-[24px] border-2 border-b-[6px] border-slate-200 p-5 hover:border-slate-300 active:translate-y-0.5 active:border-b-[3px] transition-all cursor-pointer">
+          <div class="flex items-center gap-4">
+            <div class="w-2.5 h-10 rounded-full flex-shrink-0" style="background: {priorityDot[task.priority]}"></div>
+            <div class="flex-1 min-w-0">
+              <p class="text-base font-extrabold text-slate-800 truncate">{task.title}</p>
+              <div class="flex items-center flex-wrap gap-2 mt-2">
+                <span class="text-xs font-extrabold px-2.5 py-1 rounded-xl bg-slate-100 text-slate-600">{statusLabel[task.status]}</span>
+                {#if due}
+                  <span class="text-xs font-extrabold flex items-center gap-1 px-2.5 py-1 rounded-xl {due.urgent ? 'bg-red-50' : 'bg-amber-50'}" style="color: {due.color}">
+                    <Clock size={12} strokeWidth={2.5} /> {due.label}
+                  </span>
+                {/if}
+              </div>
             </div>
+            {#if task.progress > 0}
+              <span class="inline-block text-xs font-black bg-orange-100 text-orange-600 px-3 py-1.5 rounded-xl flex-shrink-0">
+                {task.progress}%
+              </span>
+            {/if}
           </div>
-          {#if task.progress > 0}
-            <span class="text-[10px] font-bold text-orange-500">{task.progress}%</span>
-          {/if}
         </a>
       {/each}
     </div>

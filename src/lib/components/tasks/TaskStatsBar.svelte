@@ -13,8 +13,7 @@
   ]
 </script>
 
-<div class="bg-white rounded-3xl p-5 border border-orange-100/50 shadow-sm relative overflow-hidden">
-  <!-- Subtle Background Accent -->
+<div class="bg-white rounded-[24px] p-5 border-2 border-b-[6px] border-slate-200 shadow-sm relative overflow-hidden transition-all hover:border-slate-300">
   <div class="absolute -top-6 -right-6 w-20 h-20 bg-orange-50 rounded-full blur-2xl opacity-60"></div>
 
   <div class="relative z-10">
@@ -24,16 +23,16 @@
         <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Statistik Tugas</span>
         <div class="flex items-center gap-2">
           <span class="text-3xl font-black text-slate-800 tracking-tighter" style="font-family:'Plus Jakarta Sans',sans-serif;">{stats.completionRate}%</span>
-          <span class="px-2 py-0.5 rounded-full bg-orange-50 text-orange-600 text-[10px] font-bold border border-orange-100">Selesai</span>
+          <span class="px-2.5 py-0.5 rounded-xl bg-orange-100 text-orange-700 text-[11px] font-extrabold border border-orange-200">Selesai</span>
         </div>
       </div>
       <div class="text-right">
-        <span class="text-xs font-bold text-slate-400">{stats.done} / {stats.total}</span>
+        <span class="text-sm font-extrabold text-slate-400">{stats.done} / {stats.total}</span>
       </div>
     </div>
 
-    <!-- Progress Bar with subtle glow -->
-    <div class="h-[6px] w-full bg-slate-50 rounded-full overflow-hidden mb-6 shadow-inner">
+    <!-- Progress Bar -->
+    <div class="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden mb-6 shadow-inner">
       <div class="h-full bg-gradient-to-r from-orange-400 to-orange-500 rounded-full transition-all duration-1000 ease-out"
            style="width: {stats.completionRate}%"></div>
     </div>
@@ -43,10 +42,10 @@
       {#each ITEMS as item}
         <div class="flex flex-col gap-1">
           <div class="flex items-center gap-1.5">
-            <div class="w-1.5 h-1.5 rounded-full {item.color}"></div>
+            <div class="w-2 h-2 rounded-full {item.color} flex-shrink-0"></div>
             <span class="text-xs font-black text-slate-800">{item.val}</span>
           </div>
-          <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tight">{item.label}</span>
+          <span class="text-[9px] font-extrabold text-slate-400 uppercase tracking-tight">{item.label}</span>
         </div>
       {/each}
     </div>

@@ -3,17 +3,27 @@
   import type { SpecialRule } from '$lib/components/admin/_types'
   import { SESSIONS } from '$lib/components/admin/_utils'
 
+  interface SaveData {
+    dates: string[]
+    type: SpecialRule['type']
+    start_time: string | null
+    active_sessions: number[] | null
+    note: string | null
+  }
+
   interface Props {
     specialRules: SpecialRule[]
     initialRule?: SpecialRule | null
     isSubmitting?: boolean
-    onSave: (data: { date: string; type: SpecialRule['type']; start_time: string | null; active_sessions: number[] | null; note: string | null }) => Promise<void>
+    onSave: (data: SaveData) => Promise<void>
     onClose: () => void
   }
-  let { specialRules, initialRule = null, isSubmitting = false, onSave, onClose } = $props<Props>()
+  let { specialRules, initialRule = null, isSubmitting = false, onSave, onClose }: Props = $props()
 
+  let dateMode     = $state<'single' | 'range'>('single')
   // Pre-fill jika tanggal sudah punya rule
   let selectedDate = $state(initialRule?.date || new Date().toISOString().split('T')[0])
+  let endDate      = $state(initialRule?.date || new Date().toISOString().split('T')[0])
   let ruleType     = $state<SpecialRule['type']>('normal')
   let startTime    = $state('09:00')
   let activeSessionIds = $state<number[]>([1, 2, 3])
@@ -77,15 +87,35 @@
     },
   ] as const
 
+  function getDatesInRange(from: string, to: string): string[] {
+    const dates: string[] = []
+    const start = new Date(from)
+    const end = new Date(to)
+    if (end < start) return [from]
+    const cur = new Date(start)
+    while (cur <= end) {
+      dates.push(cur.toISOString().split('T')[0])
+      cur.setDate(cur.getDate() + 1)
+    }
+    return dates
+  }
+
   async function handleSave() {
+    const dates = dateMode === 'range' ? getDatesInRange(selectedDate, endDate) : [selectedDate]
     await onSave({
-      date:       selectedDate,
-      type:       ruleType,
-      start_time: ruleType === 'custom_time' ? startTime : null,
-      active_sessions: activeSessionIds.length > 0 ? activeSessionIds : null,
-      note:       note.trim() || null,
+      dates,
+      type:            ruleType,
+      start_time:      ruleType === 'custom_time' ? startTime : null,
+      active_sessions: activeSessionIds.length > 0 ? [...activeSessionIds] : null,
+      note:            note.trim() || null,
     })
   }
+
+  let rangeCount = $derived(
+    dateMode === 'range' && selectedDate && endDate
+      ? getDatesInRange(selectedDate, endDate).length
+      : 0
+  )
 </script>
 
 <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
@@ -109,17 +139,50 @@
 
     <div class="px-8 py-6 overflow-y-auto scrollbar-hide flex flex-col gap-6">
       <!-- Pilih tanggal -->
-      <div class="space-y-1.5">
-        <label class="ml-0.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Pilih Tanggal</label>
-        <div class="relative">
-          <input type="date" bind:value={selectedDate}
-                 class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 bg-white focus:border-orange-500 focus:outline-none transition-all" />
-          <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-            <Calendar size={14} />
-          </div>
+      <div class="space-y-2">
+        <!-- Toggle single / range -->
+        <div class="flex gap-1.5 p-1 bg-slate-100 rounded-xl w-fit">
+          <button onclick={() => dateMode = 'single'}
+                  class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all {dateMode === 'single' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}">
+            Tanggal Tunggal
+          </button>
+          <button onclick={() => dateMode = 'range'}
+                  class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all {dateMode === 'range' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}">
+            Rentang Tanggal
+          </button>
         </div>
-        {#if selectedDate}
-          <p class="text-[10px] text-slate-400 ml-0.5">{formatSpecialDateLabel(selectedDate)}</p>
+
+        {#if dateMode === 'single'}
+          <div class="space-y-1">
+            <label class="ml-0.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Pilih Tanggal</label>
+            <div class="relative">
+              <input type="date" bind:value={selectedDate}
+                     class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 bg-white focus:border-orange-500 focus:outline-none transition-all" />
+              <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                <Calendar size={14} />
+              </div>
+            </div>
+            {#if selectedDate}
+              <p class="text-[10px] text-slate-400 ml-0.5">{formatSpecialDateLabel(selectedDate)}</p>
+            {/if}
+          </div>
+        {:else}
+          <div class="flex gap-2 items-center">
+            <div class="flex-1 space-y-1">
+              <label class="ml-0.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Dari</label>
+              <input type="date" bind:value={selectedDate}
+                     class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 bg-white focus:border-orange-500 focus:outline-none transition-all" />
+            </div>
+            <span class="text-slate-300 font-bold mt-4">→</span>
+            <div class="flex-1 space-y-1">
+              <label class="ml-0.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Sampai</label>
+              <input type="date" bind:value={endDate} min={selectedDate}
+                     class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 bg-white focus:border-orange-500 focus:outline-none transition-all" />
+            </div>
+          </div>
+          {#if rangeCount > 0}
+            <p class="text-[10px] text-orange-500 font-bold ml-0.5">{rangeCount} hari akan diterapkan aturan ini</p>
+          {/if}
         {/if}
       </div>
 
@@ -211,7 +274,7 @@
         <button onclick={handleSave} disabled={isSubmitting}
                 class="flex-[2] py-3.5 rounded-xl text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition-all active:scale-[0.98] disabled:opacity-50"
                 style="background:linear-gradient(to right, #F97316, #EA580C)">
-          {isSubmitting ? 'Menyimpan...' : 'Simpan Aturan'}
+          {isSubmitting ? 'Menyimpan...' : dateMode === 'range' && rangeCount > 1 ? `Simpan ${rangeCount} Hari` : 'Simpan Aturan'}
         </button>
       </div>
     </div>

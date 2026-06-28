@@ -1,14 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { fade, fly } from 'svelte/transition'
-  import { ArrowLeft, Phone, PhoneMissed, Video, VideoOff, Clock, Calendar, MessageSquare, Search } from 'lucide-svelte'
+  import { ArrowLeft, Calendar, Clock, Users, Search, Video } from 'lucide-svelte'
   import { supabase } from '$lib/supabase'
   import { goto } from '$app/navigation'
   import { authService } from '$lib/services/authService'
-  import type { ChatMessage, Profile } from '$lib/type'
+  import { meetingService, type ScheduledMeeting } from '$lib/services/meetingService'
 
   let user = $state<any>(null)
-  let calls = $state<any[]>([])
+  let meetings = $state<ScheduledMeeting[]>([])
   let isLoading = $state(true)
   let searchQuery = $state('')
 
@@ -17,35 +17,35 @@
     if (!u) { goto('/auth'); return }
     user = u
 
-    await fetchCallHistory()
+    await fetchMeetingHistory()
   })
 
-  async function fetchCallHistory() {
+  async function fetchMeetingHistory() {
     isLoading = true
     try {
-      // Ambil semua pesan bertipe 'call' di mana user adalah peserta room-nya
+      // Ambil semua meeting yang sudah lewat (scheduled_at < now)
       const { data, error } = await supabase
-        .from('chat_messages')
-        .select('*, room:chat_rooms(name, type), sender:profiles!sender_id(full_name, avatar_url)')
-        .eq('type', 'call')
-        .order('created_at', { ascending: false })
+        .from('scheduled_meetings')
+        .select('*, creator:profiles(full_name, avatar_url)')
+        .or(`created_by.eq.${user.id},participant_ids.cs.{${user.id}}`)
+        .lt('scheduled_at', new Date().toISOString())
+        .order('scheduled_at', { ascending: false })
       
       if (error) throw error
-      calls = data || []
+      meetings = data as ScheduledMeeting[]
     } catch (e) {
-      console.error('Failed to fetch call history:', e)
+      console.error('Failed to fetch meeting history:', e)
     } finally {
       isLoading = false
     }
   }
 
-  let filteredCalls = $derived(
+  let filteredMeetings = $derived(
     searchQuery.trim() === ''
-      ? calls
-      : calls.filter(c => 
-          c.content?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          c.room?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          c.sender?.full_name?.toLowerCase().includes(searchQuery.toLowerCase())
+      ? meetings
+      : meetings.filter(m => 
+          m.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          m.creator?.full_name?.toLowerCase().includes(searchQuery.toLowerCase())
         )
   )
 
@@ -63,112 +63,89 @@
     yesterday.setDate(today.getDate() - 1)
     if (d.toDateString() === yesterday.toDateString()) return 'Kemarin'
     
-    return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
+    return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
   }
 
   function initials(name: string) {
     return (name || '?').split(' ').map(s => s.charAt(0)).slice(0, 2).join('').toUpperCase()
   }
-
-  function getStatusColor(status: string) {
-    if (status === 'missed') return 'text-red-500'
-    if (status === 'declined') return 'text-slate-400'
-    return 'text-emerald-500'
-  }
-
-  function getStatusIcon(call: any) {
-    const status = call.metadata?.call_status
-    const isVideo = call.metadata?.kind === 'video'
-    
-    if (isVideo) {
-      return status === 'missed' ? VideoOff : Video
-    }
-    return status === 'missed' ? PhoneMissed : Phone
-  }
 </script>
 
 <svelte:head>
-  <title>Riwayat Panggilan · Khwarizmi</title>
+  <title>Riwayat Meeting · Khwarizmi</title>
 </svelte:head>
 
-<div class="min-h-screen bg-slate-50 flex flex-col pb-12">
+<div class="flex flex-col bg-[#FFF9F0]/30 min-h-screen pb-28">
   <!-- Top bar -->
-  <div class="sticky top-0 z-20 px-5 pt-[calc(env(safe-area-inset-top)+14px)] pb-3 bg-white/85 backdrop-blur-md border-b border-slate-100 flex items-center gap-3">
-    <button onclick={() => goto('/meeting')}
-            class="p-2 -ml-2 rounded-2xl text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer">
-      <ArrowLeft size={20} />
-    </button>
-    <div class="min-w-0 flex-1">
-      <p class="text-[10px] font-black uppercase tracking-widest text-emerald-500">Log Rapat</p>
-      <h1 class="text-base font-black text-slate-800 truncate" style="font-family:'Plus Jakarta Sans',sans-serif;">Riwayat Panggilan</h1>
+  <div class="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-100 px-5 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <button onclick={() => goto('/meeting')}
+              class="p-2 -ml-2 rounded-xl text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer">
+        <ArrowLeft size={22} />
+      </button>
+      <div>
+        <p class="text-[10px] font-black uppercase tracking-widest text-emerald-500">Meeting</p>
+        <h1 class="text-xl font-black text-slate-800 truncate" style="font-family:'Plus Jakarta Sans',sans-serif;">Riwayat Meeting</h1>
+      </div>
     </div>
   </div>
 
   <!-- Content -->
-  <div class="flex-1 px-5 pt-4 pb-8 max-w-md w-full mx-auto">
+  <div class="flex-1 px-4 pt-5 pb-8 max-w-md w-full mx-auto">
     <!-- Search -->
-    <div class="relative mb-6">
-      <Search size={16} class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
-      <input type="text" bind:value={searchQuery} placeholder="Cari panggilan..."
-             class="w-full pl-11 pr-4 py-3.5 bg-white border-2 border-slate-100 rounded-[22px] text-sm font-bold text-slate-700 outline-none focus:border-emerald-400 shadow-sm transition-all placeholder:text-slate-300" />
+    <div class="relative mb-4">
+      <Search size={16} class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+      <input type="text" bind:value={searchQuery} placeholder="Cari meeting..."
+             class="w-full pl-12 pr-4 py-3.5 bg-white border-2 border-b-[6px] border-slate-200 rounded-[24px] text-sm font-extrabold text-slate-700 outline-none focus:border-emerald-500 shadow-sm transition-all placeholder:text-slate-300 placeholder:font-bold" />
     </div>
 
     {#if isLoading}
-      <div class="flex flex-col items-center justify-center py-20 gap-3">
-        <div class="w-10 h-10 border-4 border-emerald-100 border-t-emerald-500 rounded-full animate-spin"></div>
-        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Memuat riwayat...</p>
+      <div class="flex flex-col items-center justify-center py-24 gap-3">
+        <div class="w-8 h-8 border-[4px] border-emerald-100 border-t-emerald-500 rounded-full animate-spin"></div>
+        <p class="text-xs font-black text-slate-400">Memuat riwayat...</p>
       </div>
-    {:else if filteredCalls.length === 0}
-      <div class="text-center py-20 px-10">
-        <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Phone size={32} class="text-slate-300" />
+    {:else if filteredMeetings.length === 0}
+      <div class="flex-1 flex flex-col items-center justify-center py-24 text-center px-6">
+        <div class="w-16 h-16 bg-white border-2 border-b-[6px] border-slate-200 rounded-[24px] flex items-center justify-center mb-4 text-slate-400 shadow-sm">
+          <Calendar size={28} strokeWidth={2.5} />
         </div>
-        <h3 class="text-base font-black text-slate-800">Tidak ada riwayat</h3>
-        <p class="text-xs font-medium text-slate-500 mt-1">Belum ada aktivitas panggilan yang tercatat.</p>
+        <p class="text-base font-extrabold text-slate-800 mb-1" style="font-family:'Plus Jakarta Sans',sans-serif;">Tidak ada riwayat</p>
+        <p class="text-xs font-bold text-slate-400 leading-relaxed">Belum ada meeting yang sudah selesai.</p>
       </div>
     {:else}
-      <div class="space-y-3">
-        {#each filteredCalls as call (call.id)}
-          {@const Icon = getStatusIcon(call)}
-          <button onclick={() => goto(`/chat/${call.room_id}`)}
-                  class="w-full p-4 bg-white border-2 border-slate-100 hover:border-emerald-200 rounded-[24px] flex items-center gap-4 transition-all active:scale-[0.98] text-left group">
+      <div class="flex flex-col gap-3">
+        {#each filteredMeetings as m (m.id)}
+          {@const dateObj = new Date(m.scheduled_at)}
+          <div class="w-full relative bg-white rounded-[24px] p-4.5 border-2 border-b-[6px] border-slate-200 shadow-sm">
+            <div class="flex items-start gap-4 mb-3">
+              <div class="w-14 h-14 rounded-2xl bg-emerald-100 flex flex-col items-center justify-center shrink-0 border border-emerald-200">
+                <span class="text-[9px] font-black text-emerald-600 uppercase">{dateObj.toLocaleDateString('id-ID', { month: 'short' })}</span>
+                <span class="text-xl font-black text-emerald-800 -mt-1">{dateObj.getDate()}</span>
+              </div>
+              <div class="min-w-0 flex-1">
+                <h3 class="text-base font-extrabold text-slate-800 leading-tight mb-1" style="font-family:'Plus Jakarta Sans',sans-serif;">{m.title}</h3>
+                {#if m.description}
+                  <p class="text-xs font-bold text-slate-500 mb-1 line-clamp-2">{m.description}</p>
+                {/if}
+                <div class="flex items-center gap-3 text-[10px] font-bold text-slate-400">
+                  <span class="flex items-center gap-1"><Clock size={10} /> {formatTime(m.scheduled_at)}</span>
+                  <span class="flex items-center gap-1"><Users size={10} /> {m.participant_ids.length + 1} Peserta</span>
+                </div>
+              </div>
+            </div>
             
-            <div class="relative shrink-0">
-              <img src={call.sender?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(call.sender?.full_name || '?')}&background=random&color=fff&size=64`}
-                   alt={call.sender?.full_name} class="w-12 h-12 rounded-2xl object-cover" />
-              <div class="absolute -bottom-1 -right-1 w-6 h-6 rounded-lg bg-white shadow-md flex items-center justify-center {getStatusColor(call.metadata?.call_status)}">
-                <Icon size={14} strokeWidth={3} />
+            <!-- Creator & Date -->
+            <div class="flex items-center justify-between pt-3 border-t border-slate-100">
+              <div class="flex items-center gap-2">
+                <img src={m.creator?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(m.creator?.full_name || '?')}&background=random&color=fff&size=64`}
+                     alt={m.creator?.full_name} class="w-7 h-7 rounded-xl object-cover" />
+                <span class="text-[10px] font-black text-slate-500 truncate max-w-[100px]">{m.creator?.full_name}</span>
               </div>
+              <span class="text-[10px] font-bold text-slate-400">{formatDate(m.scheduled_at)}</span>
             </div>
-
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center justify-between gap-2 mb-0.5">
-                <h3 class="text-sm font-black text-slate-800 truncate">
-                  {call.room?.type === 'direct' ? call.sender?.full_name : (call.room?.name || 'Grup')}
-                </h3>
-                <span class="text-[10px] font-bold text-slate-400 whitespace-nowrap">{formatTime(call.created_at)}</span>
-              </div>
-              
-              <div class="flex items-center justify-between gap-2">
-                <p class="text-[11px] font-bold {getStatusColor(call.metadata?.call_status)} truncate">
-                  {call.content}
-                </p>
-                <span class="text-[10px] font-bold text-slate-300 uppercase tracking-wider">{formatDate(call.created_at)}</span>
-              </div>
-            </div>
-
-            <div class="w-8 h-8 rounded-full bg-slate-50 group-hover:bg-emerald-50 flex items-center justify-center text-slate-300 group-hover:text-emerald-500 transition-colors shrink-0">
-               <MessageSquare size={16} />
-            </div>
-          </button>
+          </div>
         {/each}
       </div>
     {/if}
   </div>
 </div>
-
-<style>
-  :global(body) {
-    background-color: #f8fafc;
-  }
-</style>

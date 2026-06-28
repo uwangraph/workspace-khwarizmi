@@ -6,7 +6,7 @@
   import { supabase } from '$lib/supabase'
   import type { Profile } from '$lib/type'
   import NewChatModal from '$lib/components/chat/NewChatModal.svelte'
-  import { MessageSquare, Plus, Hash, Video, Trash2, Pin, PinOff, X, Check } from 'lucide-svelte'
+  import { MessageSquare, Plus, Hash, Video, Trash2, Pin, PinOff, X, Check, Clock } from 'lucide-svelte'
   import toast from 'svelte-french-toast'
   import ConfirmModal from '$lib/components/shared/ConfirmModal.svelte'
   import { globalRooms, isChatLoaded, initGlobalChat, refreshGlobalChat, isRealtimeConnected } from '$lib/stores/globalChatStore'
@@ -228,6 +228,11 @@
     <div class="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-100 px-5 py-4 flex items-center justify-between">
       <h1 class="text-xl font-black text-slate-800 tracking-tight" style="font-family:'Plus Jakarta Sans',sans-serif;">Obrolan</h1>
       <div class="flex items-center gap-2">
+        <button onclick={() => goto('/chat/history')}
+                title="Riwayat Panggilan"
+                class="w-11 h-11 rounded-[20px] bg-blue-500 text-white flex items-center justify-center hover:bg-blue-600 border-2 border-b-[6px] border-blue-700 shadow-sm active:translate-y-0.5 transition-all cursor-pointer">
+          <Clock size={22} strokeWidth={3} />
+        </button>
         <button onclick={() => goto('/meeting')}
                 title="Buat Meeting"
                 class="w-11 h-11 rounded-[20px] bg-emerald-500 text-white flex items-center justify-center hover:bg-emerald-600 border-2 border-b-[6px] border-emerald-700 shadow-sm active:translate-y-0.5 transition-all cursor-pointer">
@@ -247,8 +252,12 @@
       <svg class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
         <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
       </svg>
-      <input type="text" bind:value={searchQuery} placeholder="Cari pesan atau kontak..."
-             class="w-full pl-12 pr-4 py-3.5 bg-white border-2 border-b-[6px] border-slate-200 rounded-[24px] text-sm font-extrabold text-slate-800 outline-none focus:border-orange-500 shadow-sm transition-all placeholder:text-slate-300 placeholder:font-bold" />
+      <input
+        type="text"
+        bind:value={searchQuery}
+        placeholder="Cari pesan atau kontak..."
+        class="w-full pl-12 pr-4 py-3.5 bg-white border-2 border-b-[6px] border-slate-200 rounded-[24px] text-sm font-extrabold text-slate-800 outline-none focus:border-orange-500 shadow-sm transition-all placeholder:text-slate-300 placeholder:font-bold"
+      />
     </div>
   </div>
 

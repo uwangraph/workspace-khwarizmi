@@ -458,6 +458,8 @@ class CallService {
       }
 
       case 'end': {
+        const duration = this.startTime ? Math.floor((Date.now() - this.startTime) / 1000) : 0
+        await this.logCallMessage('ended', duration)
         this.playSound('disconnect')
         this.cleanupCall()
         callState.set({ status: 'idle' })
@@ -520,13 +522,7 @@ class CallService {
     const duration = this.startTime ? Math.floor((Date.now() - this.startTime) / 1000) : 0
     
     // Log call event before cleaning up
-    if (this.isCaller) {
-      if (this.isAnswered) {
-        await this.logCallMessage('ended', duration)
-      } else {
-        await this.logCallMessage('missed')
-      }
-    }
+    await this.logCallMessage(this.isAnswered ? 'ended' : 'missed', duration)
 
     this.playSound('disconnect')
     await Promise.all([
@@ -543,6 +539,11 @@ class CallService {
   }
 
   async leaveCall() {
+    const duration = this.startTime ? Math.floor((Date.now() - this.startTime) / 1000) : 0
+    
+    // Log call event before cleaning up
+    await this.logCallMessage(this.isAnswered ? 'ended' : 'missed', duration)
+    
     this.playSound('disconnect')
     await this.signal({ type: 'leave', from: this.userId, fromName: this.userName })
     this.cleanupCall()
@@ -551,9 +552,10 @@ class CallService {
   }
 
   private async logCallMessage(status: 'missed' | 'ended' | 'declined', duration?: number) {
-    if (this.kind !== 'call' || !this.roomId || !this.userId) return
+    if (!this.roomId || !this.userId) return
 
     let content = ''
+    
     if (status === 'missed') {
       content = 'Panggilan tidak terjawab'
     } else if (status === 'declined') {

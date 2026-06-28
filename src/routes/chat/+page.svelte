@@ -176,7 +176,22 @@
 
   function formatTime(iso: string) {
     const d = new Date(iso)
-    return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+    const now = new Date()
+    const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24))
+    
+    if (diffDays === 0) {
+      // Hari ini: tampilkan jam
+      return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+    } else if (diffDays === 1) {
+      // Kemarin
+      return 'Kemarin'
+    } else if (diffDays < 7) {
+      // Kurang dari 1 minggu: tampilkan nama hari
+      return d.toLocaleDateString('id-ID', { weekday: 'short' })
+    } else {
+      // Lebih dari 1 minggu: tampilkan tanggal
+      return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
+    }
   }
 
   function getRoomPreview(room: any) {

@@ -27,7 +27,7 @@
         !($page.url.pathname.startsWith('/chat/') && $page.url.pathname.length > 6)
     );
 
-    const fullWidthRoutes = ['/admin', '/auth', '/login', '/register', '/docs', '/meeting'];
+    const fullWidthRoutes = ['/admin', '/auth', '/login', '/register', '/docs'];
     const isFullWidthLayout = $derived(
         fullWidthRoutes.some((route) => $page.url.pathname.startsWith(route))
     );
@@ -99,6 +99,17 @@
         // Meeting: lewati prejoin dulu
         if (!user) return
         callService.prepareCall(roomId, roomName, 'join')
+    }
+
+    function handleAcceptMeetingCall(roomId: string, roomName: string, voiceOnly: boolean) {
+        // Meeting call from push notification: langsung join tanpa prejoin
+        if (!user) return
+        const userName = callUserProfile?.full_name || 'Pengguna'
+        callService.getLocalStream(!voiceOnly, true).then(() => {
+            callService.joinCall(roomId, roomName, user.id, userName, { kind: 'meeting', voiceOnly })
+        }).catch(() => {
+            toast.error('Izin kamera/mikrofon diperlukan')
+        })
     }
 
     async function handleAcceptChatCall(roomId: string, roomName: string, voiceOnly: boolean) {

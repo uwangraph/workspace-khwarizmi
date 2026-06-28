@@ -40,6 +40,8 @@
   let allProfiles = $state<Profile[]>([])
   let inviteSearch = $state('')
   let selectedToInvite = $state<Set<string>>(new Set())
+  let isLoadingContacts = $state(true)
+  let contactsError = $state<string | null>(null)
 
   let isSharingScreen = $state(false)
   let isToggleSharing = $state(false)
@@ -120,7 +122,15 @@
     isScreenShareSupported = callService.isScreenShareSupported()
 
     // Fetch all profiles for invitation
-    supabase.from('profiles').select('*').then(({ data }: { data: Profile[] | null }) => { if (data) allProfiles = data })
+    supabase.from('profiles').select('*').then(({ data, error }: { data: Profile[] | null; error: any }) => {
+      if (error) {
+        console.error('[VideoCallOverlay] Failed to fetch profiles:', error)
+        contactsError = 'Gagal memuat kontak'
+      } else if (data) {
+        allProfiles = data
+      }
+      isLoadingContacts = false
+    })
 
     callService.onRemoteStream = (peerId, peerName, stream) => {
       remoteStreams = new Map(remoteStreams).set(peerId, { stream, name: peerName })
@@ -223,12 +233,17 @@
     isReinviting = true
     try {
       const uids = Array.from(selectedToInvite)
-      await callService.reinvite(uids)
-      toast.success(`Undangan dikirim ke ${uids.length} orang`)
-      selectedToInvite.clear()
-      inviteSearch = ''
-    } catch {
-      toast.error('Gagal mengirim undangan')
+      const count = await callService.reinvite(uids)
+      if (count > 0) {
+        toast.success(`Undangan dikirim ke ${uids.length} orang`)
+        selectedToInvite.clear()
+        inviteSearch = ''
+      } else {
+        toast.error('Meeting tidak aktif')
+      }
+    } catch (e: any) {
+      console.error('[VideoCallOverlay] Reinvite failed:', e)
+      toast.error('Gagal mengirim undangan: ' + (e?.message || 'Unknown error'))
     } finally {
       isReinviting = false
     }
@@ -628,9 +643,11 @@
 
   <!-- Participants Side Panel -->
   {#if showParticipantsPanel}
-    <!-- svelte-ignore a11y-click-events-have-key-events -->
-    <div class="absolute inset-0 z-40 bg-slate-900/30 backdrop-blur-sm" onclick={() => showParticipantsPanel = false} transition:fade={{ duration: 150 }}></div>
-    <aside class="absolute top-0 bottom-0 right-0 z-50 w-[320px] max-w-[88%] bg-white shadow-2xl flex flex-col"
+    <!-- Backdrop - click to close -->
+    <div class="fixed inset-0 z-[310] bg-slate-900/30 backdrop-blur-sm" onclick={() => showParticipantsPanel = false} transition:fade={{ duration: 150 }}></div>
+
+    <!-- Panel - higher z-index than backdrop -->
+    <aside class="fixed top-0 bottom-0 right-0 z-[320] w-[320px] max-w-[88%] bg-white shadow-2xl flex flex-col"
            transition:fly={{ x: 320, duration: 220, easing: quintOut }}>
       <div class="px-5 pt-[calc(env(safe-area-inset-top)+14px)] pb-3 border-b border-slate-100 flex items-center justify-between">
         <div>
@@ -641,35 +658,51 @@
           <X size={18} />
         </button>
       </div>
-      <!-- Tambahkan orang section (updated) -->
+      <!-- Tambahkan orang section -->
       <div class="px-4 pt-3 pb-2">
         <div class="rounded-3xl border-2 border-slate-100 bg-slate-50/60 p-3 space-y-3">
           <div class="flex items-center gap-2 px-1">
             <UserPlus size={14} class="text-emerald-600" />
             <p class="text-[10px] font-black uppercase tracking-widest text-slate-500">Undang Peserta</p>
           </div>
-          
+
           <div class="relative">
             <Search size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" />
             <input type="text" bind:value={inviteSearch} placeholder="Cari kontak..."
                    class="w-full pl-9 pr-3 py-2.5 rounded-xl border-2 border-slate-200 text-xs font-bold text-slate-700 outline-none focus:border-emerald-400" />
           </div>
 
-          <div class="max-h-40 overflow-y-auto custom-scrollbar space-y-1">
-            {#each filteredContacts as p (p.id)}
-              <button onclick={() => toggleInvite(p.id)}
-                      class="w-full flex items-center gap-2 p-2 rounded-xl hover:bg-white transition-all {selectedToInvite.has(p.id) ? 'bg-emerald-50' : ''}">
-                <img src={p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name)}&background=random&color=fff&size=64`}
-                     alt={p.full_name} class="w-7 h-7 rounded-lg object-cover" />
-                <span class="text-xs font-bold text-slate-700 flex-1 text-left">{p.full_name}</span>
-                {#if selectedToInvite.has(p.id)}
-                  <Check size={14} class="text-emerald-600" />
-                {/if}
-              </button>
-            {/each}
-          </div>
+          {#if isLoadingContacts}
+            <div class="flex items-center justify-center py-4">
+              <div class="w-5 h-5 border-2 border-emerald-200 border-t-emerald-500 rounded-full animate-spin"></div>
+            </div>
+          {:else if contactsError}
+            <div class="text-center py-3">
+              <p class="text-xs text-red-500 font-bold">{contactsError}</p>
+              <button onclick={() => { isLoadingContacts = true; contactsError = null; supabase.from('profiles').select('*').then(({ data, error }) => { if (error) { contactsError = 'Gagal memuat kontak'; } else if (data) { allProfiles = data; } isLoadingContacts = false; }) }}
+                      class="mt-1 text-[10px] text-emerald-600 font-bold underline">Coba lagi</button>
+            </div>
+          {:else if filteredContacts.length === 0}
+            <div class="text-center py-3">
+              <p class="text-xs text-slate-400 font-bold">{inviteSearch ? 'Kontak tidak ditemukan' : 'Semua kontak sudah di rapat'}</p>
+            </div>
+          {:else}
+            <div class="max-h-40 overflow-y-auto custom-scrollbar space-y-1">
+              {#each filteredContacts as p (p.id)}
+                <button onclick={() => toggleInvite(p.id)}
+                        class="w-full flex items-center gap-2 p-2 rounded-xl hover:bg-white transition-all {selectedToInvite.has(p.id) ? 'bg-emerald-50' : ''}">
+                  <img src={p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name)}&background=random&color=fff&size=64`}
+                       alt={p.full_name} class="w-7 h-7 rounded-lg object-cover" />
+                  <span class="text-xs font-bold text-slate-700 flex-1 text-left">{p.full_name}</span>
+                  {#if selectedToInvite.has(p.id)}
+                    <Check size={14} class="text-emerald-600" />
+                  {/if}
+                </button>
+              {/each}
+            </div>
+          {/if}
 
-          <button onclick={handleReinviteSelected} disabled={isReinviting || selectedToInvite.size === 0}
+          <button onclick={handleReinviteSelected} disabled={isReinviting || selectedToInvite.size === 0 || isLoadingContacts || !!contactsError}
                   class="w-full py-2.5 rounded-xl bg-emerald-500 text-white text-[11px] font-black hover:bg-emerald-600 disabled:opacity-50 transition-all">
             {isReinviting ? 'Mengirim...' : `Undang (${selectedToInvite.size})`}
           </button>

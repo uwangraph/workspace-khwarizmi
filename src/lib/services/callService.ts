@@ -574,21 +574,18 @@ class CallService {
 
     if (!content) return
 
-    try {
-      await supabase.from('chat_messages').insert({
-        room_id: this.roomId,
-        sender_id: this.userId,
-        type: 'call',
-        content,
-        metadata: {
-          call_status: status,
-          duration,
-          kind: this.voiceOnly ? 'voice' : 'video'
-        }
-      })
-    } catch (e) {
-      console.error('Failed to log call message:', e)
-    }
+    const { error } = await supabase.from('chat_messages').insert({
+      room_id: this.roomId,
+      sender_id: this.userId,
+      type: 'call',
+      content,
+      metadata: {
+        call_status: status,
+        duration,
+        kind: this.voiceOnly ? 'voice' : 'video'
+      }
+    })
+    if (error) console.error('[CallService] logCallMessage error:', error.code, error.message, error.details)
   }
 
   declineCall() {

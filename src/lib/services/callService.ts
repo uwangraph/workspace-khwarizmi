@@ -462,8 +462,7 @@ class CallService {
       }
 
       case 'end': {
-        const duration = this.startTime ? Math.floor((Date.now() - this.startTime) / 1000) : 0
-        await this.logCallMessage('ended', duration)
+        // Hanya caller yang log pesan call (via endCall()), receiver hanya cleanup
         this.playSound('disconnect')
         this.cleanupCall()
         callState.set({ status: 'idle' })

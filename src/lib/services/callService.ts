@@ -63,6 +63,8 @@ class CallService {
   onCallEnded: (() => void) | null = null
   onLocalStreamChanged: (() => void) | null = null
 
+  private hasLoggedCall = false
+
   private playSound(name: 'ringtone' | 'connect' | 'disconnect' | 'mute' | 'unmute' | 'busy') {
     if (typeof Audio === 'undefined') return
     
@@ -553,6 +555,8 @@ class CallService {
 
   private async logCallMessage(status: 'missed' | 'ended' | 'declined', duration?: number) {
     if (!this.roomId || !this.userId) return
+    if (this.hasLoggedCall) return
+    this.hasLoggedCall = true
 
     let content = ''
     
@@ -804,6 +808,7 @@ class CallService {
     this.isCaller = false
     this.isAnswered = false
     this.startTime = null
+    this.hasLoggedCall = false
     raisedHands.set(new Set())
     sharingPeers.set(new Set())
     floatingReactions.set([])

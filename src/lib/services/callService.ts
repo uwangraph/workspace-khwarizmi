@@ -555,25 +555,27 @@ class CallService {
   }
 
   private async logInstantMeeting() {
-    if (!this.roomId || !this.userId) return
-    if (this.hasLoggedCall) return
-    if (this.kind !== 'meeting') return
-    // Hanya log jika instant meeting (bukan scheduled meeting yg sudah ada di DB)
-    if (!this.roomId.startsWith('mtg-')) return
+    console.log('[CallService] logInstantMeeting called', { roomId: this.roomId, kind: this.kind, userId: this.userId, hasLoggedCall: this.hasLoggedCall })
+    if (!this.roomId || !this.userId) { console.log('[CallService] skip: no roomId/userId'); return }
+    if (this.hasLoggedCall) { console.log('[CallService] skip: hasLoggedCall'); return }
+    if (this.kind !== 'meeting') { console.log('[CallService] skip: kind =', this.kind); return }
+    if (!this.roomId.startsWith('mtg-')) { console.log('[CallService] skip: not instant meeting, roomId =', this.roomId); return }
     this.hasLoggedCall = true
 
     const startedAt = this.startTime ? new Date(this.startTime).toISOString() : new Date().toISOString()
     const otherParticipants = this.participantIds.filter(id => id !== this.userId)
 
-    const { error } = await supabase.from('scheduled_meetings').insert({
+    console.log('[CallService] inserting instant meeting:', { title: this.roomName, startedAt, created_by: this.userId, participant_ids: otherParticipants })
+    const { data, error } = await supabase.from('scheduled_meetings').insert({
       title: this.roomName || 'Rapat Instan',
       scheduled_at: startedAt,
       created_by: this.userId,
       participant_ids: otherParticipants,
       voice_only: this.voiceOnly,
       is_cancelled: false,
-    })
-    if (error) console.error('[CallService] logInstantMeeting error:', error.code, error.message)
+    }).select()
+    if (error) console.error('[CallService] logInstantMeeting error:', error.code, error.message, error.details)
+    else console.log('[CallService] instant meeting saved:', data)
   }
 
   private async logCallMessage(status: 'missed' | 'ended' | 'declined', duration?: number) {

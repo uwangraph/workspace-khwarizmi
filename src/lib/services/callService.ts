@@ -557,6 +557,8 @@ class CallService {
   private async logCallMessage(status: 'missed' | 'ended' | 'declined', duration?: number) {
     if (!this.roomId || !this.userId) return
     if (this.hasLoggedCall) return
+    // Meeting menggunakan room ID sementara (mtg-xxx) yang tidak ada di chat_rooms
+    if (this.kind === 'meeting') return
     this.hasLoggedCall = true
 
     let content = ''

@@ -302,6 +302,7 @@ class CallService {
     this.isCaller = true
     this.isAnswered = false
     this.startTime = Date.now()
+    this.hasLoggedCall = false
 
     this.globalChannel?.send({
       type: 'broadcast',
@@ -344,6 +345,7 @@ class CallService {
     this.stopSounds()
     const kind = opts.kind ?? 'meeting'
     const voiceOnly = !!opts.voiceOnly
+    this.hasLoggedCall = false
     this.roomId = roomId
     this.roomName = roomName
     this.userId = userId
@@ -808,7 +810,6 @@ class CallService {
     this.isCaller = false
     this.isAnswered = false
     this.startTime = null
-    this.hasLoggedCall = false
     raisedHands.set(new Set())
     sharingPeers.set(new Set())
     floatingReactions.set([])

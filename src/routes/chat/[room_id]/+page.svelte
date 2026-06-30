@@ -771,14 +771,24 @@
     })
   }
 
-  function getStatusText(p: Profile | null) { 
-    if (!p) return 'Offline'; 
-    if (p.last_seen) { 
-      const diff = Date.now() - new Date(p.last_seen).getTime(); 
-      if (diff < 120000) return 'Online'; 
-      return `Terakhir dilihat ${new Date(p.last_seen).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}` 
-    } 
-    return 'Offline' 
+  function getStatusText(p: Profile | null) {
+    if (!p) return 'Offline';
+    if (p.last_seen) {
+      const diff = Date.now() - new Date(p.last_seen).getTime();
+      if (diff < 120000) return 'Online';
+      const date = new Date(p.last_seen);
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const msgDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const dayDiff = Math.round((today.getTime() - msgDay.getTime()) / 86400000);
+      let label: string;
+      if (dayDiff === 0) label = date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+      else if (dayDiff === 1) label = 'Kemarin';
+      else if (dayDiff < 7) label = date.toLocaleDateString('id-ID', { weekday: 'short' });
+      else label = date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+      return `Terakhir dilihat ${label}`;
+    }
+    return 'Offline'
   }
   function isMessageRead(msg: ChatMessage) {
     if (msg.sender_id !== user?.id) return false

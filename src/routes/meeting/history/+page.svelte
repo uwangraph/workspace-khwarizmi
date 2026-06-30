@@ -22,16 +22,36 @@
   async function fetchMeetingHistory() {
     isLoading = true
     try {
-      // Ambil meeting yang sudah lewat dan melibatkan user ini
-      const { data, error } = await supabase
-        .from('scheduled_meetings')
-        .select('*')
-        .or(`created_by.eq.${user.id},participant_ids.cs.{${user.id}}`)
-        .lt('scheduled_at', new Date().toISOString())
-        .order('scheduled_at', { ascending: false })
+      const now = new Date().toISOString()
 
-      if (error) throw error
-      const rawMeetings = data || []
+      // Query terpisah untuk menghindari masalah array containment dalam .or()
+      const [{ data: asCreator, error: e1 }, { data: asParticipant, error: e2 }] = await Promise.all([
+        supabase
+          .from('scheduled_meetings')
+          .select('*')
+          .eq('created_by', user.id)
+          .lt('scheduled_at', now)
+          .order('scheduled_at', { ascending: false }),
+        supabase
+          .from('scheduled_meetings')
+          .select('*')
+          .contains('participant_ids', [user.id])
+          .lt('scheduled_at', now)
+          .order('scheduled_at', { ascending: false }),
+      ])
+
+      if (e1) throw e1
+      if (e2) throw e2
+
+      // Gabung dan deduplikasi
+      const seen = new Set<string>()
+      const combined = [...(asCreator || []), ...(asParticipant || [])].filter(m => {
+        if (seen.has(m.id)) return false
+        seen.add(m.id)
+        return true
+      }).sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime())
+
+      const rawMeetings = combined
       if (rawMeetings.length === 0) { meetings = []; return }
 
       // Ambil profil creator secara terpisah (created_by references auth.users)

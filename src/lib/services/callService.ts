@@ -523,8 +523,8 @@ class CallService {
 
   async endCall() {
     const duration = this.startTime ? Math.floor((Date.now() - this.startTime) / 1000) : 0
-    
-    // Log call event before cleaning up
+
+    await this.logInstantMeeting()
     await this.logCallMessage(this.isAnswered ? 'ended' : 'missed', duration)
 
     this.playSound('disconnect')
@@ -552,6 +552,28 @@ class CallService {
     this.cleanupCall()
     callState.set({ status: 'idle' })
     this.onCallEnded?.()
+  }
+
+  private async logInstantMeeting() {
+    if (!this.roomId || !this.userId) return
+    if (this.hasLoggedCall) return
+    if (this.kind !== 'meeting') return
+    // Hanya log jika instant meeting (bukan scheduled meeting yg sudah ada di DB)
+    if (!this.roomId.startsWith('mtg-')) return
+    this.hasLoggedCall = true
+
+    const startedAt = this.startTime ? new Date(this.startTime).toISOString() : new Date().toISOString()
+    const otherParticipants = this.participantIds.filter(id => id !== this.userId)
+
+    const { error } = await supabase.from('scheduled_meetings').insert({
+      title: this.roomName || 'Rapat Instan',
+      scheduled_at: startedAt,
+      created_by: this.userId,
+      participant_ids: otherParticipants,
+      voice_only: this.voiceOnly,
+      is_cancelled: false,
+    })
+    if (error) console.error('[CallService] logInstantMeeting error:', error.code, error.message)
   }
 
   private async logCallMessage(status: 'missed' | 'ended' | 'declined', duration?: number) {

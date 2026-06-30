@@ -22,15 +22,32 @@
   async function fetchMeetingHistory() {
     isLoading = true
     try {
+      // Ambil meeting yang sudah lewat dan melibatkan user ini
       const { data, error } = await supabase
         .from('scheduled_meetings')
-        .select('*, creator:profiles(full_name, avatar_url)')
+        .select('*')
         .or(`created_by.eq.${user.id},participant_ids.cs.{${user.id}}`)
         .lt('scheduled_at', new Date().toISOString())
         .order('scheduled_at', { ascending: false })
 
       if (error) throw error
-      meetings = (data as ScheduledMeeting[]) || []
+      const rawMeetings = data || []
+      if (rawMeetings.length === 0) { meetings = []; return }
+
+      // Ambil profil creator secara terpisah (created_by references auth.users)
+      const creatorIds = [...new Set(rawMeetings.map((m: any) => m.created_by).filter(Boolean))]
+      const { data: creatorProfiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .in('id', creatorIds)
+
+      const creatorMap: Record<string, any> = {}
+      for (const p of (creatorProfiles || [])) creatorMap[p.id] = p
+
+      meetings = rawMeetings.map((m: any) => ({
+        ...m,
+        creator: creatorMap[m.created_by] ?? null,
+      })) as ScheduledMeeting[]
     } catch (e) {
       console.error('Failed to fetch meeting history:', e)
     } finally {

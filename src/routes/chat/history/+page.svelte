@@ -21,10 +21,10 @@
   async function fetchCallHistory() {
     isLoading = true
     try {
-      // Ambil room-room yang diikuti user
+      // 1. Ambil semua room yang diikuti user
       const { data: participantData, error: pErr } = await supabase
         .from('chat_participants')
-        .select('room_id, room:chat_rooms(type, name)')
+        .select('room_id')
         .eq('user_id', user.id)
 
       if (pErr) throw pErr
@@ -32,38 +32,68 @@
       const roomIds = (participantData || []).map((r: any) => r.room_id)
       if (roomIds.length === 0) { calls = []; return }
 
-      // Untuk direct room, cari profil partner (bukan user sendiri)
-      const directRoomIds = (participantData || [])
-        .filter((r: any) => r.room?.type === 'direct')
-        .map((r: any) => r.room_id)
+      // 2. Ambil info room (nama, tipe)
+      const { data: roomData } = await supabase
+        .from('chat_rooms')
+        .select('id, name, type')
+        .in('id', roomIds)
 
-      const partnerMap: Record<string, { full_name: string; avatar_url: string | null }> = {}
-      if (directRoomIds.length > 0) {
-        const { data: partnerData } = await supabase
-          .from('chat_participants')
-          .select('room_id, profile:profiles(id, full_name, avatar_url)')
-          .in('room_id', directRoomIds)
-          .neq('user_id', user.id)
+      const roomMap: Record<string, { name: string; type: string }> = {}
+      for (const r of (roomData || [])) roomMap[r.id] = r
 
-        for (const p of (partnerData || [])) {
-          if (p.profile) partnerMap[p.room_id] = p.profile as any
-        }
-      }
-
-      // Ambil pesan bertipe 'call' dari room yang diikuti user
-      const { data, error } = await supabase
+      // 3. Ambil pesan call dari room-room tersebut
+      const { data: msgData, error: msgErr } = await supabase
         .from('chat_messages')
-        .select('*, room:chat_rooms(name, type), sender:profiles!sender_id(id, full_name, avatar_url)')
+        .select('*')
         .eq('type', 'call')
         .in('room_id', roomIds)
         .order('created_at', { ascending: false })
 
-      if (error) throw error
+      if (msgErr) throw msgErr
+      if (!msgData || msgData.length === 0) { calls = []; return }
 
-      // Lampirkan info partner untuk direct room
-      calls = (data || []).map((c: any) => ({
-        ...c,
-        partner: c.room?.type === 'direct' ? (partnerMap[c.room_id] ?? null) : null
+      // 4. Ambil profil sender
+      const senderIds = [...new Set(msgData.map((m: any) => m.sender_id).filter(Boolean))]
+      const { data: senderData } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .in('id', senderIds)
+
+      const senderMap: Record<string, { full_name: string; avatar_url: string | null }> = {}
+      for (const p of (senderData || [])) senderMap[p.id] = p
+
+      // 5. Untuk direct room, ambil profil partner (bukan user sendiri)
+      const directRoomIds = roomIds.filter(id => roomMap[id]?.type === 'direct')
+      const partnerMap: Record<string, { full_name: string; avatar_url: string | null }> = {}
+      if (directRoomIds.length > 0) {
+        const { data: partnerParticipants } = await supabase
+          .from('chat_participants')
+          .select('room_id, user_id')
+          .in('room_id', directRoomIds)
+          .neq('user_id', user.id)
+
+        const partnerIds = [...new Set((partnerParticipants || []).map((p: any) => p.user_id))]
+        if (partnerIds.length > 0) {
+          const { data: partnerProfiles } = await supabase
+            .from('profiles')
+            .select('id, full_name, avatar_url')
+            .in('id', partnerIds)
+
+          const profileMap: Record<string, any> = {}
+          for (const p of (partnerProfiles || [])) profileMap[p.id] = p
+
+          for (const pp of (partnerParticipants || [])) {
+            if (profileMap[pp.user_id]) partnerMap[pp.room_id] = profileMap[pp.user_id]
+          }
+        }
+      }
+
+      // 6. Gabungkan semua data
+      calls = msgData.map((m: any) => ({
+        ...m,
+        room: roomMap[m.room_id] ?? null,
+        sender: senderMap[m.sender_id] ?? null,
+        partner: roomMap[m.room_id]?.type === 'direct' ? (partnerMap[m.room_id] ?? null) : null,
       }))
     } catch (e) {
       console.error('Failed to fetch call history:', e)
@@ -78,13 +108,8 @@
       if (activeFilter === 'voice' && c.metadata?.kind !== 'voice') return false
       if (searchQuery.trim() === '') return true
       const q = searchQuery.toLowerCase()
-      const displayName = c.room?.type === 'direct'
-        ? (c.partner?.full_name || c.sender?.full_name || '')
-        : (c.room?.name || '')
-      return (
-        displayName.toLowerCase().includes(q) ||
-        c.content?.toLowerCase().includes(q)
-      )
+      const name = getDisplayName(c).toLowerCase()
+      return name.includes(q) || c.content?.toLowerCase().includes(q)
     })
   )
 
@@ -115,17 +140,13 @@
     return status === 'missed' ? PhoneMissed : Phone
   }
 
+  // Untuk direct room: tampilkan partner. Untuk group: tampilkan nama room.
   function getDisplayProfile(call: any) {
-    if (call.room?.type === 'direct') {
-      return call.partner ?? call.sender
-    }
-    return call.sender
+    return call.room?.type === 'direct' ? (call.partner ?? call.sender) : null
   }
 
   function getDisplayName(call: any) {
-    if (call.room?.type === 'direct') {
-      return call.partner?.full_name ?? call.sender?.full_name ?? 'Pengguna'
-    }
+    if (call.room?.type === 'direct') return call.partner?.full_name ?? call.sender?.full_name ?? 'Pengguna'
     return call.room?.name ?? 'Grup'
   }
 </script>
@@ -192,8 +213,8 @@
                   class="w-full relative flex items-center gap-4 bg-white rounded-[24px] p-4 border-2 border-b-[6px] border-slate-200 shadow-sm transition-all active:translate-y-0.5 active:border-b-[3px] text-left cursor-pointer select-none hover:border-orange-300">
 
             <div class="relative shrink-0">
-              <img src={profile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.full_name || '?')}&background=random&color=fff&size=64`}
-                   alt={profile?.full_name}
+              <img src={profile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.full_name || call.room?.name || '?')}&background=random&color=fff&size=64`}
+                   alt={getDisplayName(call)}
                    class="w-14 h-14 rounded-2xl object-cover shadow-sm border border-slate-100 bg-slate-50" />
               <div class="absolute -bottom-1 -right-1 w-7 h-7 rounded-xl bg-white shadow-md flex items-center justify-center border {getStatusColor(call.metadata?.call_status)}">
                 <Icon size={14} strokeWidth={3} />

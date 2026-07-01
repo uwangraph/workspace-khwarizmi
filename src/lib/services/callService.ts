@@ -555,6 +555,7 @@ class CallService {
   }
 
   private async logMeetingEnd() {
+    console.log('[logMeetingEnd] called', { roomId: this.roomId, kind: this.kind, userId: this.userId, hasLoggedCall: this.hasLoggedCall })
     if (!this.roomId || !this.userId || this.kind !== 'meeting') return
     if (this.hasLoggedCall) return
     this.hasLoggedCall = true
@@ -562,26 +563,27 @@ class CallService {
     const now = new Date().toISOString()
 
     if (this.roomId.startsWith('mtg-')) {
-      // Instant meeting: simpan record baru
       const otherParticipants = this.participantIds.filter(id => id !== this.userId)
       const startedAt = this.startTime ? new Date(this.startTime).toISOString() : now
-      const { error } = await supabase.from('scheduled_meetings').insert({
+      console.log('[logMeetingEnd] insert instant meeting', { startedAt, created_by: this.userId })
+      const { data, error } = await supabase.from('scheduled_meetings').insert({
         title: this.roomName || 'Rapat Instan',
         scheduled_at: startedAt,
         created_by: this.userId,
         participant_ids: otherParticipants,
         voice_only: this.voiceOnly,
         is_cancelled: false,
-      })
-      if (error) console.error('[CallService] logMeetingEnd (instant) error:', error.code, error.message)
+      }).select('id')
+      console.log('[logMeetingEnd] insert result:', data, error)
     } else {
-      // Scheduled meeting: update scheduled_at ke waktu aktual jika masih di masa depan
-      const { error } = await supabase
+      console.log('[logMeetingEnd] update scheduled meeting', { id: this.roomId, now })
+      const { data, error, count } = await supabase
         .from('scheduled_meetings')
         .update({ scheduled_at: now })
         .eq('id', this.roomId)
         .gt('scheduled_at', now)
-      if (error) console.error('[CallService] logMeetingEnd (scheduled) error:', error.code, error.message)
+        .select('id, scheduled_at')
+      console.log('[logMeetingEnd] update result:', data, error, 'count:', count)
     }
   }
 

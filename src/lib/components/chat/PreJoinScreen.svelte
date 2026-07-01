@@ -160,7 +160,7 @@
                 Menghubungkan...
               </span>
             {:else}
-              {prejoin.mode === 'start' ? '🚀 Mulai Rapat' : '👋 Gabung Sekarang'}
+              {prejoin.mode === 'start' ? 'Mulai Rapat' : 'Gabung Sekarang'}
             {/if}
           </button>
 

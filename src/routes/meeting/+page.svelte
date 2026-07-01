@@ -557,7 +557,7 @@
 
         <button onclick={startInstantMeeting}
                 class="w-full py-4 bg-emerald-500 text-white text-sm font-black rounded-2xl border-2 border-b-[6px] border-emerald-700 shadow-md hover:bg-emerald-600 active:translate-y-0.5 active:border-b-[3px] transition-all cursor-pointer">
-          🎥 Mulai Rapat Sekarang
+          Mulai Rapat Sekarang
         </button>
       </div>
 

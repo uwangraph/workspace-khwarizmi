@@ -524,7 +524,7 @@ class CallService {
   async endCall() {
     const duration = this.startTime ? Math.floor((Date.now() - this.startTime) / 1000) : 0
 
-    await this.logInstantMeeting()
+    await this.logMeetingEnd()
     await this.logCallMessage(this.isAnswered ? 'ended' : 'missed', duration)
 
     this.playSound('disconnect')
@@ -554,28 +554,35 @@ class CallService {
     this.onCallEnded?.()
   }
 
-  private async logInstantMeeting() {
-    console.log('[CallService] logInstantMeeting called', { roomId: this.roomId, kind: this.kind, userId: this.userId, hasLoggedCall: this.hasLoggedCall })
-    if (!this.roomId || !this.userId) { console.log('[CallService] skip: no roomId/userId'); return }
-    if (this.hasLoggedCall) { console.log('[CallService] skip: hasLoggedCall'); return }
-    if (this.kind !== 'meeting') { console.log('[CallService] skip: kind =', this.kind); return }
-    if (!this.roomId.startsWith('mtg-')) { console.log('[CallService] skip: not instant meeting, roomId =', this.roomId); return }
+  private async logMeetingEnd() {
+    if (!this.roomId || !this.userId || this.kind !== 'meeting') return
+    if (this.hasLoggedCall) return
     this.hasLoggedCall = true
 
-    const startedAt = this.startTime ? new Date(this.startTime).toISOString() : new Date().toISOString()
-    const otherParticipants = this.participantIds.filter(id => id !== this.userId)
+    const now = new Date().toISOString()
 
-    console.log('[CallService] inserting instant meeting:', { title: this.roomName, startedAt, created_by: this.userId, participant_ids: otherParticipants })
-    const { data, error } = await supabase.from('scheduled_meetings').insert({
-      title: this.roomName || 'Rapat Instan',
-      scheduled_at: startedAt,
-      created_by: this.userId,
-      participant_ids: otherParticipants,
-      voice_only: this.voiceOnly,
-      is_cancelled: false,
-    }).select()
-    if (error) console.error('[CallService] logInstantMeeting error:', error.code, error.message, error.details)
-    else console.log('[CallService] instant meeting saved:', data)
+    if (this.roomId.startsWith('mtg-')) {
+      // Instant meeting: simpan record baru
+      const otherParticipants = this.participantIds.filter(id => id !== this.userId)
+      const startedAt = this.startTime ? new Date(this.startTime).toISOString() : now
+      const { error } = await supabase.from('scheduled_meetings').insert({
+        title: this.roomName || 'Rapat Instan',
+        scheduled_at: startedAt,
+        created_by: this.userId,
+        participant_ids: otherParticipants,
+        voice_only: this.voiceOnly,
+        is_cancelled: false,
+      })
+      if (error) console.error('[CallService] logMeetingEnd (instant) error:', error.code, error.message)
+    } else {
+      // Scheduled meeting: update scheduled_at ke waktu aktual jika masih di masa depan
+      const { error } = await supabase
+        .from('scheduled_meetings')
+        .update({ scheduled_at: now })
+        .eq('id', this.roomId)
+        .gt('scheduled_at', now)
+      if (error) console.error('[CallService] logMeetingEnd (scheduled) error:', error.code, error.message)
+    }
   }
 
   private async logCallMessage(status: 'missed' | 'ended' | 'declined', duration?: number) {

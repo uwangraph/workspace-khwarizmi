@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { Home, Clock, Calendar, Star, FileText } from 'lucide-svelte'
+
   interface SpecialRule {
     type: 'normal' | 'custom_time' | 'wfa'
     start_time?: string | null
@@ -15,7 +17,7 @@
 {#if isFriday}
   <div class="flex items-center gap-3 rounded-2xl px-4 py-3.5 border-l-4 border-violet-400" style="background:#F5F3FF;">
     <div class="w-9 h-9 rounded-lg bg-violet-100 flex items-center justify-center flex-shrink-0">
-      <span class="text-lg">🕌</span>
+      <Star size={18} class="text-violet-500" strokeWidth={2} />
     </div>
     <div>
       <p class="text-sm font-bold text-violet-700">Hari Jumat — Sesi Reguler Libur</p>
@@ -28,7 +30,13 @@
               border-left-color:{specialRule?.type==='wfa'?'#3B82F6':specialRule?.type==='custom_time'?'#F59E0B':'#F97316'}">
     <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
          style="background:{specialRule?.type==='wfa'?'#DBEAFE':specialRule?.type==='custom_time'?'#FEF3C7':'#FFEDD5'}">
-      <span class="text-lg">{specialRule?.type==='wfa'?'🏠':specialRule?.type==='custom_time'?'⏰':'📅'}</span>
+      {#if specialRule?.type === 'wfa'}
+        <Home size={18} class="text-blue-500" strokeWidth={2} />
+      {:else if specialRule?.type === 'custom_time'}
+        <Clock size={18} class="text-amber-500" strokeWidth={2} />
+      {:else}
+        <Calendar size={18} class="text-orange-500" strokeWidth={2} />
+      {/if}
     </div>
     <div>
       <p class="text-sm font-bold text-slate-700">
@@ -44,7 +52,12 @@
           Hanya Sesi Pagi · Siang & Sore libur otomatis
         {/if}
       </p>
-      {#if specialRule?.note}<p class="text-[10px] text-slate-400 mt-1">📝 {specialRule.note}</p>{/if}
+      {#if specialRule?.note}
+        <p class="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
+          <FileText size={10} />
+          {specialRule.note}
+        </p>
+      {/if}
     </div>
   </div>
 {/if}

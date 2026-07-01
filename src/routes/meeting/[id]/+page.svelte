@@ -4,6 +4,7 @@
   import { goto } from '$app/navigation'
   import { fade } from 'svelte/transition'
   import { Video, Loader2, AlertTriangle } from 'lucide-svelte'
+  import { supabase } from '$lib/supabase'
   import { authService } from '$lib/services/authService'
   import { callService } from '$lib/services/callService'
   import { callState } from '$lib/stores/callStore'

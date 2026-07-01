@@ -340,7 +340,7 @@ class CallService {
     roomName: string,
     userId: string,
     userName: string,
-    opts: { kind?: CallKind; voiceOnly?: boolean } = {}
+    opts: { kind?: CallKind; voiceOnly?: boolean; participantIds?: string[] } = {}
   ) {
     this.stopSounds()
     const kind = opts.kind ?? 'meeting'
@@ -355,6 +355,7 @@ class CallService {
     this.isCaller = false
     this.isAnswered = true
     this.startTime = Date.now()
+    if (opts.participantIds) this.participantIds = opts.participantIds
 
     await this.getLocalStream(!voiceOnly, true)
     await this.joinSignalChannel(roomId, userId, userName)
@@ -382,6 +383,7 @@ class CallService {
 
   getRoomLink(): string {
     if (!this.roomId) return ''
+    if (this.kind === 'meeting') return `${window.location.origin}/meeting/${this.roomId}`
     return `${window.location.origin}/chat/${this.roomId}`
   }
 

@@ -337,6 +337,10 @@
     background: linear-gradient(160deg, #047857 0%, #064e3b 60%, #022c22 100%);
     transition: background 0.4s ease;
   }
+  .bg-video {
+    background: #0f172a;
+    transition: background 0.4s ease;
+  }
   .pip {
     touch-action: none;
     transition: transform 0.15s ease, border-color 0.15s ease, left 0.1s ease-out, top 0.1s ease-out;

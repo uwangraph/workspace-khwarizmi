@@ -712,7 +712,7 @@
       <div class="flex-1 overflow-y-auto custom-scrollbar px-3 pt-1 pb-3 space-y-1">
         <p class="px-3 pt-1 pb-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Di Rapat</p>
         {#each tiles as tile (tile.id)}
-          <div class="flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-slate-50 transition-colors">
+          <div class="group flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-slate-50 transition-colors">
             <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-100 to-emerald-200 flex items-center justify-center shrink-0">
               <span class="text-xs font-black text-emerald-700">{initials(tile.name)}</span>
             </div>

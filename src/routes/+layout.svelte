@@ -140,7 +140,7 @@
             if (cs.mode === 'start') {
                 await callService.startCall(cs.roomId, cs.roomName, user.id, userName, cs.participantIds ?? [user.id], { kind: 'meeting' })
             } else {
-                await callService.joinCall(cs.roomId, cs.roomName, user.id, userName, { kind: 'meeting' })
+                await callService.joinCall(cs.roomId, cs.roomName, user.id, userName, { kind: 'meeting', participantIds: cs.participantIds })
             }
         } catch (e) {
             console.error('Pre-join failed:', e)

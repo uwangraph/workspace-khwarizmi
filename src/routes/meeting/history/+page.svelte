@@ -40,6 +40,9 @@
           .order('scheduled_at', { ascending: false }),
       ])
 
+      console.log('[MeetingHistory] asCreator:', asCreator, e1)
+      console.log('[MeetingHistory] asParticipant:', asParticipant, e2)
+
       if (e1) throw e1
       if (e2) throw e2
 

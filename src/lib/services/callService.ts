@@ -576,14 +576,38 @@ class CallService {
       }).select('id')
       console.log('[logMeetingEnd] insert result:', data, error)
     } else {
-      console.log('[logMeetingEnd] update scheduled meeting', { id: this.roomId, now })
-      const { data, error, count } = await supabase
+      // Cek apakah meeting ada di DB
+      const { data: existing } = await supabase
         .from('scheduled_meetings')
-        .update({ scheduled_at: now })
-        .eq('id', this.roomId)
-        .gt('scheduled_at', now)
         .select('id, scheduled_at')
-      console.log('[logMeetingEnd] update result:', data, error, 'count:', count)
+        .eq('id', this.roomId)
+        .maybeSingle()
+
+      console.log('[logMeetingEnd] existing:', existing)
+
+      if (existing) {
+        // Ada di DB → update scheduled_at ke masa lalu jika masih future
+        if (new Date(existing.scheduled_at) > new Date(now)) {
+          const { error } = await supabase
+            .from('scheduled_meetings')
+            .update({ scheduled_at: now })
+            .eq('id', this.roomId)
+          console.log('[logMeetingEnd] updated scheduled_at to now, error:', error)
+        }
+      } else {
+        // Tidak ada di DB → insert sebagai riwayat meeting ad-hoc
+        const startedAt = this.startTime ? new Date(this.startTime).toISOString() : now
+        const otherParticipants = this.participantIds.filter(id => id !== this.userId)
+        const { data, error } = await supabase.from('scheduled_meetings').insert({
+          title: this.roomName || 'Rapat',
+          scheduled_at: startedAt,
+          created_by: this.userId,
+          participant_ids: otherParticipants,
+          voice_only: this.voiceOnly,
+          is_cancelled: false,
+        }).select('id')
+        console.log('[logMeetingEnd] inserted ad-hoc meeting:', data, error)
+      }
     }
   }
 

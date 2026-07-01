@@ -43,6 +43,11 @@
       console.log('[MeetingHistory] asCreator:', asCreator, e1)
       console.log('[MeetingHistory] asParticipant:', asParticipant, e2)
 
+      // Debug: cek semua meeting tanpa filter
+      const { data: allMeetings } = await supabase.from('scheduled_meetings').select('id, title, created_by, participant_ids, scheduled_at').limit(10)
+      console.log('[MeetingHistory] ALL meetings (no filter):', allMeetings)
+      console.log('[MeetingHistory] current user.id:', user.id)
+
       if (e1) throw e1
       if (e2) throw e2
 
